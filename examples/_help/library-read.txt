@@ -1,0 +1,16 @@
+command: affinity-axi library read
+summary: Read a library script; --out writes it to disk so the code stays out of context
+args[1]{name,required,description}:
+  title,yes,exact script title from 'library list'
+flags[4]{flag,default,description}:
+  --out,,"write the code to this file and print only file, bytes, lines"
+  --full,,print the whole code instead of truncating
+  --url,,"MCP server URL (default: AFFINITY_MCP_URL, else http://[::1]:6767)"
+  --help,,show this help
+examples[2]:
+  affinity-axi library read "My script" --out scripts/my-script.js
+  affinity-axi library read "My script" --full
+output[3]:
+  title: Lumen Studio demo
+  bytes: <n>
+  help[1]:

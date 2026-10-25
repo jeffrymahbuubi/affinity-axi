@@ -1,0 +1,18 @@
+{
+  "id": "doc-info",
+  "feature": "doc info",
+  "title": "Read an asset's manifest",
+  "summary": "Show how a .af was made and its history from its manifest, without connecting",
+  "commands": [
+    "$BIN doc save $DOC $OUT/asset.af",
+    "$BIN doc info $OUT/asset.af"
+  ],
+  "output": [
+    "manifest: fresh"
+  ],
+  "images": [],
+  "needs": [
+    "affinity",
+    "document"
+  ]
+}

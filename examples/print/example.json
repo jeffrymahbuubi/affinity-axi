@@ -1,0 +1,21 @@
+{
+  "id": "print",
+  "feature": "print",
+  "title": "Print PDF with preflight",
+  "summary": "Export a press PDF (default PDF/X-4) and preflight it offline: boxes, bleed, colour, fonts",
+  "commands": [
+    "$BIN run $OUT/script.js --with-helpers --args '{\"uuid\":\"$DOC\"}'",
+    "$BIN print $DOC --out $OUT/poster.pdf"
+  ],
+  "script": "script.js",
+  "output": [
+    "preset: PDF/X-4",
+    "  pdfx-version,ok,PDF/X-4",
+    "  trim-box,ok,[0 0 1080 1080]"
+  ],
+  "images": [],
+  "needs": [
+    "affinity",
+    "document"
+  ]
+}

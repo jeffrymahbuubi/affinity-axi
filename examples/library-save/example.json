@@ -1,0 +1,18 @@
+{
+  "id": "library-save",
+  "feature": "library save",
+  "title": "Save a script to the library",
+  "summary": "Save a script file into Affinity's library; an identical title and code is a no-op",
+  "commands": [
+    "$BIN library save $OUT/script.js --title \"Lumen Studio demo\" --description \"Draws one rectangle\""
+  ],
+  "script": "script.js",
+  "output": [
+    "title: Lumen Studio demo",
+    "help[1]:"
+  ],
+  "images": [],
+  "needs": [
+    "affinity"
+  ]
+}

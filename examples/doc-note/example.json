@@ -1,0 +1,18 @@
+{
+  "id": "doc-note",
+  "feature": "doc note",
+  "title": "Add a note to an asset",
+  "summary": "Record a note in a .af's manifest without connecting",
+  "commands": [
+    "$BIN doc save $DOC $OUT/asset.af",
+    "$BIN doc note $OUT/asset.af \"Lumen Studio launch card, headline approved\""
+  ],
+  "output": [
+    "noted: examples/doc-note/asset.af"
+  ],
+  "images": [],
+  "needs": [
+    "affinity",
+    "document"
+  ]
+}

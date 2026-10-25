@@ -1,0 +1,23 @@
+{
+  "id": "helpers-qr",
+  "feature": "helpers:qr",
+  "title": "Helpers: QR codes",
+  "summary": "Draw URL and WhatsApp QR codes with a quiet zone and names",
+  "commands": [
+    "$BIN run $OUT/script.js --with-helpers --args '{\"uuid\":\"$DOC\"}'",
+    "$BIN render $DOC --out $OUT/render.jpg"
+  ],
+  "script": "script.js",
+  "output": [
+    "status: ok",
+    "ms: <n>",
+    "output[1]:"
+  ],
+  "images": [
+    "render.jpg"
+  ],
+  "needs": [
+    "affinity",
+    "document"
+  ]
+}

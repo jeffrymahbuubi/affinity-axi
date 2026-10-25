@@ -1,0 +1,18 @@
+{
+  "id": "assets",
+  "feature": "assets",
+  "title": "List saved assets",
+  "summary": "List the .af files under a folder with the script that made them and whether they are unchanged",
+  "commands": [
+    "$BIN doc save $DOC $OUT/library/asset.af",
+    "$BIN assets --dir $OUT/library"
+  ],
+  "output": [
+    "assets[1]{file,madeBy,saved,fresh}:"
+  ],
+  "images": [],
+  "needs": [
+    "affinity",
+    "document"
+  ]
+}

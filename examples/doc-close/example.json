@@ -1,0 +1,19 @@
+{
+  "id": "doc-close",
+  "feature": "doc close",
+  "title": "Close a saved document",
+  "summary": "Close a document after saving it; closing an unsaved one is refused so no prompt can hang Affinity",
+  "commands": [
+    "$BIN doc save $DOC $OUT/demo.af",
+    "$BIN doc close $DOC"
+  ],
+  "output": [
+    "dirty: false",
+    "closed: <uuid>"
+  ],
+  "images": [],
+  "needs": [
+    "affinity",
+    "document"
+  ]
+}

@@ -1,0 +1,32 @@
+$ affinity-axi run examples/fill/template.js --with-helpers --args '{"uuid":"$DOC"}'
+script: examples/fill/template.js
+status: ok
+ms: <n>
+output[1]:
+  {"slots":["slot:photo","slot:headline","slot:price","slot:cta"]}
+help[2]:
+  affinity-axi render current
+  affinity-axi export current PNG <path-under-Desktop>
+
+$ affinity-axi doc save $DOC examples/fill/template.af
+saved: examples/fill/template.af
+doc: <uuid>
+bytes: <n>
+dirty: false
+manifest: template.af.axi.json
+help[2]:
+  affinity-axi doc close <uuid8>
+  affinity-axi export <uuid8> PNG <path-under-Desktop>
+
+$ affinity-axi doc close $DOC
+closed: <uuid>
+
+$ affinity-axi fill examples/fill/template.af --data examples/fill/posts.json --key slug --out-dir examples/fill --export PNG
+records[2]{key,status,doc,ms,note}:
+  mar,ok,<uuid8>,<n>,saved mar.af; exported mar.png
+  apr,ok,<uuid8>,<n>,saved apr.af; exported apr.png
+saved: examples/fill
+exported: 2
+help[2]:
+  affinity-axi doc open examples/fill/mar.af
+  affinity-axi inspect <doc> --named   # the doc id doc open prints

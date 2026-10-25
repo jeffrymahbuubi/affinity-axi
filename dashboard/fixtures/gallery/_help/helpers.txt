@@ -1,0 +1,3 @@
+usage: affinity-axi helpers [--grep <regex>]
+summary: List the axi helper functions that --with-helpers appends to a script
+examples[2]: affinity-axi helpers / affinity-axi helpers --grep text

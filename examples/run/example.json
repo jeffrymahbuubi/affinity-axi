@@ -1,0 +1,21 @@
+{
+  "id": "run",
+  "feature": "run",
+  "title": "Run a script",
+  "summary": "Run a script from disk against the demo document; failures are reported as failures",
+  "commands": [
+    "$BIN run $OUT/script.js --args '{\"uuid\":\"$DOC\"}'"
+  ],
+  "script": "script.js",
+  "output": [
+    "status: ok",
+    "ms: <n>",
+    "output[1]:",
+    "help[2]:"
+  ],
+  "images": [],
+  "needs": [
+    "affinity",
+    "document"
+  ]
+}

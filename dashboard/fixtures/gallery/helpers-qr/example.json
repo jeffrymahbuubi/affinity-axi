@@ -1,0 +1,11 @@
+{
+  "id": "helpers-qr",
+  "feature": "helpers:qr",
+  "title": "QR code with a helper",
+  "summary": "Place a QR code for a link as native vector shapes",
+  "commands": ["$BIN run $OUT/script.js --with-helpers", "$BIN render $DOC --out $OUT/qr.png"],
+  "script": "script.js",
+  "output": ["status: ok"],
+  "images": ["qr.png"],
+  "needs": ["affinity", "document"]
+}

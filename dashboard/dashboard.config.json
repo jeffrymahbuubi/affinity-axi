@@ -1,0 +1,6 @@
+{
+  "siteTitle": "affinity-axi examples",
+  "gallery": "../examples",
+  "fallbackGallery": "./fixtures/gallery",
+  "readme": "../README.md"
+}

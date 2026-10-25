@@ -1,0 +1,10 @@
+{
+  "id": "hint-search",
+  "feature": "hint search",
+  "title": "Search the SDK hints",
+  "summary": "Find saved SDK hints by keyword before writing a script",
+  "commands": ["$BIN hint search text"],
+  "output": ["hints[1]{id,topic}:"],
+  "images": [],
+  "needs": ["affinity"]
+}

@@ -1,0 +1,9 @@
+$ affinity-axi export $DOC PNG examples/export/demo.png
+export: examples/export/demo.png
+doc: <uuid>
+preset: PNG
+bytes: <n>
+size: 1080x1080
+alt: (none; add one)
+help[1]:
+  edit the alt text before publishing

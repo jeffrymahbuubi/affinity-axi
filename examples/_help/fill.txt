@@ -1,0 +1,23 @@
+command: affinity-axi fill
+summary: Fill a saved .af by element name from JSON or CSV: one file per record
+args[1]{name,required,description}:
+  template,yes,the saved .af whose fillable elements are named slot:<key> in the Layers panel
+flags[12]{flag,default,description}:
+  --data,,"records: a .json array of objects, or a .csv with a header row (required)"
+  --out-dir,,folder under Desktop: each record is saved as <dir>/<key>.af (required)
+  --key,,"record field that names each record (default: the record index); made filesystem-safe, must be unique"
+  --export,,also export each record with this preset (see: affinity-axi presets) as <dir>/<key>.<ext>
+  --all-artboards,,"with --export: one file per artboard, <dir>/<key>-<artboard>.<ext>"
+  --limit,,process only the first N records
+  --continue-on-error,,keep going after a failed record (default: stop at the first failure)
+  --ignore-unknown,,a data key with no slot is skipped instead of failing the record
+  --brand,,"brand kit: a .brand.json path or a name under ./brands/ (default $AFFINITY_AXI_BRAND, then ./brand.json)"
+  --timeout,60000,per-script timeout in milliseconds
+  --url,,Affinity MCP URL (default $AFFINITY_MCP_URL or http://[::1]:6767)
+  --help,,show this help
+examples[2]:
+  affinity-axi fill post.af --data posts.json --key slug --out-dir ~/Desktop/out --export PNG
+  affinity-axi fill post.af --data posts.csv --key slug --out-dir ~/Desktop/out --limit 2 --ignore-unknown
+output[2]:
+  records[2]{key,status,doc,ms,note}:
+  exported: 2

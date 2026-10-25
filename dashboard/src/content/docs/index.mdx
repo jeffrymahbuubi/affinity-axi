@@ -1,0 +1,38 @@
+---
+title: affinity-axi examples
+description: See what every affinity-axi command prints before you run it, with captured output and renders from the demo brand.
+template: splash
+hero:
+  tagline: Check what a command prints, which script it runs and what image comes out, then run it yourself.
+  actions:
+    - text: How to read this site
+      link: /guide/
+      icon: right-arrow
+    - text: Browse the gallery
+      link: /examples/
+      variant: secondary
+    - text: All commands
+      link: /commands/
+      variant: secondary
+---
+
+import { CardGrid, Card } from '@astrojs/starlight/components';
+
+## Where to look
+
+<CardGrid>
+  <Card title="Commands" icon="terminal">
+    One page per command: the help text exactly as printed, then every example of that command.
+  </Card>
+  <Card title="Examples" icon="open-book">
+    A gallery of runs. Each page has the commands, the script, the captured stdout and the images produced.
+  </Card>
+  <Card title="Helpers" icon="puzzle">
+    The functions that `--with-helpers` adds to a script, one page for each family.
+  </Card>
+  <Card title="Platforms" icon="laptop">
+    The social and web size table, printed offline, with its captured output.
+  </Card>
+</CardGrid>
+
+Every example uses the made-up brand Lumen Studio, so nothing here belongs to a real client.

@@ -1,0 +1,13 @@
+command: affinity-axi brand show
+summary: Offline: print a brand kit's tokens as tables, with the contrast of its colour pairs
+args[1]{name,required,description}:
+  ref,no,"a .brand.json path or a name under ./brands/ (default $AFFINITY_AXI_BRAND, then ./brand.json)"
+flags[1]{flag,default,description}:
+  --help,,show this help
+examples[2]:
+  affinity-axi brand show examples/_brand/brand.json
+  affinity-axi brand show acme
+output[3]:
+  name: Lumen Studio
+  path: examples/_brand/brand.json
+  colours[4]{key,hex}:

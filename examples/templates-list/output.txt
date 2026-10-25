@@ -1,0 +1,10 @@
+$ affinity-axi templates list
+templates[5]{name,size,platform,slots}:
+  ig-post,1080x1080,ig-square,headline sub photo cta
+  ig-story,1080x1920,story,headline sub photo cta
+  carousel-cover,1080x1350,ig-portrait,headline sub photo cta
+  og-card,1200x630,og,headline sub cta url
+  price-post,1080x1080,ig-square,headline sub footnote cta
+help[2]:
+  affinity-axi templates new ig-post --out ~/Desktop/post.af --brand <kit.brand.json>
+  affinity-axi platforms   # the sizes behind the templates

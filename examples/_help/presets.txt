@@ -1,0 +1,12 @@
+command: affinity-axi presets
+summary: List the export preset names available in this Affinity install
+flags[2]{flag,default,description}:
+  --url,,Affinity MCP URL (default $AFFINITY_MCP_URL or http://[::1]:6767)
+  --help,,show this help
+examples[2]:
+  affinity-axi presets
+  affinity-axi presets --url http://127.0.0.1:6767
+output[3]:
+    PNG
+  help[1]:
+    affinity-axi export current <preset> <path-under-Desktop>

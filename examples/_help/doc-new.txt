@@ -1,0 +1,16 @@
+command: affinity-axi doc new
+summary: Create a new document (default 72 dpi for px; 300 dpi for mm/pt print sizes)
+flags[6]{flag,default,description}:
+  --width,,document width in --units (required)
+  --height,,document height in --units (required)
+  --units,px,size units (px|mm|pt)
+  --dpi,,"resolution (default 72 for px, 300 for mm/pt)"
+  --url,,Affinity MCP URL (default $AFFINITY_MCP_URL or http://[::1]:6767)
+  --help,,show this help
+examples[2]:
+  affinity-axi doc new --width 1920 --height 1080
+  affinity-axi doc new --width 210 --height 297 --units mm
+output[3]:
+  doc: <uuid>
+  size: 800x600 px @ 72 dpi
+  dirty: false

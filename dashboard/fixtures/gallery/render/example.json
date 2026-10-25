@@ -1,0 +1,10 @@
+{
+  "id": "render",
+  "feature": "render",
+  "title": "Preview the current spread",
+  "summary": "Preview the current spread as a JPEG on disk",
+  "commands": ["$BIN render current"],
+  "output": ["render: .affinity-axi/renders/<uuid8>-s0.jpg"],
+  "images": ["render.png"],
+  "needs": ["affinity", "document"]
+}

@@ -1,0 +1,23 @@
+{
+  "id": "helpers-seal",
+  "feature": "helpers:seal",
+  "title": "Helpers: seal and arc text",
+  "summary": "A promo seal: burst, ring, text on the top and bottom arcs and stacked centre lines",
+  "commands": [
+    "$BIN run $OUT/script.js --with-helpers --args '{\"uuid\":\"$DOC\"}'",
+    "$BIN render $DOC --out $OUT/render.jpg"
+  ],
+  "script": "script.js",
+  "output": [
+    "status: ok",
+    "ms: <n>",
+    "output[1]:"
+  ],
+  "images": [
+    "render.jpg"
+  ],
+  "needs": [
+    "affinity",
+    "document"
+  ]
+}

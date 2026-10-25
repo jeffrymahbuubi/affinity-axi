@@ -1,0 +1,11 @@
+command: affinity-axi doc note
+summary: Offline: append a note to a saved .af's manifest (other keys are kept)
+args[2]{name,required,description}:
+  path,yes,a saved .af file; must be inside the Desktop folder for doc open
+  text,yes,"the note, one line"
+flags[1]{flag,default,description}:
+  --help,,show this help
+examples[1]:
+  affinity-axi doc note ~/Desktop/promo.af "client approved v2"
+output[1]:
+  noted: examples/doc-note/asset.af

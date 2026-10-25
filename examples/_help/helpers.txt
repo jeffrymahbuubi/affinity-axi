@@ -1,0 +1,16 @@
+command: affinity-axi helpers
+summary: List the SDK helper functions that run --with-helpers adds to a script (offline)
+flags[3]{flag,default,description}:
+  --source,,print the full helper source instead of the index
+  --grep,,"case-insensitive regex matched against helper name, signature or summary"
+  --help,,show this help
+examples[4]:
+  affinity-axi helpers
+  affinity-axi helpers --grep artboard
+  affinity-axi helpers --source
+  affinity-axi run scripts/card.js --with-helpers
+output[4]:
+    axiHex,"axiHex(hex, alpha?)",'#RGB' or '#RRGGBB' to an RGBA8; alpha 0-1 (default 1; a value 2-255 is taken as a byte)
+    axiDoc,"axiDoc(w, h, dpi?)",new pixel document (1 unit = 1 px at 72 dpi)
+  help[2]:
+    affinity-axi run <file> --with-helpers

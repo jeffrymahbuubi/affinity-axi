@@ -1,0 +1,7 @@
+$ affinity-axi batch examples/batch/script.js --data examples/batch/data.json --key slug --with-helpers --save-dir examples/batch/af --limit 2
+batch[2]{key,status,doc,ms,note}:
+  welcome,ok,<uuid8>,<n>,"saved examples/batch/af/welcome.af, closed"
+  lamp-sale,ok,<uuid8>,<n>,"saved examples/batch/af/lamp-sale.af, closed"
+summary: ok=2 failed=0 skipped=0 ms=<n>
+help[1]:
+  affinity-axi   # home view: confirm no documents are left open

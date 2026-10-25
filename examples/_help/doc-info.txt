@@ -1,0 +1,10 @@
+command: affinity-axi doc info
+summary: Offline: what the manifest says about a saved .af and whether it can be trusted
+args[1]{name,required,description}:
+  path,yes,a saved .af file; must be inside the Desktop folder for doc open
+flags[1]{flag,default,description}:
+  --help,,show this help
+examples[1]:
+  affinity-axi doc info ~/Desktop/promo.af
+output[1]:
+  manifest: fresh

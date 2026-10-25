@@ -1,0 +1,24 @@
+command: affinity-axi lint
+summary: Design checks before export: contrast, safe zone, minimum font, slot: names, off-kit colours (exit 1 on errors)
+args[1]{name,required,description}:
+  doc,yes,"session UUID, unique UUID prefix (8+ chars) or 'current'"
+flags[8]{flag,default,description}:
+  --brand,,"brand kit: a .brand.json path or a name under ./brands/ (default $AFFINITY_AXI_BRAND, then ./brand.json)"
+  --platform,,check the safe insets of this platform row (see 'platforms'); default: the row matching each artboard's size
+  --artboard,,only this artboard (exact name) and what it contains
+  --min-font,20,text below this size in px is a warning
+  --strict,,treat warnings as errors
+  --out,,also write the findings as JSON to this path
+  --url,,Affinity MCP URL (default $AFFINITY_MCP_URL or http://[::1]:6767)
+  --help,,show this help
+examples[3]:
+  affinity-axi lint 70E876CB
+  affinity-axi lint 70E876CB --platform story --strict
+  affinity-axi lint 70E876CB --brand brand.json --artboard ig-square
+output[6]:
+  status: ok
+  ms: <n>
+  output[1]:
+  doc: <uuid>
+  lint[2]{severity,check,node,detail}:
+  summary: 0 errors, 2 warnings

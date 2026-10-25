@@ -1,0 +1,23 @@
+{
+  "id": "helpers-table",
+  "feature": "helpers:table",
+  "title": "Helpers: table",
+  "summary": "A price table from an array of rows with a styled header",
+  "commands": [
+    "$BIN run $OUT/script.js --with-helpers --args '{\"uuid\":\"$DOC\"}'",
+    "$BIN render $DOC --out $OUT/render.jpg"
+  ],
+  "script": "script.js",
+  "output": [
+    "status: ok",
+    "ms: <n>",
+    "output[1]:"
+  ],
+  "images": [
+    "render.jpg"
+  ],
+  "needs": [
+    "affinity",
+    "document"
+  ]
+}

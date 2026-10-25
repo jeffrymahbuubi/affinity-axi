@@ -1,0 +1,9 @@
+$ affinity-axi doc save $DOC examples/doc-save/demo.af
+saved: examples/doc-save/demo.af
+doc: <uuid>
+bytes: <n>
+dirty: false
+manifest: demo.af.axi.json
+help[2]:
+  affinity-axi doc close <uuid8>
+  affinity-axi export <uuid8> PNG <path-under-Desktop>

@@ -1,0 +1,18 @@
+{
+  "id": "brand-check",
+  "feature": "brand check",
+  "title": "Check a brand kit",
+  "summary": "Check that the kit's fonts are installed, its logo is readable and its colour pairs have enough contrast",
+  "commands": [
+    "$BIN brand check examples/_brand/brand.json"
+  ],
+  "output": [
+    "name: Lumen Studio",
+    "path: examples/_brand/brand.json",
+    "checks[5]{check,status,note}:"
+  ],
+  "images": [],
+  "needs": [
+    "affinity"
+  ]
+}

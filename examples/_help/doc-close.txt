@@ -1,0 +1,12 @@
+command: affinity-axi doc close
+summary: Close a clean document; refuses unsaved ones (the SDK cannot discard)
+args[1]{name,required,description}:
+  doc,yes,"session UUID, unique UUID prefix (8+ chars) or 'current'"
+flags[2]{flag,default,description}:
+  --url,,Affinity MCP URL (default $AFFINITY_MCP_URL or http://[::1]:6767)
+  --help,,show this help
+examples[1]:
+  affinity-axi doc close 70E876CB
+output[2]:
+  dirty: false
+  closed: <uuid>

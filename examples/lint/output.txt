@@ -1,0 +1,31 @@
+$ affinity-axi run examples/lint/script.js --with-helpers --args '{"uuid":"$DOC"}'
+script: examples/lint/script.js
+status: ok
+ms: <n>
+output[1]:
+  {"planted":["caption 14 px","pill #FF00AA"]}
+help[2]:
+  affinity-axi render current
+  affinity-axi export current PNG <path-under-Desktop>
+
+$ affinity-axi lint $DOC --brand examples/_brand/brand.json
+doc: <uuid>
+brand: Lumen Studio
+lint[2]{severity,check,node,detail}:
+  warning,min-font,caption,14 px is below the 20 px minimum
+  warning,off-kit,pill,"#FF00AA not in kit Lumen Studio (ink, sky, sun, mist)"
+summary: 0 errors, 2 warnings
+help[2]:
+  affinity-axi inspect <uuid8> --named
+  affinity-axi lint <uuid8> --strict
+
+$ affinity-axi render $DOC --out examples/lint/render.jpg
+render: examples/lint/render.jpg
+doc: <uuid>
+spread: 0
+bytes: <n>
+size: 1024x1024
+note: preview capped at 1024px; use export for full resolution
+help[2]:
+  affinity-axi render <uuid8> --selection
+  affinity-axi export <uuid8> PNG <path-under-Desktop>

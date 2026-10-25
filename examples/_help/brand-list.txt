@@ -1,0 +1,8 @@
+command: affinity-axi brand list
+summary: Offline: list the brand kits in this project (./brands, ./brand.json, $AFFINITY_AXI_BRAND) and which one runs use
+flags[1]{flag,default,description}:
+  --help,,show this help
+examples[1]:
+  affinity-axi brand list
+output[1]:
+  brands: 0 found

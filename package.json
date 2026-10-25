@@ -1,0 +1,57 @@
+{
+  "name": "affinity-axi",
+  "version": "0.1.0",
+  "description": "AXI CLI that drives Affinity by Canva through its MCP server: scripts by path, renders to disk, ML helpers, generative AI opt-in per run",
+  "license": "MIT",
+  "author": "Aunuun Jeffry Mahbuubi",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jeffrymahbuubi/affinity-axi.git"
+  },
+  "homepage": "https://github.com/jeffrymahbuubi/affinity-axi#readme",
+  "bugs": {
+    "url": "https://github.com/jeffrymahbuubi/affinity-axi/issues"
+  },
+  "keywords": [
+    "affinity",
+    "design",
+    "cli",
+    "mcp",
+    "social-media",
+    "templates",
+    "print",
+    "favicon"
+  ],
+  "type": "module",
+  "bin": {
+    "affinity-axi": "bin/affinity-axi.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "files": [
+    "bin",
+    "dist",
+    "docs/agent-guide.md",
+    "README.md",
+    "LICENSE",
+    "CONTRIBUTING.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "pretest": "npm run build",
+    "test": "vitest run",
+    "coverage": "vitest run --coverage",
+    "guide:gen": "node scripts/gen-guide.mjs",
+    "guide:check": "node scripts/gen-guide.mjs --check",
+    "smoke:live": "node scripts/live-smoke.mjs",
+    "examples:gen": "node scripts/gen-examples.mjs",
+    "examples:check": "node scripts/check-examples.mjs"
+  },
+  "devDependencies": {
+    "@vitest/coverage-v8": "^2.1.9",
+    "@types/node": "^22.10.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
+  }
+}

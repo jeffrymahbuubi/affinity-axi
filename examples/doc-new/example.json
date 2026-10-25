@@ -1,0 +1,18 @@
+{
+  "id": "doc-new",
+  "feature": "doc new",
+  "title": "Create a document",
+  "summary": "Create a new document of a given size; a fresh document is clean and closes without a prompt",
+  "commands": [
+    "$BIN doc new --width 800 --height 600"
+  ],
+  "output": [
+    "doc: <uuid>",
+    "size: 800x600 px @ 72 dpi",
+    "dirty: false"
+  ],
+  "images": [],
+  "needs": [
+    "affinity"
+  ]
+}

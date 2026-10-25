@@ -1,0 +1,3 @@
+$ affinity-axi hint search text
+hints[1]{id,topic}:
+  h1,text frames

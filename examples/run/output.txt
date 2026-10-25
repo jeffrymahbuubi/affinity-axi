@@ -1,0 +1,9 @@
+$ affinity-axi run examples/run/script.js --args '{"uuid":"$DOC"}'
+script: examples/run/script.js
+status: ok
+ms: <n>
+output[1]:
+  added: 1 rectangle
+help[2]:
+  affinity-axi render current
+  affinity-axi export current PNG <path-under-Desktop>

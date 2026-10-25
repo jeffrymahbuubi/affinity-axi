@@ -1,0 +1,48 @@
+$ affinity-axi run examples/webassets/script.js --with-helpers --args '{"uuid":"$DOC"}'
+script: examples/webassets/script.js
+status: ok
+ms: <n>
+output[1]:
+  {"artboards":["mark","og","x-card","hero"]}
+help[2]:
+  affinity-axi render current
+  affinity-axi export current PNG <path-under-Desktop>
+
+$ affinity-axi render $DOC --out examples/webassets/render.jpg
+render: examples/webassets/render.jpg
+doc: <uuid>
+spread: 0
+bytes: <n>
+size: 1023x175
+note: preview capped at 1024px; use export for full resolution
+help[2]:
+  affinity-axi render <uuid8> --selection
+  affinity-axi export <uuid8> PNG <path-under-Desktop>
+
+$ affinity-axi webassets $DOC --out-dir examples/webassets/site --responsive hero
+doc: <uuid>
+files[17]{role,file,size,bytes}:
+  favicon,favicon-16.png,16x16,<n>
+  favicon,favicon-32.png,32x32,<n>
+  favicon,favicon-48.png,48x48,<n>
+  apple-touch-icon,apple-touch-icon.png,180x180,<n>
+  icon,icon-192.png,192x192,<n>
+  icon,icon-512.png,512x512,<n>
+  icon,icon.svg,vector,<n>
+  og,og.png,1200x630,<n>
+  x-card,x-card.png,1200x600,<n>
+  responsive,hero.png,1920x1080,<n>
+  responsive,hero@2x.png,3840x2160,<n>
+  responsive,hero.webp,1920x1080,<n>
+  responsive,hero@2x.webp,3840x2160,<n>
+  favicon,favicon.ico,16+32+48,<n>
+  webmanifest,site.webmanifest,,<n>
+  head,head.html,,<n>
+  record,webassets.json,,<n>
+manifest: examples/webassets/site/webassets.json
+head: examples/webassets/site/head.html
+note: apple-touch-icon uses the artboard fill as its ground; give the mark artboard a fill
+help[3]:
+  open examples/webassets/site/head.html
+  edit the alt text in webassets.json and head.html before publishing
+  affinity-axi export <uuid8> PNG examples/webassets/site/og@2x.png --artboard og --scale 2

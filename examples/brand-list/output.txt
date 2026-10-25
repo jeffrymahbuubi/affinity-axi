@@ -1,0 +1,4 @@
+$ affinity-axi brand list
+brands: 0 found
+help[1]:
+  affinity-axi brand init <name>   # writes ./brands/<name>.brand.json

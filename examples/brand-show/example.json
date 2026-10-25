@@ -1,0 +1,16 @@
+{
+  "id": "brand-show",
+  "feature": "brand show",
+  "title": "Show a brand kit",
+  "summary": "Print a kit's colours, fonts, type styles and contrast pairs without connecting",
+  "commands": [
+    "$BIN brand show examples/_brand/brand.json"
+  ],
+  "output": [
+    "name: Lumen Studio",
+    "path: examples/_brand/brand.json",
+    "colours[4]{key,hex}:"
+  ],
+  "images": [],
+  "needs": []
+}

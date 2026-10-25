@@ -1,0 +1,10 @@
+{
+  "id": "platforms",
+  "feature": "platforms",
+  "title": "Story and reel sizes",
+  "summary": "Filter the size table for vertical story formats",
+  "commands": ["$BIN platforms --grep story"],
+  "output": ["platforms[1]{key,size,ratio,notes}:"],
+  "images": [],
+  "needs": []
+}

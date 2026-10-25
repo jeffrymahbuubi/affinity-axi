@@ -1,0 +1,23 @@
+{
+  "id": "helpers-charts",
+  "feature": "helpers:charts",
+  "title": "Helpers: charts",
+  "summary": "Bars, a donut with a centre label, and progress as a bar and a ring from plain numbers",
+  "commands": [
+    "$BIN run $OUT/script.js --with-helpers --args '{\"uuid\":\"$DOC\"}'",
+    "$BIN render $DOC --out $OUT/render.jpg"
+  ],
+  "script": "script.js",
+  "output": [
+    "status: ok",
+    "ms: <n>",
+    "output[1]:"
+  ],
+  "images": [
+    "render.jpg"
+  ],
+  "needs": [
+    "affinity",
+    "document"
+  ]
+}

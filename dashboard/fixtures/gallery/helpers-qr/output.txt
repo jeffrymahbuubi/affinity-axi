@@ -1,0 +1,6 @@
+$ affinity-axi run examples/helpers-qr/script.js --with-helpers
+status: ok
+output: qr placed
+ms: <n>
+$ affinity-axi render <uuid8> --out examples/helpers-qr/qr.png
+render: examples/helpers-qr/qr.png

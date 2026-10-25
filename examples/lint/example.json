@@ -1,0 +1,27 @@
+{
+  "id": "lint",
+  "feature": "lint",
+  "title": "Design checks",
+  "summary": "Contrast, safe zones, small text, slot names and off-kit colours, as a table with severities",
+  "commands": [
+    "$BIN run $OUT/script.js --with-helpers --args '{\"uuid\":\"$DOC\"}'",
+    "$BIN lint $DOC --brand examples/_brand/brand.json",
+    "$BIN render $DOC --out $OUT/render.jpg"
+  ],
+  "script": "script.js",
+  "output": [
+    "status: ok",
+    "ms: <n>",
+    "output[1]:",
+    "doc: <uuid>",
+    "lint[2]{severity,check,node,detail}:",
+    "summary: 0 errors, 2 warnings"
+  ],
+  "images": [
+    "render.jpg"
+  ],
+  "needs": [
+    "affinity",
+    "document"
+  ]
+}

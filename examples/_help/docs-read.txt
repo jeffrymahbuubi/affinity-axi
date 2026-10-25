@@ -1,0 +1,17 @@
+command: affinity-axi docs read
+summary: Read an SDK documentation topic, narrowed by --grep or --lines (truncated at 1500 chars)
+args[1]{name,required,description}:
+  file,yes,topic name from 'affinity-axi docs'
+flags[5]{flag,default,description}:
+  --grep,,"keep only lines matching this regex, prefixed L<n>:"
+  --lines,,"keep only this 1-based inclusive range, e.g. 10-40"
+  --full,,print everything instead of truncating at 1500 chars
+  --url,,Affinity MCP endpoint (AFFINITY_MCP_URL wins)
+  --help,,show this help
+examples[3]:
+  affinity-axi docs read preamble
+  affinity-axi docs read document.js --grep "export\("
+  affinity-axi docs read nodes.js --lines 1-60
+output[2]:
+  topic: preamble
+  lines: 1-5

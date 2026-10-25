@@ -1,0 +1,21 @@
+$ affinity-axi doc save $DOC examples/doc-info/asset.af
+saved: examples/doc-info/asset.af
+doc: <uuid>
+bytes: <n>
+dirty: false
+manifest: asset.af.axi.json
+help[2]:
+  affinity-axi doc close <uuid8>
+  affinity-axi export <uuid8> PNG <path-under-Desktop>
+
+$ affinity-axi doc info examples/doc-info/asset.af
+path: examples/doc-info/asset.af
+manifest: fresh
+madeBy: ../_brand/demo-doc.js --with-helpers
+named[1]: ig-square
+history: 10
+exports: 0
+notes: 0
+help[2]:
+  affinity-axi doc open examples/doc-info/asset.af
+  affinity-axi doc note examples/doc-info/asset.af "<text>"

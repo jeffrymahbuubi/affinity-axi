@@ -1,0 +1,5 @@
+$ affinity-axi library save examples/library-save/script.js --title "Lumen Studio demo" --description "Draws one rectangle"
+library: already saved (no-op)
+title: Lumen Studio demo
+help[1]:
+  affinity-axi library read "Lumen Studio demo" --out <file>

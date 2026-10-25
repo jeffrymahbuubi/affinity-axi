@@ -1,0 +1,15 @@
+$ affinity-axi doc save $DOC examples/doc-note/asset.af
+saved: examples/doc-note/asset.af
+doc: <uuid>
+bytes: <n>
+dirty: false
+manifest: asset.af.axi.json
+help[2]:
+  affinity-axi doc close <uuid8>
+  affinity-axi export <uuid8> PNG <path-under-Desktop>
+
+$ affinity-axi doc note examples/doc-note/asset.af "Lumen Studio launch card, headline approved"
+noted: examples/doc-note/asset.af
+notes: 5
+help[1]:
+  affinity-axi doc info examples/doc-note/asset.af

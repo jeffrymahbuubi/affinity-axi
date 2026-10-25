@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg width="100%" height="100%" viewBox="0 0 320 320" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve" xmlns:affinity="https://www.affinity.studio/" style="fill-rule:evenodd;clip-rule:evenodd;stroke-linejoin:round;stroke-miterlimit:2;">
+    <g transform="matrix(1,0,0,1,-1276,-96)">
+        <path id="logo-mark" d="M1556,275.984L1556,344C1556,383.738 1523.738,416 1484,416L1348,416C1308.262,416 1276,383.738 1276,344L1276,208C1276,168.262 1308.262,136 1348,136L1416.016,136C1434.267,111.717 1463.313,96 1496,96C1551.192,96 1596,140.808 1596,196C1596,228.687 1580.283,257.733 1556,275.984ZM1412,196C1381.093,196 1356,221.093 1356,252C1356,282.907 1381.093,308 1412,308C1442.907,308 1468,282.907 1468,252C1468,221.093 1442.907,196 1412,196Z" style="fill:rgb(76,141,255);"/>
+    </g>
+</svg>

@@ -1,0 +1,23 @@
+{
+  "id": "helpers-layout",
+  "feature": "helpers:layout",
+  "title": "Helpers: layout",
+  "summary": "Artboards from platform sizes, photos fitted per board, text fitted to a box, and a platform's safe zone",
+  "commands": [
+    "$BIN run $OUT/script.js --with-helpers --args '{\"uuid\":\"$DOC\"}'",
+    "$BIN render $DOC --out $OUT/render.jpg"
+  ],
+  "script": "script.js",
+  "output": [
+    "status: ok",
+    "ms: <n>",
+    "output[1]:"
+  ],
+  "images": [
+    "render.jpg"
+  ],
+  "needs": [
+    "affinity",
+    "document"
+  ]
+}

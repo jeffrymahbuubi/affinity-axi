@@ -1,0 +1,18 @@
+command: affinity-axi examples
+summary: List the examples, show one's commands and sample output, or run it live (--run)
+args[1]{name,required,description}:
+  id,no,example id from the list; omit to list them all
+flags[5]{flag,default,description}:
+  --run,,run the example live in the scratch folder examples/_run/<id> and print the real output
+  --feature,,"list only examples of this feature: a command ('export', 'doc') or a helper family ('helpers')"
+  --include-side-effects,,"allow --run for examples that change Affinity's stored state (hint-add, library-read, library-save, brand-init)"
+  --url,,Affinity MCP URL for --run (default $AFFINITY_MCP_URL or http://[::1]:6767)
+  --help,,show this help
+examples[4]:
+  affinity-axi examples
+  affinity-axi examples --feature export
+  affinity-axi examples render
+  affinity-axi examples render --run
+output[2]:
+  id: render
+  feature: render

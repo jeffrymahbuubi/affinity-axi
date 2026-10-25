@@ -1,0 +1,25 @@
+{
+  "id": "fill",
+  "feature": "fill",
+  "title": "Fill a template by element name",
+  "summary": "Load a saved .af, set slot:<key> elements from JSON or CSV, save and export one file per record",
+  "commands": [
+    "$BIN run $OUT/template.js --with-helpers --args '{\"uuid\":\"$DOC\"}'",
+    "$BIN doc save $DOC $OUT/template.af",
+    "$BIN doc close $DOC",
+    "$BIN fill $OUT/template.af --data $OUT/posts.json --key slug --out-dir $OUT --export PNG"
+  ],
+  "script": "template.js",
+  "output": [
+    "records[2]{key,status,doc,ms,note}:",
+    "exported: 2"
+  ],
+  "images": [
+    "mar.png",
+    "apr.png"
+  ],
+  "needs": [
+    "affinity",
+    "document"
+  ]
+}

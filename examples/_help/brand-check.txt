@@ -1,0 +1,14 @@
+command: affinity-axi brand check
+summary: Verify a brand kit against Affinity: font postscript names, logo files (PNG/JPEG under Desktop) and colour contrast
+args[1]{name,required,description}:
+  ref,no,"a .brand.json path or a name under ./brands/ (default $AFFINITY_AXI_BRAND, then ./brand.json)"
+flags[2]{flag,default,description}:
+  --url,,Affinity MCP URL (default $AFFINITY_MCP_URL or http://[::1]:6767)
+  --help,,show this help
+examples[2]:
+  affinity-axi brand check examples/_brand/brand.json
+  affinity-axi brand check acme
+output[3]:
+  name: Lumen Studio
+  path: examples/_brand/brand.json
+  checks[5]{check,status,note}:

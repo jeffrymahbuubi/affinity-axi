@@ -1,0 +1,5 @@
+$ affinity-axi library
+scripts[1]{title}:
+  Lumen Studio demo
+help[1]:
+  affinity-axi library read "Lumen Studio demo" --out <file>

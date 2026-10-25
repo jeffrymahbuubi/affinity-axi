@@ -1,0 +1,15 @@
+command: affinity-axi setup hook
+summary: Print the session-start hook command, or keep it in a JSON file with --file
+flags[5]{flag,default,description}:
+  --file,,JSON file to write the hook entry to (omit to just print the command)
+  --key,hooks.SessionStart,dotted key of the array that holds the entries
+  --check,,report hook state without writing (needs --file)
+  --remove,,remove the hook entry (needs --file)
+  --help,,show this help
+examples[4]:
+  affinity-axi setup hook
+  affinity-axi setup hook --file ./hooks.json
+  affinity-axi setup hook --file ./hooks.json --check
+  affinity-axi setup hook --file ./hooks.json --remove
+output[1]:
+  hook: not installed

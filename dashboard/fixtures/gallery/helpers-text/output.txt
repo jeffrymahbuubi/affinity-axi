@@ -1,0 +1,6 @@
+$ affinity-axi run examples/helpers-text/script.js --with-helpers
+status: ok
+output: headline placed
+ms: <n>
+$ affinity-axi render <uuid8> --out examples/helpers-text/headline.png
+render: examples/helpers-text/headline.png

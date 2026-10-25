@@ -1,0 +1,18 @@
+{
+  "id": "docs",
+  "feature": "docs list",
+  "title": "List SDK documentation",
+  "summary": "List SDK documentation topics grouped as modules, examples, tests and data",
+  "commands": [
+    "$BIN docs"
+  ],
+  "output": [
+    "  preamble",
+    "help[3]:",
+    "  affinity-axi hint search \"<what you want to do>\""
+  ],
+  "images": [],
+  "needs": [
+    "affinity"
+  ]
+}

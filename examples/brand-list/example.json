@@ -1,0 +1,14 @@
+{
+  "id": "brand-list",
+  "feature": "brand list",
+  "title": "List brand kits",
+  "summary": "List this project's kits (./brands/*.brand.json, ./brand.json, $AFFINITY_AXI_BRAND) without connecting",
+  "commands": [
+    "$BIN brand list"
+  ],
+  "output": [
+    "brands: 0 found"
+  ],
+  "images": [],
+  "needs": []
+}

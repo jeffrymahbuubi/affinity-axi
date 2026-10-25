@@ -1,0 +1,24 @@
+{
+  "id": "helpers-variants",
+  "feature": "helpers:variants",
+  "title": "Helpers: one design, every size",
+  "summary": "Adapt a master artboard to story and OG boards, or draw each size from one function",
+  "commands": [
+    "$BIN run $OUT/script.js --with-helpers --args '{\"uuid\":\"$DOC\"}'",
+    "$BIN render $DOC --out $OUT/render.jpg",
+    "$BIN export $DOC PNG $OUT/{name}.png --all-artboards"
+  ],
+  "script": "script.js",
+  "output": [
+    "status: ok",
+    "ms: <n>",
+    "output[1]:"
+  ],
+  "images": [
+    "render.jpg"
+  ],
+  "needs": [
+    "affinity",
+    "document"
+  ]
+}

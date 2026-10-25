@@ -1,0 +1,23 @@
+{
+  "id": "helpers-print",
+  "feature": "helpers:print",
+  "title": "Helpers: print sheet and crop marks",
+  "summary": "A proof sheet with bleed, slug, eight locked crop marks and trim and bleed guides",
+  "commands": [
+    "$BIN run $OUT/script.js --with-helpers --args '{\"uuid\":\"$DOC\"}'",
+    "$BIN render $DOC --out $OUT/render.jpg"
+  ],
+  "script": "script.js",
+  "output": [
+    "status: ok",
+    "ms: <n>",
+    "output[1]:"
+  ],
+  "images": [
+    "render.jpg"
+  ],
+  "needs": [
+    "affinity",
+    "document"
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "id": "examples",
+  "feature": "examples",
+  "title": "Browse these examples",
+  "summary": "List the examples, show one's commands and sample output, or run it live",
+  "commands": [
+    "$BIN examples render"
+  ],
+  "output": [
+    "id: render",
+    "feature: render"
+  ],
+  "images": [],
+  "needs": []
+}

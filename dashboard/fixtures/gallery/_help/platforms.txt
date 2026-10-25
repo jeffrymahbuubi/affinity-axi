@@ -1,0 +1,5 @@
+usage: affinity-axi platforms [--grep <regex>]
+summary: List web and social image sizes with ratio and notes (offline)
+flags[1]{name,type,description}:
+  grep,string,case-insensitive regex matched against key, size, ratio or notes
+examples[2]: affinity-axi platforms / affinity-axi platforms --grep story

@@ -1,0 +1,20 @@
+command: affinity-axi print
+summary: Export a press PDF (default PDF/X-4) and preflight it offline: boxes, bleed, colour, fonts
+args[1]{name,required,description}:
+  doc,yes,"session UUID, unique UUID prefix (8+ chars) or 'current'"
+flags[7]{flag,default,description}:
+  --out,,output .pdf path inside the Desktop folder (required)
+  --preset,PDF/X-4,"a PDF export preset (see: affinity-axi presets); PDF/X presets export the trim area only, 'PDF (press ready)' keeps the bleed"
+  --artboard,,export one artboard by name instead of the whole document
+  --spread,,"spread index from 0: the spread to export, or the spread holding --artboard"
+  --cmyk,,convert the open document to CMYK (doc.format = CMYKA8) before exporting; the document is changed
+  --url,,Affinity MCP URL (default $AFFINITY_MCP_URL or http://[::1]:6767)
+  --help,,show this help
+examples[3]:
+  affinity-axi print current --out ~/Desktop/flyer.pdf
+  affinity-axi print 3F2A9C1B --out ~/Desktop/flyer.pdf --preset "PDF (press ready)" --cmyk
+  affinity-axi print current --out ~/Desktop/out/card.pdf --artboard card
+output[3]:
+  preset: PDF/X-4
+    pdfx-version,ok,PDF/X-4
+    trim-box,ok,[0 0 1080 1080]

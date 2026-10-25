@@ -1,0 +1,10 @@
+$ affinity-axi docs read preamble --lines 1-5
+topic: preamble
+size: 4201 chars, 48 lines
+lines: 1-5
+content:
+  System preamble:
+  
+  This is a JavaScript SDK for the Affinity by Canva application.
+  
+  ALWAYS read the preamble and a few relevant SDK documentation files before writing any script.

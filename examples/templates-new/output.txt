@@ -1,0 +1,18 @@
+$ affinity-axi templates new ig-post --out examples/templates-new/ig-post.af --brand examples/_brand/brand.json --args '{"photo":"examples/templates-new/photo.png"}'
+template: ig-post
+doc: <uuid>
+saved: examples/templates-new/ig-post.af
+slots[4]: headline, sub, photo, cta
+help[2]:
+  affinity-axi fill examples/templates-new/ig-post.af --data <records.json> --out-dir <dir> --export PNG
+  affinity-axi doc open examples/templates-new/ig-post.af
+
+$ affinity-axi fill examples/templates-new/ig-post.af --data examples/templates-new/posts.json --key slug --out-dir examples/templates-new --export PNG
+records[2]{key,status,doc,ms,note}:
+  launch,ok,<uuid8>,<n>,saved launch.af; exported launch.png
+  offer,ok,<uuid8>,<n>,saved offer.af; exported offer.png
+saved: examples/templates-new
+exported: 2
+help[2]:
+  affinity-axi doc open examples/templates-new/launch.af
+  affinity-axi inspect <doc> --named   # the doc id doc open prints

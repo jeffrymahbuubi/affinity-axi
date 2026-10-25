@@ -1,0 +1,13 @@
+$ affinity-axi
+affinity-axi: bin/affinity-axi.js — drive Affinity by Canva through its MCP server: scripts by path, renders to disk, ML helpers, generative AI opt-in per run
+affinity: connected
+url: http://[::1]:6767
+version: 3.3.1.4940
+documents[0]{uuid,title,dirty,units}:
+filesystem: desktop-only
+ai: generative opt-in (--allow-generative); ml allowed
+assets: 105 under ./
+help[3]:
+  affinity-axi run scripts/<script>.js
+  affinity-axi docs
+  affinity-axi doc open examples/helpers-print/demo.af

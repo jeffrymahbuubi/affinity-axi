@@ -1,0 +1,30 @@
+$ affinity-axi brand show examples/_brand/brand.json
+name: Lumen Studio
+path: examples/_brand/brand.json
+sha256: 98c5d6f26f37
+colours[4]{key,hex}:
+  ink,#1F2A44
+  sky,#4C8DFF
+  sun,#FFC857
+  mist,#F2F5F9
+fonts[2]{role,postscript}:
+  headline,Helvetica-Bold
+  body,Helvetica
+type[3]{key,font,size,leading,spacing}:
+  display,headline,120,,
+  h1,headline,64,,
+  body,body,32,1.4,
+space: 4 8 12 16 24 32 48 64 96
+radius[4]{key,px}:
+  sm,8
+  md,16
+  lg,32
+  pill,999
+contrast[3]{fg,bg,ratio,aa}:
+  ink,mist,13.04,yes
+  ink,sun,9.27,yes
+  mist,ink,13.04,yes
+extra: note demoDocument
+help[2]:
+  affinity-axi brand check examples/_brand/brand.json
+  affinity-axi run <script.js> --with-helpers --brand examples/_brand/brand.json

@@ -1,0 +1,2 @@
+$ affinity-axi hint add "Name artboards with axiArtboard so export --all-artboards can use {name}"
+hint: added

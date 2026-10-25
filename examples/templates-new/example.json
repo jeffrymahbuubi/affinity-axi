@@ -1,0 +1,23 @@
+{
+  "id": "templates-new",
+  "feature": "templates new",
+  "title": "Build a template and fill it",
+  "summary": "Build the ig-post template on a brand kit, save it as .af, then fill it from two records and export PNGs",
+  "commands": [
+    "$BIN templates new ig-post --out $OUT/ig-post.af --brand examples/_brand/brand.json --args '{\"photo\":\"$OUT/photo.png\"}'",
+    "$BIN fill $OUT/ig-post.af --data $OUT/posts.json --key slug --out-dir $OUT --export PNG"
+  ],
+  "output": [
+    "template: ig-post",
+    "slots[4]: headline, sub, photo, cta",
+    "records[2]{key,status,doc,ms,note}:",
+    "exported: 2"
+  ],
+  "images": [
+    "launch.png",
+    "offer.png"
+  ],
+  "needs": [
+    "affinity"
+  ]
+}

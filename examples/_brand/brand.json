@@ -1,0 +1,32 @@
+{
+  "schema": "affinity-axi/brand/1",
+  "name": "Lumen Studio",
+  "note": "Invented brand for the examples. Every example uses these colours and fonts and nothing else.",
+  "colours": {
+    "ink": "#1F2A44",
+    "sky": "#4C8DFF",
+    "sun": "#FFC857",
+    "mist": "#F2F5F9"
+  },
+  "fonts": {
+    "headline": "Helvetica-Bold",
+    "body": "Helvetica"
+  },
+  "type": {
+    "display": { "font": "headline", "size": 120 },
+    "h1": { "font": "headline", "size": 64 },
+    "body": { "font": "body", "size": 32, "leading": 1.4 }
+  },
+  "space": [4, 8, 12, 16, 24, 32, 48, 64, 96],
+  "radius": { "sm": 8, "md": 16, "lg": 32, "pill": 999 },
+  "pairs": [
+    ["ink", "mist"],
+    ["ink", "sun"],
+    ["mist", "ink"]
+  ],
+  "demoDocument": {
+    "script": "demo-doc.js",
+    "size": "1080x1080 px at 72 dpi",
+    "artboard": "ig-square"
+  }
+}

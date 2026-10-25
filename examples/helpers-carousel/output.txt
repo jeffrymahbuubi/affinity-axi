@@ -1,0 +1,20 @@
+$ affinity-axi run examples/helpers-carousel/script.js --with-helpers --args '{"uuid":"$DOC"}'
+script: examples/helpers-carousel/script.js
+status: ok
+ms: <n>
+output[1]:
+  {"slides":["slide-01","slide-02","slide-03","slide-04","slide-05"]}
+help[2]:
+  affinity-axi render current
+  affinity-axi export current PNG <path-under-Desktop>
+
+$ affinity-axi render $DOC --out examples/helpers-carousel/render.jpg
+render: examples/helpers-carousel/render.jpg
+doc: <uuid>
+spread: 0
+bytes: <n>
+size: 1023x198
+note: preview capped at 1024px; use export for full resolution
+help[2]:
+  affinity-axi render <uuid8> --selection
+  affinity-axi export <uuid8> PNG <path-under-Desktop>

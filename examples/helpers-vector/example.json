@@ -1,0 +1,26 @@
+{
+  "id": "helpers-vector",
+  "feature": "helpers:vector",
+  "title": "Helpers: logo and favicon vectors",
+  "summary": "Outline a wordmark, build a mark with boolean ops, export SVG and a 32 px favicon",
+  "commands": [
+    "$BIN run $OUT/script.js --with-helpers --args '{\"uuid\":\"$DOC\"}'",
+    "$BIN render $DOC --out $OUT/render.jpg",
+    "$BIN export $DOC \"SVG (for export)\" $OUT/mark.svg --selection",
+    "$BIN export $DOC PNG $OUT/favicon-32.png --artboard mark --square 32"
+  ],
+  "script": "script.js",
+  "output": [
+    "status: ok",
+    "ms: <n>",
+    "output[1]:"
+  ],
+  "images": [
+    "render.jpg",
+    "favicon-32.png"
+  ],
+  "needs": [
+    "affinity",
+    "document"
+  ]
+}

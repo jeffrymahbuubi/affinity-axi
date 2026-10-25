@@ -1,0 +1,15 @@
+{
+  "id": "templates-list",
+  "feature": "templates list",
+  "title": "List the slot templates",
+  "summary": "Print the five ready-made templates with their sizes and fillable slots, offline",
+  "commands": [
+    "$BIN templates list"
+  ],
+  "output": [
+    "templates[5]{name,size,platform,slots}:",
+    "  ig-post,1080x1080,ig-square,headline sub photo cta"
+  ],
+  "images": [],
+  "needs": []
+}

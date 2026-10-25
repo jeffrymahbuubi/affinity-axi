@@ -1,0 +1,18 @@
+{
+  "id": "home",
+  "feature": "home",
+  "title": "Home view",
+  "summary": "Show whether Affinity is reachable, the open documents and the next commands",
+  "commands": [
+    "$BIN"
+  ],
+  "output": [
+    "affinity: connected",
+    "filesystem: desktop-only",
+    "ai: generative opt-in (--allow-generative); ml allowed"
+  ],
+  "images": [],
+  "needs": [
+    "affinity"
+  ]
+}

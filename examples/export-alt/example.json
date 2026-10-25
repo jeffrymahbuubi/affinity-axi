@@ -1,0 +1,24 @@
+{
+  "id": "export-alt",
+  "feature": "export",
+  "title": "Alt-text stub on export",
+  "summary": "Every exported image prints an alt-text stub built from the document's text, top-down",
+  "commands": [
+    "$BIN run $OUT/script.js --with-helpers --args '{\"uuid\":\"$DOC\"}'",
+    "$BIN export $DOC PNG $OUT/card.png --artboard ig-square"
+  ],
+  "script": "script.js",
+  "output": [
+    "doc: <uuid>",
+    "preset: PNG",
+    "artboard: ig-square",
+    "alt: Light, measured. Studio hours"
+  ],
+  "images": [
+    "card.png"
+  ],
+  "needs": [
+    "affinity",
+    "document"
+  ]
+}

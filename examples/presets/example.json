@@ -1,0 +1,18 @@
+{
+  "id": "presets",
+  "feature": "presets",
+  "title": "List export presets",
+  "summary": "List the export preset names of this install (the names are localized)",
+  "commands": [
+    "$BIN presets"
+  ],
+  "output": [
+    "  PNG",
+    "help[1]:",
+    "  affinity-axi export current <preset> <path-under-Desktop>"
+  ],
+  "images": [],
+  "needs": [
+    "affinity"
+  ]
+}

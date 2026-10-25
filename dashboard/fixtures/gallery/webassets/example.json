@@ -1,0 +1,25 @@
+{
+  "id": "webassets",
+  "feature": "webassets",
+  "title": "Web asset bundle",
+  "summary": "Favicons, OG and X cards and @1x/@2x sets from named artboards, with head.html and a manifest",
+  "commands": [
+    "$BIN run $OUT/script.js --with-helpers --args '{\"uuid\":\"$DOC\"}'",
+    "$BIN render $DOC --out $OUT/render.jpg",
+    "$BIN webassets $DOC --out-dir $OUT/site --responsive hero"
+  ],
+  "script": "script.js",
+  "output": [
+    "status: ok",
+    "ms: <n>",
+    "output[1]:"
+  ],
+  "images": [
+    "site/favicon-32.png",
+    "site/og.png"
+  ],
+  "needs": [
+    "affinity",
+    "document"
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "id": "helpers-text",
+  "feature": "helpers:text",
+  "title": "Headline text with helpers",
+  "summary": "Place a headline in Helvetica-Bold using the text helper",
+  "commands": ["$BIN run $OUT/script.js --with-helpers", "$BIN render $DOC --out $OUT/headline.png"],
+  "script": "script.js",
+  "output": ["status: ok"],
+  "images": ["headline.png"],
+  "needs": ["affinity", "document", "fonts"]
+}

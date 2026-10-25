@@ -1,0 +1,13 @@
+command: affinity-axi doc open
+summary: Open a saved .af (reuses it if already open), refresh its inventory, say whether the manifest can be trusted
+args[1]{name,required,description}:
+  path,yes,a saved .af file; must be inside the Desktop folder for doc open
+flags[2]{flag,default,description}:
+  --url,,Affinity MCP URL (default $AFFINITY_MCP_URL or http://[::1]:6767)
+  --help,,show this help
+examples[2]:
+  affinity-axi doc open ~/Desktop/promo.af
+  affinity-axi doc open examples/promo-post/promo.af
+output[2]:
+  status: already-open
+  manifest: fresh

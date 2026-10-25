@@ -1,0 +1,25 @@
+{
+  "id": "render",
+  "feature": "render",
+  "title": "Render a preview",
+  "summary": "Preview the current spread as a JPEG on disk",
+  "commands": [
+    "$BIN render $DOC",
+    "$BIN render $DOC --out $OUT/render.jpg"
+  ],
+  "output": [
+    "render: .affinity-axi/renders/<uuid8>-s0.jpg",
+    "doc: <uuid>",
+    "spread: 0",
+    "bytes: <n>",
+    "size: 1024x1024",
+    "note: preview capped at 1024px; use export for full resolution"
+  ],
+  "images": [
+    "render.jpg"
+  ],
+  "needs": [
+    "affinity",
+    "document"
+  ]
+}

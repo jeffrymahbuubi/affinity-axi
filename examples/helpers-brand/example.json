@@ -1,0 +1,23 @@
+{
+  "id": "helpers-brand",
+  "feature": "helpers:brand",
+  "title": "Helpers: brand tokens",
+  "summary": "Draw from kit tokens and type styles instead of hard-coded colours and fonts",
+  "commands": [
+    "$BIN run $OUT/script.js --with-helpers --brand examples/_brand/brand.json --args '{\"uuid\":\"$DOC\"}'",
+    "$BIN render $DOC --out $OUT/render.jpg"
+  ],
+  "script": "script.js",
+  "output": [
+    "status: ok",
+    "ms: <n>",
+    "output[1]:"
+  ],
+  "images": [
+    "render.jpg"
+  ],
+  "needs": [
+    "affinity",
+    "document"
+  ]
+}

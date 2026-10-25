@@ -1,0 +1,9 @@
+$ affinity-axi doc new --width 800 --height 600
+doc: <uuid>
+size: 800x600 px @ 72 dpi
+units: Pixel
+dirty: false
+help[3]:
+  affinity-axi run <script.js> --args '{"uuid":"<uuid8>"}'   # draw into it
+  affinity-axi render <uuid8>
+  affinity-axi doc save <uuid8> <path-under-Desktop>.af   # needed before it can be closed

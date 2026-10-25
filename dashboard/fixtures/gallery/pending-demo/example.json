@@ -1,0 +1,11 @@
+{
+  "id": "pending-demo",
+  "feature": "inspect",
+  "title": "Waiting for its command",
+  "summary": "A pending example has no output yet and must not get a page",
+  "commands": ["$BIN inspect current"],
+  "output": [],
+  "images": [],
+  "needs": ["affinity"],
+  "pending": true
+}

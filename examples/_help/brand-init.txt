@@ -1,0 +1,14 @@
+command: affinity-axi brand init
+summary: Offline: write a starter brand kit (or copy one with --from); never overwrites
+args[1]{name,required,description}:
+  name,yes,brand name; the file is <slug>.brand.json
+flags[3]{flag,default,description}:
+  --dir,brands,folder for the kit (default ./brands)
+  --from,,copy this kit (path or name) instead of the neutral starter
+  --help,,show this help
+examples[2]:
+  affinity-axi brand init acme
+  affinity-axi brand init acme-dark --from acme
+output[2]:
+  wrote: brands/acme.brand.json
+  name: acme

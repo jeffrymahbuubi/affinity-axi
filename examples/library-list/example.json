@@ -1,0 +1,16 @@
+{
+  "id": "library-list",
+  "feature": "library list",
+  "title": "List library scripts",
+  "summary": "List the titles in Affinity's script library",
+  "commands": [
+    "$BIN library"
+  ],
+  "output": [
+    "help[1]:"
+  ],
+  "images": [],
+  "needs": [
+    "affinity"
+  ]
+}

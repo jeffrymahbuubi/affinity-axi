@@ -1,0 +1,7 @@
+usage: affinity-axi doc open <path.af>
+summary: Open a saved file under Desktop and report what is known about it
+examples[1]: affinity-axi doc open examples/lumen-post/demo.af
+output[3]:
+  status: opened
+  manifest: fresh
+  named[3]: bg, headline, cta

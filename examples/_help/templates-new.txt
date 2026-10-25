@@ -1,0 +1,19 @@
+command: affinity-axi templates new
+summary: Build a template on a brand kit and save it as .af, ready for fill (colours and fonts come from the kit)
+args[1]{name,required,description}:
+  name,yes,"one of: ig-post, ig-story, carousel-cover, og-card, price-post"
+flags[6]{flag,default,description}:
+  --out,,where to save the .af; must be inside the Desktop folder (required)
+  --brand,,"brand kit: a .brand.json path or a name under ./brands/ (default $AFFINITY_AXI_BRAND, then ./brand.json)"
+  --args,,"JSON: {""photo"": ""<image>""} on photo templates, {""rows"": [[...]]} on price-post"
+  --timeout,60000,per-script timeout in milliseconds
+  --url,,Affinity MCP URL (default $AFFINITY_MCP_URL or http://[::1]:6767)
+  --help,,show this help
+examples[2]:
+  affinity-axi templates new ig-post --out ~/Desktop/post.af --brand brand.json
+  affinity-axi templates new price-post --out ~/Desktop/prices.af --args '{"rows":[["Cut","Price"],["Trim","30"]]}'
+output[4]:
+  template: ig-post
+  slots[4]: headline, sub, photo, cta
+  records[2]{key,status,doc,ms,note}:
+  exported: 2

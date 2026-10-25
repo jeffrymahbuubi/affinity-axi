@@ -1,0 +1,24 @@
+{
+  "id": "helpers-text",
+  "feature": "helpers:text",
+  "title": "Helpers: text",
+  "summary": "Add a headline in Helvetica-Bold and a body paragraph that shrinks to fit its box",
+  "commands": [
+    "$BIN run $OUT/script.js --with-helpers --args '{\"uuid\":\"$DOC\"}'",
+    "$BIN render $DOC --out $OUT/render.jpg"
+  ],
+  "script": "script.js",
+  "output": [
+    "status: ok",
+    "ms: <n>",
+    "output[1]:"
+  ],
+  "images": [
+    "render.jpg"
+  ],
+  "needs": [
+    "affinity",
+    "document",
+    "fonts"
+  ]
+}

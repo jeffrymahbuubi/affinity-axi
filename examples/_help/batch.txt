@@ -1,0 +1,25 @@
+command: affinity-axi batch
+summary: Run a template script once per data record (JSON or CSV) over one connection
+args[1]{name,required,description}:
+  template,yes,"path to the .js template; it reads ARGS (the record plus key, index, outDir, outBase)"
+flags[13]{flag,default,description}:
+  --data,,"records: a .json array of objects, or a .csv with a header row (required)"
+  --key,,"record field that names each record (default: the record index); made filesystem-safe, must be unique"
+  --with-helpers,,append the axi* SDK helpers after the template (see: affinity-axi helpers)
+  --brand,,"brand kit: a .brand.json path or a name under ./brands/ (default $AFFINITY_AXI_BRAND, then ./brand.json)"
+  --allow-generative,,allow generative Canva AI APIs in the template (uses AI credits; logs provenance per record)
+  --allow-blocking,,run even if the template calls close()/closeAsync() or loads /dialog.js
+  --save-dir,,"folder under Desktop: after each record, save its document as <dir>/<key>.af and close it"
+  --out-dir,,folder under Desktop passed as ARGS.outDir; ARGS.outBase = <outDir>/<key> (the template exports itself)
+  --limit,,process only the first N records
+  --continue-on-error,,keep going after a failed record (default: stop at the first failure)
+  --timeout,60000,per-record script timeout in milliseconds
+  --url,,Affinity MCP URL (default $AFFINITY_MCP_URL or http://[::1]:6767)
+  --help,,show this help
+examples[2]:
+  affinity-axi batch post.js --data posts.json --key slug --with-helpers --out-dir ~/Desktop/out --save-dir ~/Desktop/af
+  affinity-axi batch og-card.js --data pages.csv --key slug --limit 3 --continue-on-error
+output[3]:
+  batch[2]{key,status,doc,ms,note}:
+  summary: ok=2 failed=0 skipped=0 ms=<n>
+  help[1]:

@@ -1,0 +1,23 @@
+{
+  "id": "helpers-carousel",
+  "feature": "helpers:carousel",
+  "title": "Helpers: carousel",
+  "summary": "Five numbered slides with a swipe cue, exported in order",
+  "commands": [
+    "$BIN run $OUT/script.js --with-helpers --args '{\"uuid\":\"$DOC\"}'",
+    "$BIN render $DOC --out $OUT/render.jpg"
+  ],
+  "script": "script.js",
+  "output": [
+    "status: ok",
+    "ms: <n>",
+    "output[1]:"
+  ],
+  "images": [
+    "render.jpg"
+  ],
+  "needs": [
+    "affinity",
+    "document"
+  ]
+}

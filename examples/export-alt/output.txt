@@ -1,0 +1,20 @@
+$ affinity-axi run examples/export-alt/script.js --with-helpers --args '{"uuid":"$DOC"}'
+script: examples/export-alt/script.js
+status: ok
+ms: <n>
+output[1]:
+  {"added":["bg","rule","headline","hours"]}
+help[2]:
+  affinity-axi render current
+  affinity-axi export current PNG <path-under-Desktop>
+
+$ affinity-axi export $DOC PNG examples/export-alt/card.png --artboard ig-square
+export: examples/export-alt/card.png
+doc: <uuid>
+preset: PNG
+artboard: ig-square
+bytes: <n>
+size: 1080x1080
+alt: Light, measured. Studio hours
+help[1]:
+  edit the alt text before publishing

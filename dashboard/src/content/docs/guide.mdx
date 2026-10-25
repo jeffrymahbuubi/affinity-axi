@@ -1,0 +1,53 @@
+---
+title: How to read this site
+description: What each sidebar group shows, where the pages come from and how to refresh them after a new gallery run.
+---
+
+## The sidebar
+
+| Group | One page for each | What the page holds |
+|---|---|---|
+| Features | task family | a lead sentence, one image per example, then each example's commands and links to its pages |
+| Commands | command | the help text as printed, then every example of that command |
+| Examples | gallery folder | the commands, the script, the captured output, the images |
+| Helpers | helper family | the same layout as an example, filed by family |
+| Platforms | size table run | the help text and the captured output of the offline table |
+
+The Features group is the quickest way in: it files every example under the task it serves
+(documents, scripts and helpers, fill and brand, export, sizes and checks, charts and tables,
+learning the SDK). The table that decides the grouping is `scripts/lib/families.mjs`.
+
+The About page near the top is the tool README rendered as one page.
+
+## What a captured output means
+
+Output on these pages is stdout from a real run, normalised so it stays stable: session ids become
+`<uuid>`, timings and byte counts become `<n>`, and the home folder becomes `~`. If your own run
+prints different ids or numbers in those places, that is expected. A line that differs anywhere
+else means the command changed, and the gallery should be regenerated.
+
+## Where the pages come from
+
+Nothing under Features, Commands, Examples, Helpers, Platforms or About is written by hand. The generator
+reads the gallery folder next to the tool (`examples/`), the captured help texts in `examples/_help/`,
+and the tool README, then writes one Markdown page per source. The pages and the copied images are
+git-ignored; edit the gallery, never the pages. The check at the end of `npm run check` also reads
+`examples/README.md` and fails when its generated sections and the example pages do not match, so a
+stale build is caught.
+
+If the gallery folder does not exist yet, the generator falls back to a small bundled fixture
+gallery and says so in its output. Set `AXI_GALLERY` to point it at any other folder.
+
+## Commands for this folder
+
+Run these from `dashboard/` with the Node version in the tool's `.nvmrc`.
+
+```sh
+npm install        # once
+npm run dev        # local site with live reload
+npm run build      # static site into dist/
+npm run check      # generate, test, type-check, build, then verify pages and images
+```
+
+Run the Astro tooling only through these scripts. They generate the pages first; calling `astro`
+directly can build against stale or missing pages.

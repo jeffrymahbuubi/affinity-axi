@@ -1,0 +1,10 @@
+{
+  "id": "doc-open",
+  "feature": "doc open",
+  "title": "Reopen a saved file",
+  "summary": "Open a saved file and see which parts of it are named",
+  "commands": ["$BIN doc open $OUT/demo.af"],
+  "output": ["status: opened", "manifest: fresh"],
+  "images": [],
+  "needs": ["affinity"]
+}

@@ -1,0 +1,22 @@
+{
+  "id": "export",
+  "feature": "export",
+  "title": "Export a document",
+  "summary": "Export the whole document as a PNG with a validated preset name",
+  "commands": [
+    "$BIN export $DOC PNG $OUT/demo.png"
+  ],
+  "output": [
+    "doc: <uuid>",
+    "preset: PNG",
+    "bytes: <n>",
+    "size: 1080x1080"
+  ],
+  "images": [
+    "demo.png"
+  ],
+  "needs": [
+    "affinity",
+    "document"
+  ]
+}

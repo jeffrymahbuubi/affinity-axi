@@ -1,0 +1,10 @@
+command: affinity-axi assets
+summary: Offline: list saved .af files with a manifest under a directory (newest first)
+flags[2]{flag,default,description}:
+  --dir,,directory to scan (default: the current directory; depth 6)
+  --help,,show this help
+examples[2]:
+  affinity-axi assets
+  affinity-axi assets --dir ~/Desktop/campaign
+output[1]:
+  assets[1]{file,madeBy,saved,fresh}:

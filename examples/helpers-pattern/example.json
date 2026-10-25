@@ -1,0 +1,23 @@
+{
+  "id": "helpers-pattern",
+  "feature": "helpers:pattern",
+  "title": "Helpers: pattern tiles",
+  "summary": "A seamless background from a motif repeated over a clipped grid, with an optional half-drop",
+  "commands": [
+    "$BIN run $OUT/script.js --with-helpers --args '{\"uuid\":\"$DOC\"}'",
+    "$BIN render $DOC --out $OUT/render.jpg"
+  ],
+  "script": "script.js",
+  "output": [
+    "status: ok",
+    "ms: <n>",
+    "output[1]:"
+  ],
+  "images": [
+    "render.jpg"
+  ],
+  "needs": [
+    "affinity",
+    "document"
+  ]
+}

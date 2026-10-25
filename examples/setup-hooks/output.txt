@@ -1,0 +1,4 @@
+$ affinity-axi setup hook --file examples/setup-hooks/hooks.json --check
+hook: not installed
+file: examples/setup-hooks/hooks.json
+command: bin/affinity-axi.js --brief

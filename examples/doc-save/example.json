@@ -1,0 +1,20 @@
+{
+  "id": "doc-save",
+  "feature": "doc save",
+  "title": "Save a document",
+  "summary": "Save a document as a .af file under the Desktop folder; it is clean afterwards",
+  "commands": [
+    "$BIN doc save $DOC $OUT/demo.af"
+  ],
+  "output": [
+    "doc: <uuid>",
+    "bytes: <n>",
+    "dirty: false",
+    "help[2]:"
+  ],
+  "images": [],
+  "needs": [
+    "affinity",
+    "document"
+  ]
+}

@@ -1,0 +1,10 @@
+$ affinity-axi export $DOC PNG examples/export-size/ig-square@2x.png --artboard ig-square --scale 2
+export: examples/export-size/ig-square@2x.png
+doc: <uuid>
+preset: PNG
+artboard: ig-square
+bytes: <n>
+size: 2160x2160
+alt: (none; add one)
+help[1]:
+  edit the alt text before publishing

@@ -1,0 +1,14 @@
+{
+  "id": "setup-hooks",
+  "feature": "setup hook",
+  "title": "Check the session-start hook",
+  "summary": "Report whether the session-start hook is installed, without writing anything",
+  "commands": [
+    "$BIN setup hook --file $OUT/hooks.json --check"
+  ],
+  "output": [
+    "hook: not installed"
+  ],
+  "images": [],
+  "needs": []
+}

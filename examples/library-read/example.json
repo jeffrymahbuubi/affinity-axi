@@ -1,0 +1,20 @@
+{
+  "id": "library-read",
+  "feature": "library read",
+  "title": "Read a library script",
+  "summary": "Copy a library script to a file so its code stays out of context",
+  "commands": [
+    "$BIN library save $OUT/script.js --title \"Lumen Studio demo\" --description \"Draws one rectangle\"",
+    "$BIN library read \"Lumen Studio demo\" --out $OUT/library-copy.js"
+  ],
+  "script": "script.js",
+  "output": [
+    "title: Lumen Studio demo",
+    "bytes: <n>",
+    "help[1]:"
+  ],
+  "images": [],
+  "needs": [
+    "affinity"
+  ]
+}

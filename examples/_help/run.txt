@@ -1,0 +1,23 @@
+command: affinity-axi run
+summary: Run a script file in Affinity and print its console output
+args[1]{name,required,description}:
+  file,yes,path to the .js script
+flags[9]{flag,default,description}:
+  --args,,JSON injected as `const ARGS = <json>;` on line 1
+  --timeout,60000,script timeout in milliseconds
+  --full,,print the whole output instead of 1500 characters
+  --with-helpers,,append the axi* SDK helpers after the script (see: affinity-axi helpers)
+  --brand,,"brand kit: a .brand.json path or a name under ./brands/ (default $AFFINITY_AXI_BRAND, then ./brand.json)"
+  --allow-generative,,allow this one run to call generative Canva AI APIs (uses AI credits; logs provenance)
+  --allow-blocking,,run even if the script calls close()/closeAsync() or loads /dialog.js
+  --url,,Affinity MCP URL (default $AFFINITY_MCP_URL or http://[::1]:6767)
+  --help,,show this help
+examples[3]:
+  affinity-axi run scripts/smoke-test.js
+  affinity-axi run scripts/logo.js --args '{"size":512}'
+  affinity-axi run scripts/hero.js --allow-generative   # generative AI, logged as provenance
+output[4]:
+  status: ok
+  ms: <n>
+  output[1]:
+  help[2]:

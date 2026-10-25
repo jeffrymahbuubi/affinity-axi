@@ -1,0 +1,25 @@
+command: affinity-axi webassets
+summary: Export website launch files from named artboards: favicons, OG and X cards, @1x/@2x sets, head.html
+args[1]{name,required,description}:
+  doc,yes,"session UUID, unique UUID prefix (8+ chars) or 'current'"
+flags[12]{flag,default,description}:
+  --out-dir,,"folder for the files; must be inside the Desktop folder (created if missing, files overwritten)"
+  --mark,,square mark artboard for the favicon set (default 'mark')
+  --og,,Open Graph card artboard (default 'og')
+  --x,,X card artboard (default 'x-card')
+  --responsive,,"comma list of artboards exported as name.png, name@2x.png, name.webp, name@2x.webp"
+  --href,,URL prefix written into head.html and site.webmanifest (default /)
+  --theme,,"theme colour for site.webmanifest, hex (default #ffffff)"
+  --no-favicons,,skip the favicon set (cards and responsive sets only)
+  --spread,,spread index from 0 that holds the artboards (default 0)
+  --no-alt,,skip the alt-text stub (saves one inventory call)
+  --url,,Affinity MCP URL (default $AFFINITY_MCP_URL or http://[::1]:6767)
+  --help,,show this help
+examples[3]:
+  affinity-axi webassets current --out-dir ~/Desktop/site
+  affinity-axi webassets 70E876CB --out-dir ~/Desktop/site --responsive hero --href https://example.com/
+  affinity-axi webassets current --out-dir ~/Desktop/site --no-favicons --og social
+output[3]:
+  status: ok
+  ms: <n>
+  output[1]:

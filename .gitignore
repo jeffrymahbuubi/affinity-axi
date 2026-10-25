@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.affinity-axi/
+examples/**/*.af~lock~
+dashboard/node_modules/
+dashboard/dist/
+dashboard/.astro/
+examples/_run/
+examples/**/*.af
+examples/**/*.af.axi.json
+examples/**/*.pdf
+coverage/

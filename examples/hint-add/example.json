@@ -1,0 +1,16 @@
+{
+  "id": "hint-add",
+  "feature": "hint add",
+  "title": "Record an SDK hint",
+  "summary": "Add a hint to Affinity's hint store (a mutation, so run it deliberately)",
+  "commands": [
+    "$BIN hint add \"Name artboards with axiArtboard so export --all-artboards can use {name}\""
+  ],
+  "output": [
+    "hint: added"
+  ],
+  "images": [],
+  "needs": [
+    "affinity"
+  ]
+}

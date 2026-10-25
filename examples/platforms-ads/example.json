@@ -1,0 +1,15 @@
+{
+  "id": "platforms-ads",
+  "feature": "platforms",
+  "title": "Google Display ad sizes",
+  "summary": "The seven standard display ad sizes with their 150 KB limit",
+  "commands": [
+    "$BIN platforms --grep \"^ad-\""
+  ],
+  "output": [
+    "platforms[7 of 44 total]{key,size,ratio,safe,notes}:",
+    "  ad-300x250,300x250,6:5,-,Google Display medium rectangle; 150 KB max; export --max-kb 150"
+  ],
+  "images": [],
+  "needs": []
+}

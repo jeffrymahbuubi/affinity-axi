@@ -1,0 +1,5 @@
+{
+  "name": "Lumen Studio",
+  "colours": { "ink": "#1F2A44", "sky": "#4C8DFF", "sun": "#FFC857", "mist": "#F2F5F9" },
+  "fonts": { "display": "Helvetica-Bold", "body": "Helvetica" }
+}

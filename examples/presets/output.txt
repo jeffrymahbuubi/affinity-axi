@@ -1,0 +1,66 @@
+$ affinity-axi presets
+presets[62]{name}:
+  PNG
+  PNG-8 (dithered)
+  "PNG-HDR (PQ, Rec.2020, Full range)"
+  "PNG-HDR (PQ, Rec.2020, Narrow range)"
+  "PNG-HDR (HLG, Rec.2020, Full range)"
+  "PNG-HDR (HLG, Rec.2020, Narrow range)"
+  JPEG (Best quality)
+  JPEG (High quality)
+  JPEG (Medium quality)
+  JPEG (Low quality)
+  GIF RGB
+  GIF Grayscale
+  TIFF RGB 8-bit
+  TIFF RGB 16-bit
+  TIFF Grayscale 8-bit
+  TIFF Grayscale 16-bit
+  TIFF CMYK
+  TIFF LAB 16-bit
+  SVG (for export)
+  SVG (digital - small size)
+  SVG (digital - high quality)
+  SVG (flatten)
+  EPS (for export)
+  EPS (digital - small size)
+  EPS (digital - high quality)
+  EPS (flatten)
+  PDF (for print)
+  PDF (press ready)
+  PDF (digital - small size)
+  PDF (digital - high quality)
+  PDF (for export)
+  PDF (flatten)
+  PDF/X-1a:2003
+  PDF/X-3:2003
+  PDF/X-4
+  EPUB (document settings)
+  EPUB (small size)
+  EPUB (high quality)
+  EPUB (Reflowable)
+  DWG - preserve vectors
+  DWG - preserve visuals
+  DXF - preserve vectors
+  DXF - preserve visuals
+  PSD (preserve accuracy)
+  PSD (preserve editability)
+  PSD (Final Cut Pro X)
+  OpenEXR 32-bit linear
+  OpenEXR 32-bit linear (layered)
+  Radiance HDR 32-bit linear
+  TGA
+  Canva Design
+  WebP (Best Quality)
+  WebP (High Quality)
+  WebP (Medium Quality)
+  WebP (Low Quality)
+  "WebP (Lossless, smallest)"
+  "WebP (Lossless, default)"
+  "WebP (Lossless, fastest)"
+  JPEG XL (Best Quality)
+  JPEG XL (High Quality)
+  JPEG XL (Medium Quality)
+  JPEG XL (Low Quality)
+help[1]:
+  affinity-axi export current <preset> <path-under-Desktop>

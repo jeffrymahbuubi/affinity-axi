@@ -1,0 +1,33 @@
+$ affinity-axi run examples/print/script.js --with-helpers --args '{"uuid":"$DOC"}'
+script: examples/print/script.js
+status: ok
+ms: <n>
+output[1]:
+  {"poster":"ig-square"}
+help[2]:
+  affinity-axi render current
+  affinity-axi export current PNG <path-under-Desktop>
+
+$ affinity-axi print $DOC --out examples/print/poster.pdf
+doc: <uuid>
+preset: PDF/X-4
+file: examples/print/poster.pdf
+bytes: <n>
+preflight[11]{check,status,note}:
+  pdf-header,ok,PDF 1.6
+  pdfx-version,ok,PDF/X-4
+  output-intent,ok,U.S. Web Coated (SWOP) v2
+  trim-box,ok,[0 0 1080 1080]
+  bleed-box,warn,MediaBox equals TrimBox [0 0 1080 1080]: the file carries no bleed
+  cmyk,ok,not requested (CMYK seen)
+  fonts-embedded,ok,font programs found
+  page-count,ok,1
+  tool-pdf-version,ok,1.6 (exiftool)
+  tool-page-count,ok,1 (exiftool)
+  tool-producer,ok,PDFlib+PDI 10.0.0p1-i (macOS (arm64))
+note: crop marks are drawn by axiPrintSheet for proofs; press PDFs carry bleed boxes, not marks
+notes[1]:
+  PDF/X presets export the trim area only: for bleed, build the document with axiPrintDoc({bleed}) and export with --preset "PDF (press ready)"
+help[2]:
+  affinity-axi export <uuid8> PNG <path-under-Desktop>   # a raster proof
+  affinity-axi presets   # all export presets

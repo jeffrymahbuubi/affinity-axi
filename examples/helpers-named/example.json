@@ -1,0 +1,23 @@
+{
+  "id": "helpers-named",
+  "feature": "helpers:named",
+  "title": "Helpers: edit by name",
+  "summary": "Change a text, fill or box by element name, with ambiguity reported as an error",
+  "commands": [
+    "$BIN run $OUT/script.js --with-helpers --args '{\"uuid\":\"$DOC\"}'",
+    "$BIN render $DOC --out $OUT/render.jpg"
+  ],
+  "script": "script.js",
+  "output": [
+    "status: ok",
+    "ms: <n>",
+    "output[1]:"
+  ],
+  "images": [
+    "render.jpg"
+  ],
+  "needs": [
+    "affinity",
+    "document"
+  ]
+}

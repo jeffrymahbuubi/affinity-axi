@@ -1,0 +1,11 @@
+$ affinity-axi platforms --grep "^ad-"
+platforms[7 of 44 total]{key,size,ratio,safe,notes}:
+  ad-300x250,300x250,6:5,-,Google Display medium rectangle; 150 KB max; export --max-kb 150
+  ad-336x280,336x280,6:5,-,Google Display large rectangle; 150 KB max; export --max-kb 150
+  ad-728x90,728x90,8.09:1,-,Google Display leaderboard; 150 KB max; export --max-kb 150
+  ad-160x600,160x600,4:15,-,Google Display wide skyscraper; 150 KB max; export --max-kb 150
+  ad-300x600,300x600,1:2,-,Google Display half page; 150 KB max; export --max-kb 150
+  ad-320x50,320x50,6.40:1,-,Google Display mobile banner; 150 KB max; export --max-kb 150
+  ad-970x250,970x250,3.88:1,-,Google Display billboard; 150 KB max; export --max-kb 150
+help[1]:
+  in a script: axiArtboards(doc, [{ platform: 'ad-300x250' }])   # run with --with-helpers

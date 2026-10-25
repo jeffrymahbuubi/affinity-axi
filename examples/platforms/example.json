@@ -1,0 +1,16 @@
+{
+  "id": "platforms",
+  "feature": "platforms",
+  "title": "Platform sizes",
+  "summary": "List web and social image sizes with ratio and safe-zone notes (offline)",
+  "commands": [
+    "$BIN platforms --grep story"
+  ],
+  "output": [
+    "platforms[1 of 44 total]{key,size,ratio,safe,notes}:",
+    "  story,1080x1920,9:16,t250 b340,IG/FB Stories 9:16; keep 250 px top and 340 px bottom clear of UI",
+    "help[1]:"
+  ],
+  "images": [],
+  "needs": []
+}

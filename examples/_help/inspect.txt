@@ -1,0 +1,19 @@
+command: affinity-axi inspect
+summary: List the nodes inside a document: artboards, names, boxes, text, fonts, fills
+args[1]{name,required,description}:
+  doc,yes,"session UUID, unique UUID prefix (8+ chars) or 'current'"
+flags[7]{flag,default,description}:
+  --named,,only nodes that have a name (userDescription); no row cap
+  --artboard,,only this artboard (exact name) and what it contains
+  --depth,,deepest nesting level to list (spread children are level 1)
+  --out,,write the inventory as JSON to this path instead of printing rows
+  --full,,print every row (default caps at 60)
+  --url,,Affinity MCP URL (default $AFFINITY_MCP_URL or http://[::1]:6767)
+  --help,,show this help
+examples[3]:
+  affinity-axi inspect current --named
+  affinity-axi inspect 70E876CB --artboard ig-square --full
+  affinity-axi inspect current --out .affinity-axi/inventory.json
+output[2]:
+  doc: <uuid>
+  size: 1080x1080 px @ 72 dpi

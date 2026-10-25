@@ -1,0 +1,14 @@
+command: affinity-axi hint search
+summary: Search Affinity's SDK hints for a task (truncated at 1500 chars)
+args[1]{name,required,description}:
+  prompt,yes,what you are trying to do
+flags[3]{flag,default,description}:
+  --full,,print everything instead of truncating at 1500 chars
+  --url,,Affinity MCP endpoint (AFFINITY_MCP_URL wins)
+  --help,,show this help
+examples[2]:
+  affinity-axi hint search "rounded rectangle with gradient fill"
+  affinity-axi hint search "export preset names" --full
+output[2]:
+  prompt: export a document to PNG
+  hints:

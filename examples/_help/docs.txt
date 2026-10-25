@@ -1,0 +1,12 @@
+command: affinity-axi docs list
+summary: List SDK documentation topics grouped as modules, examples, tests and data
+flags[2]{flag,default,description}:
+  --url,,Affinity MCP endpoint (AFFINITY_MCP_URL wins)
+  --help,,show this help
+examples[2]:
+  affinity-axi docs
+  affinity-axi docs list
+output[3]:
+    preamble
+  help[3]:
+    affinity-axi hint search "<what you want to do>"

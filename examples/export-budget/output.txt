@@ -1,0 +1,13 @@
+$ affinity-axi export $DOC "JPEG (High quality)" examples/export-budget/ad.jpg --artboard ig-square --max-kb 40
+export: examples/export-budget/ad.jpg
+doc: <uuid>
+preset: JPEG (High quality)
+artboard: ig-square
+budget_kb: 40
+attempts[1]{preset,size,bytes,fit}:
+  JPEG (High quality),1080x1080,<n>,true
+bytes: <n>
+size: 1080x1080
+alt: (none; add one)
+help[1]:
+  edit the alt text before publishing

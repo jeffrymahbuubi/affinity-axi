@@ -1,0 +1,18 @@
+{
+  "id": "fonts",
+  "feature": "fonts",
+  "title": "Find a font by exact name",
+  "summary": "List installed fonts with the exact postscript names scripts need",
+  "commands": [
+    "$BIN fonts --grep \"^Helvetica-Bold$\""
+  ],
+  "output": [
+    "fonts[1]{family,postscript,style}:",
+    "  Helvetica,Helvetica-Bold,Bold"
+  ],
+  "images": [],
+  "needs": [
+    "affinity",
+    "fonts"
+  ]
+}

@@ -1,0 +1,15 @@
+command: affinity-axi fonts
+summary: List installed fonts with exact postscript names (the reliable key for variable fonts)
+flags[5]{flag,default,description}:
+  --grep,,case-insensitive regex matched against family or postscript name
+  --family,,exact family name (case-insensitive)
+  --full,,print every matching row instead of the first 40
+  --url,,"MCP server URL (default: AFFINITY_MCP_URL, else http://[::1]:6767)"
+  --help,,show this help
+examples[3]:
+  affinity-axi fonts --grep fraunces
+  affinity-axi fonts --family Nunito
+  affinity-axi fonts --grep semibold --full
+output[2]:
+  fonts[1]{family,postscript,style}:
+    Helvetica,Helvetica-Bold,Bold

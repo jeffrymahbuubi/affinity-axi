@@ -1,0 +1,11 @@
+command: affinity-axi library list
+summary: List titles in Affinity's script library
+flags[3]{flag,default,description}:
+  --full,,also print the raw server text
+  --url,,"MCP server URL (default: AFFINITY_MCP_URL, else http://[::1]:6767)"
+  --help,,show this help
+examples[2]:
+  affinity-axi library
+  affinity-axi library list --full
+output[1]:
+  help[1]:

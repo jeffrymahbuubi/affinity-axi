@@ -1,0 +1,119 @@
+// SDK walker shared by `inspect`, `doc open` and `doc save`. It returns one
+// Inventory as a single JSON line. It is read-only: it never changes the
+// selection or the current spread, and holds no close, dialog or generative
+// call. Every per-node read sits in try/catch so one odd node cannot hide the
+// rest of the tree.
+
+export interface InspectOptions {
+  /** Only rows whose name (userDescription) is set. */
+  named?: boolean;
+  /** Only this artboard (exact name) and what it contains. */
+  artboard?: string;
+  /** Deepest nesting level to list; spread children are level 1. */
+  depth?: number;
+  /** Characters of text kept per text node (default 40; `inspect` keeps 40). */
+  textChars?: number;
+}
+
+/**
+ * Script text logging one Inventory JSON line. `docUuid` is a session UUID, or
+ * "current" for the document in front. `counts` always describe the whole
+ * tree; the filters only thin out `nodes`.
+ */
+export function INSPECT(docUuid: string, opts: InspectOptions = {}): string {
+  const depth = typeof opts.depth === "number" && opts.depth > 0 ? Math.floor(opts.depth) : 0;
+  const textChars = typeof opts.textChars === "number" && opts.textChars >= 1 ? Math.floor(opts.textChars) : 40;
+  return [
+    "/* affinity-axi:inspect */",
+    "const { Document } = require('/document.js');",
+    `const targetUuid = ${JSON.stringify(docUuid)};`,
+    `const onlyNamed = ${opts.named ? "true" : "false"};`,
+    `const onlyArtboard = ${JSON.stringify(opts.artboard ?? "")};`,
+    `const maxDepth = ${depth};`,
+    `const textChars = ${textChars};`,
+    "const doc = targetUuid === 'current' ? Document.current : Document.all.find((d) => String(d.sessionUuid) === targetUuid);",
+    "if (!doc) { throw new Error('No document with that Uuid exists.'); }",
+    "const rnd = (v) => Math.round(Number(v) || 0);",
+    "const hex2 = (v) => ('0' + (Number(v) & 255).toString(16)).slice(-2).toUpperCase();",
+    "const safe = (fn, dflt) => { try { const v = fn(); return v === undefined || v === null ? dflt : v; } catch (e) { return dflt; } };",
+    "const typeOf = (n) => String(safe(() => n[Symbol.toStringTag], 'Unknown')).replace(/Node$/, '') || 'Unknown';",
+    "const boxOf = (n) => {",
+    "  const b = safe(() => n.getSpreadVisibleBox(), null);",
+    "  if (!b) return [0, 0, 0, 0];",
+    "  const x = b.x !== undefined ? b.x : b.left, y = b.y !== undefined ? b.y : b.top;",
+    "  const w = b.width !== undefined ? b.width : b.right - b.left, h = b.height !== undefined ? b.height : b.bottom - b.top;",
+    "  return [rnd(x), rnd(y), rnd(w), rnd(h)];",
+    "};",
+    "const describeFill = (d) => {",
+    "  const f = d ? safe(() => d.fill, null) : null;",
+    "  if (!f) return undefined;",
+    "  const tag = String(safe(() => f[Symbol.toStringTag], ''));",
+    "  if (tag === 'SolidFill') {",
+    "    const c = safe(() => f.colour.rgba8, null);",
+    "    return c ? '#' + hex2(c.r) + hex2(c.g) + hex2(c.b) : 'other';",
+    "  }",
+    "  if (tag === 'GradientFill') return 'gradient';",
+    "  if (tag === 'BitmapFill') return 'bitmap';",
+    "  if (tag === 'NoFill') return 'none';",
+    "  return 'other';",
+    "};",
+    "const fillOf = (n, isText) => {",
+    "  if (isText) {",
+    "    for (const run of n.story.getGlyphAttRunsFrom(0)) return describeFill(run.glyphAtts.brushFill);",
+    "  }",
+    "  return describeFill(safe(() => n.brushFillInterface.fillDescriptor, null));",
+    "};",
+    "const fontOf = (n) => {",
+    "  for (const run of n.story.getGlyphAttRunsFrom(0)) {",
+    "    const ps = String(run.glyphAtts.font.postscriptName);",
+    "    const size = Math.round(Number(run.glyphAtts.height) * 100) / 100;",
+    "    return ps + ' ' + size;",
+    "  }",
+    "  return undefined;",
+    "};",
+    "const nodes = [], artboards = [];",
+    "const counts = { nodes: 0, named: 0, text: 0, images: 0 };",
+    "const walk = (parent, prefix, level, ab, inScope) => {",
+    "  let i = 0;",
+    "  const kids = safe(() => Array.from(parent.children), []);",
+    "  for (const n of kids) {",
+    "    const path = prefix + '/' + i; i += 1;",
+    "    const type0 = typeOf(n);",
+    "    const isAb = !!safe(() => n.isArtboardEnabled, false);",
+    "    const type = isAb ? 'Artboard' : type0;",
+    "    const name = String(safe(() => n.userDescription, '') || '');",
+    "    const label = isAb ? (name || String(safe(() => n.description, '') || '')) : name;",
+    "    const box = boxOf(n);",
+    "    const text = safe(() => n.text, null);",
+    "    const isText = typeof text === 'string';",
+    "    counts.nodes += 1;",
+    "    if (name) counts.named += 1;",
+    "    if (isText) counts.text += 1;",
+    "    if (type0 === 'Image' || type0 === 'PictureFrame') counts.images += 1;",
+    "    if (isAb) artboards.push({ name: label, path: path, box: box });",
+    "    const mine = inScope || !onlyArtboard || (isAb && label === onlyArtboard);",
+    "    const listed = mine && (maxDepth === 0 || level <= maxDepth) && (!onlyNamed || name !== '');",
+    "    if (listed) {",
+    "      const row = { path: path, type: type, name: name, box: box, visible: !!safe(() => n.isVisible, true) };",
+    "      if (ab) row.artboard = ab;",
+    "      if (isText) {",
+    "        row.text = text.replace(/[\\r\\n\\u2028\\u2029]+/g, ' ').slice(0, textChars);",
+    "        const font = safe(() => fontOf(n), undefined);",
+    "        if (font) row.font = font;",
+    "      }",
+    "      const fill = safe(() => fillOf(n, isText), undefined);",
+    "      if (fill) row.fill = fill;",
+    "      nodes.push(row);",
+    "    }",
+    "    walk(n, path, level + 1, isAb ? label : ab, mine);",
+    "  }",
+    "};",
+    "let s = 0;",
+    "for (const spread of doc.spreads) { walk(spread, String(s), 1, '', false); s += 1; }",
+    "console.log(JSON.stringify({",
+    "  at: new Date().toISOString(),",
+    "  doc: { uuid: String(doc.sessionUuid), title: String(doc.title), path: String(doc.path || ''), units: String(doc.units), width: doc.widthPixels, height: doc.heightPixels, dpi: doc.dpi },",
+    "  artboards: artboards, nodes: nodes, counts: counts",
+    "}));",
+  ].join("\n");
+}

@@ -1,0 +1,30 @@
+command: affinity-axi export
+summary: Export a document with a named preset to a path under the Desktop folder
+args[3]{name,required,description}:
+  doc,yes,"session UUID, unique UUID prefix (8+ chars) or 'current'"
+  preset,yes,exact preset name (see 'affinity-axi presets')
+  path,yes,output file path; must be inside the Desktop folder; {name} stands for the artboard name
+flags[13]{flag,default,description}:
+  --url,,Affinity MCP URL (default $AFFINITY_MCP_URL or http://[::1]:6767)
+  --artboard,,export one artboard by name
+  --all-artboards,,one file per artboard; <path> must contain {name}
+  --selection,,export the current selection
+  --spread,,"spread index from 0: the spread itself, or the spread holding the artboards"
+  --width,,output width in px (height follows the aspect ratio)
+  --height,,output height in px (width follows the aspect ratio)
+  --scale,,"output scale factor, e.g. 2 for @2x"
+  --square,,"fit the longer side to <px> keeping the aspect ratio, e.g. 512"
+  --max-kb,,"largest file size in KB; steps JPEG/WebP/PNG presets down, then size (to --min-scale)"
+  --min-scale,,smallest size step for --max-kb as a fraction of the requested size (default 0.5)
+  --no-alt,,skip the alt-text stub (saves one inventory call)
+  --help,,show this help
+examples[4]:
+  affinity-axi export current PNG ~/Desktop/logo.png
+  affinity-axi export current PNG ~/Desktop/out/{name}.png --all-artboards
+  affinity-axi export current PNG ~/Desktop/og@2x.png --artboard og --scale 2
+  affinity-axi export current "JPEG (High quality)" ~/Desktop/ad.jpg --artboard ad-300x250 --max-kb 150
+output[4]:
+  doc: <uuid>
+  preset: PNG
+  bytes: <n>
+  size: 1080x1080

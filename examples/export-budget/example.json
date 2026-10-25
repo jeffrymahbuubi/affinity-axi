@@ -1,0 +1,22 @@
+{
+  "id": "export-budget",
+  "feature": "export",
+  "title": "Export under a file-size budget",
+  "summary": "Step JPEG, WebP or PNG presets and then size until the file fits --max-kb",
+  "commands": [
+    "$BIN export $DOC \"JPEG (High quality)\" $OUT/ad.jpg --artboard ig-square --max-kb 40"
+  ],
+  "output": [
+    "doc: <uuid>",
+    "preset: JPEG (High quality)",
+    "artboard: ig-square",
+    "budget_kb: 40"
+  ],
+  "images": [
+    "ad.jpg"
+  ],
+  "needs": [
+    "affinity",
+    "document"
+  ]
+}

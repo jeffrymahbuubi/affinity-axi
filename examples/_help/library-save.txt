@@ -1,0 +1,15 @@
+command: affinity-axi library save
+summary: Save a script file into Affinity's library (identical title and code is a no-op; no overwrite)
+args[1]{name,required,description}:
+  file,yes,path to the script file
+flags[5]{flag,default,description}:
+  --title,,library title (required)
+  --description,,library description (required)
+  --allow-generative,,"allow saving a script that references generative Canva AI APIs (nothing runs, nothing is logged)"
+  --url,,"MCP server URL (default: AFFINITY_MCP_URL, else http://[::1]:6767)"
+  --help,,show this help
+examples[1]:
+  affinity-axi library save scripts/logo.js --title "Logo" --description "Draws the logo mark"
+output[2]:
+  title: Lumen Studio demo
+  help[1]:

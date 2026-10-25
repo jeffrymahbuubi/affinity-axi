@@ -1,0 +1,18 @@
+{
+  "id": "inspect",
+  "feature": "inspect",
+  "title": "Inspect a document",
+  "summary": "List the named elements of an open document with boxes, text, fonts and fills",
+  "commands": [
+    "$BIN inspect $DOC --named"
+  ],
+  "output": [
+    "doc: <uuid>",
+    "size: 1080x1080 px @ 72 dpi"
+  ],
+  "images": [],
+  "needs": [
+    "affinity",
+    "document"
+  ]
+}

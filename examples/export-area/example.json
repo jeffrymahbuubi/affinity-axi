@@ -1,0 +1,21 @@
+{
+  "id": "export-area",
+  "feature": "export",
+  "title": "Export every artboard",
+  "summary": "Export one file per artboard; the path holds {name} for the artboard name",
+  "commands": [
+    "$BIN export $DOC PNG $OUT/{name}.png --all-artboards"
+  ],
+  "output": [
+    "doc: <uuid>",
+    "preset: PNG",
+    "exports[1]{artboard,path,bytes,size,alt}:"
+  ],
+  "images": [
+    "ig-square.png"
+  ],
+  "needs": [
+    "affinity",
+    "document"
+  ]
+}

@@ -1,0 +1,30 @@
+$ affinity-axi hint search "export a document to PNG"
+prompt: export a document to PNG
+hints:
+  To export a document to PNG using Affinity JavaScript, here's the basic approach:
+  
+  1. **Import the required modules** from '/document':
+     - FileExportOptions
+     - FileExportArea
+     - Document
+  
+  2. **Set the export scope** - Choose one of these:
+     - For the whole document: `FileExportArea.createForWholeDocument()`
+     - For the current spread: `FileExportArea.createForCurrentSpread(doc)`
+     - For selected nodes: `FileExportArea.createForSelection(doc.selection)`
+  
+  3. **Create PNG export options**:
+     - Use `FileExportOptions.createWithPresetName('PNG')`
+  
+  4. **Execute the export**:
+     - Call `doc.export(path, exportOptions, exportArea)` where path is your target file location
+  
+  For example, to export the whole document to PNG:
+  - Create the options and area as above
+  - Call: `doc.export('/path/to/output/file.png', opts, area)`
+  
+  **Important notes:**
+  - Use backslashes on Windows paths
+  - For desktop paths, use `app.getUserDesktopPath()` to get the desktop location
+  - The export may hang if writing to certain paths - if you encounter issues, consider using alternative methods
+  - To export with transparency, you can set document properties with `isTransparent=true` before exporting

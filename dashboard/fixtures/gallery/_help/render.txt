@@ -1,0 +1,11 @@
+usage: affinity-axi render <doc> [flags]
+summary: Preview the current spread as a JPEG on disk
+flags[3]{name,type,description}:
+  spread,number,spread index (default: current)
+  selection,boolean,render only the selection
+  out,string,write the file here instead of .affinity-axi/renders/
+examples[2]: affinity-axi render current / affinity-axi render a1b2c3d4 --selection
+output[3]:
+  render: .affinity-axi/renders/<uuid8>-s0.jpg
+  size: 1080x1080
+  bytes: <n>

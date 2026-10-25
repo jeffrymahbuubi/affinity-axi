@@ -1,0 +1,19 @@
+{
+  "id": "doc-open",
+  "feature": "doc open",
+  "title": "Open a saved asset",
+  "summary": "Open a .af, reuse it if already open, and show how it was made and what it contains",
+  "commands": [
+    "$BIN doc save $DOC $OUT/asset.af",
+    "$BIN doc open $OUT/asset.af"
+  ],
+  "output": [
+    "status: already-open",
+    "manifest: fresh"
+  ],
+  "images": [],
+  "needs": [
+    "affinity",
+    "document"
+  ]
+}

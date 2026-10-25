@@ -1,0 +1,10 @@
+$ affinity-axi inspect $DOC --named
+doc: <uuid>
+path: (unsaved)
+size: 1080x1080 px @ 72 dpi
+nodes[1]{path,type,name,box,text,font,fill}:
+  0/0,Artboard,ig-square,0 0 1080 1080,,,#F2F5F9
+note: 1 of 1 nodes (named only)
+help[2]:
+  affinity-axi run <script.js> --with-helpers --args '{"uuid":"<uuid8>"}'
+  affinity-axi inspect <uuid8> --out <json>

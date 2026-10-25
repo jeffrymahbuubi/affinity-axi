@@ -1,0 +1,23 @@
+{
+  "id": "export-size",
+  "feature": "export",
+  "title": "Export one artboard at 2x",
+  "summary": "Export a single artboard by name at twice its size with --scale",
+  "commands": [
+    "$BIN export $DOC PNG $OUT/ig-square@2x.png --artboard ig-square --scale 2"
+  ],
+  "output": [
+    "doc: <uuid>",
+    "preset: PNG",
+    "artboard: ig-square",
+    "bytes: <n>",
+    "size: 2160x2160"
+  ],
+  "images": [
+    "ig-square@2x.png"
+  ],
+  "needs": [
+    "affinity",
+    "document"
+  ]
+}

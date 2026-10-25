@@ -1,0 +1,7 @@
+$ affinity-axi doc open examples/doc-open/demo.af
+doc: <uuid>
+path: ~/Desktop/lumen/demo.af
+status: opened
+manifest: fresh
+named[3]: bg, headline, cta
+help[2]: affinity-axi inspect <uuid8> --named / affinity-axi doc save <uuid8> ~/Desktop/lumen/demo.af

@@ -1,0 +1,34 @@
+$ affinity-axi run examples/helpers-vector/script.js --with-helpers --args '{"uuid":"$DOC"}'
+script: examples/helpers-vector/script.js
+status: ok
+ms: <n>
+output[1]:
+  {"mark":"union-subtract","outlined":true}
+help[2]:
+  affinity-axi render current
+  affinity-axi export current PNG <path-under-Desktop>
+
+$ affinity-axi render $DOC --out examples/helpers-vector/render.jpg
+render: examples/helpers-vector/render.jpg
+doc: <uuid>
+spread: 0
+bytes: <n>
+size: 1024x653
+note: preview capped at 1024px; use export for full resolution
+help[2]:
+  affinity-axi render <uuid8> --selection
+  affinity-axi export <uuid8> PNG <path-under-Desktop>
+
+$ affinity-axi export $DOC "SVG (for export)" examples/helpers-vector/mark.svg --selection
+export: examples/helpers-vector/mark.svg
+doc: <uuid>
+preset: SVG (for export)
+bytes: <n>
+
+$ affinity-axi export $DOC PNG examples/helpers-vector/favicon-32.png --artboard mark --square 32
+export: examples/helpers-vector/favicon-32.png
+doc: <uuid>
+preset: PNG
+artboard: mark
+bytes: <n>
+size: 32x32

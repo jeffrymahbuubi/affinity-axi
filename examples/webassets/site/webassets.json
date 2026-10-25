@@ -1,0 +1,132 @@
+{
+  "schema": "affinity-axi/webassets/1",
+  "doc": "C83BA9A9-AA28-4519-A57E-C6A9A0D749AD",
+  "at": "2026-10-24T19:35:47.987Z",
+  "files": [
+    {
+      "role": "favicon",
+      "file": "favicon-16.png",
+      "size": "16x16",
+      "bytes": 729,
+      "artboard": "mark",
+      "alt": ""
+    },
+    {
+      "role": "favicon",
+      "file": "favicon-32.png",
+      "size": "32x32",
+      "bytes": 955,
+      "artboard": "mark",
+      "alt": ""
+    },
+    {
+      "role": "favicon",
+      "file": "favicon-48.png",
+      "size": "48x48",
+      "bytes": 1185,
+      "artboard": "mark",
+      "alt": ""
+    },
+    {
+      "role": "apple-touch-icon",
+      "file": "apple-touch-icon.png",
+      "size": "180x180",
+      "bytes": 3285,
+      "artboard": "mark",
+      "alt": ""
+    },
+    {
+      "role": "icon",
+      "file": "icon-192.png",
+      "size": "192x192",
+      "bytes": 3325,
+      "artboard": "mark",
+      "alt": ""
+    },
+    {
+      "role": "icon",
+      "file": "icon-512.png",
+      "size": "512x512",
+      "bytes": 8752,
+      "artboard": "mark",
+      "alt": ""
+    },
+    {
+      "role": "icon",
+      "file": "icon.svg",
+      "size": "vector",
+      "bytes": 1160,
+      "artboard": "mark"
+    },
+    {
+      "role": "og",
+      "file": "og.png",
+      "size": "1200x630",
+      "bytes": 22345,
+      "artboard": "og",
+      "alt": "lumen. light for small studios"
+    },
+    {
+      "role": "x-card",
+      "file": "x-card.png",
+      "size": "1200x600",
+      "bytes": 21100,
+      "artboard": "x-card",
+      "alt": "lumen. light for small studios"
+    },
+    {
+      "role": "responsive",
+      "file": "hero.png",
+      "size": "1920x1080",
+      "bytes": 43526,
+      "artboard": "hero",
+      "alt": "lumen. light for small studios"
+    },
+    {
+      "role": "responsive",
+      "file": "hero@2x.png",
+      "size": "3840x2160",
+      "bytes": 97254,
+      "artboard": "hero",
+      "alt": "lumen. light for small studios"
+    },
+    {
+      "role": "responsive",
+      "file": "hero.webp",
+      "size": "1920x1080",
+      "bytes": 18584,
+      "artboard": "hero",
+      "alt": "lumen. light for small studios"
+    },
+    {
+      "role": "responsive",
+      "file": "hero@2x.webp",
+      "size": "3840x2160",
+      "bytes": 43290,
+      "artboard": "hero",
+      "alt": "lumen. light for small studios"
+    },
+    {
+      "role": "favicon",
+      "file": "favicon.ico",
+      "size": "16+32+48",
+      "bytes": 2923
+    },
+    {
+      "role": "webmanifest",
+      "file": "site.webmanifest",
+      "size": "",
+      "bytes": 298
+    },
+    {
+      "role": "head",
+      "file": "head.html",
+      "size": "",
+      "bytes": 699
+    }
+  ],
+  "skipped": [],
+  "notes": [
+    "apple-touch-icon uses the artboard fill as its ground; give the mark artboard a fill"
+  ]
+}

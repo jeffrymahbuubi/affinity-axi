@@ -1,0 +1,21 @@
+command: affinity-axi render
+summary: Render a spread or the selection to a JPEG on disk (never printed)
+args[1]{name,required,description}:
+  doc,yes,"session UUID, unique UUID prefix (8+ chars) or 'current'"
+flags[5]{flag,default,description}:
+  --spread,0,spread index to render
+  --selection,,render the current selection instead of a spread
+  --out,,output path (default .affinity-axi/renders/<uuid8>-s<spread>.jpg)
+  --url,,Affinity MCP URL (default $AFFINITY_MCP_URL or http://[::1]:6767)
+  --help,,show this help
+examples[3]:
+  affinity-axi render current
+  affinity-axi render 70E876CB --spread 1
+  affinity-axi render current --selection --out /tmp/sel.jpg
+output[6]:
+  render: .affinity-axi/renders/<uuid8>-s0.jpg
+  doc: <uuid>
+  spread: 0
+  bytes: <n>
+  size: 1024x1024
+  note: preview capped at 1024px; use export for full resolution

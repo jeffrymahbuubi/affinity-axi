@@ -1,0 +1,31 @@
+{
+  "name": "affinity-axi-dashboard",
+  "private": true,
+  "type": "module",
+  "version": "0.1.0",
+  "description": "Local Astro + Starlight site over the affinity-axi examples gallery, command help and README",
+  "engines": {
+    "node": ">=22.23.4"
+  },
+  "scripts": {
+    "gen:pages": "node scripts/gen-pages.mjs",
+    "predev": "npm run gen:pages",
+    "dev": "astro dev",
+    "prebuild": "npm run gen:pages",
+    "build": "astro build",
+    "preview": "astro preview",
+    "astro": "astro",
+    "test": "node --test \"scripts/**/*.test.mjs\"",
+    "check": "npm run gen:pages && npm test && astro check && astro build && node scripts/check-dashboard.mjs",
+    "check:fixture": "AXI_GALLERY=fixtures/gallery npm run check"
+  },
+  "dependencies": {
+    "@astrojs/starlight": "0.42.6",
+    "astro": "7.4.2",
+    "sharp": "0.35.5"
+  },
+  "devDependencies": {
+    "@astrojs/check": "0.9.12",
+    "typescript": "5.9.3"
+  }
+}

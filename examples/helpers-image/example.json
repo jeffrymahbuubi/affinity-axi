@@ -1,0 +1,23 @@
+{
+  "id": "helpers-image",
+  "feature": "helpers:image",
+  "title": "Helpers: images",
+  "summary": "Place a photo with cover fit, rounded corners and a focus point",
+  "commands": [
+    "$BIN run $OUT/script.js --with-helpers --args '{\"uuid\":\"$DOC\"}'",
+    "$BIN render $DOC --out $OUT/render.jpg"
+  ],
+  "script": "script.js",
+  "output": [
+    "status: ok",
+    "ms: <n>",
+    "output[1]:"
+  ],
+  "images": [
+    "render.jpg"
+  ],
+  "needs": [
+    "affinity",
+    "document"
+  ]
+}

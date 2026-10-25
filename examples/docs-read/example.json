@@ -1,0 +1,17 @@
+{
+  "id": "docs-read",
+  "feature": "docs read",
+  "title": "Read a documentation topic",
+  "summary": "Read part of an SDK topic by line range, so the whole text stays out of context",
+  "commands": [
+    "$BIN docs read preamble --lines 1-5"
+  ],
+  "output": [
+    "topic: preamble",
+    "lines: 1-5"
+  ],
+  "images": [],
+  "needs": [
+    "affinity"
+  ]
+}

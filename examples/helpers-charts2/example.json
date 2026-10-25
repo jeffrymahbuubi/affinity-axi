@@ -1,0 +1,23 @@
+{
+  "id": "helpers-charts2",
+  "feature": "helpers:charts2",
+  "title": "Helpers: multi-series charts",
+  "summary": "Grouped and stacked bars, a line chart with dots and gridlines, and a legend from plain series",
+  "commands": [
+    "$BIN run $OUT/script.js --with-helpers --args '{\"uuid\":\"$DOC\"}'",
+    "$BIN render $DOC --out $OUT/render.jpg"
+  ],
+  "script": "script.js",
+  "output": [
+    "status: ok",
+    "ms: <n>",
+    "output[1]:"
+  ],
+  "images": [
+    "render.jpg"
+  ],
+  "needs": [
+    "affinity",
+    "document"
+  ]
+}

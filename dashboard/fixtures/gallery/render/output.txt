@@ -1,0 +1,5 @@
+$ affinity-axi render <uuid8>
+render: .affinity-axi/renders/<uuid8>-s0.jpg
+size: 1080x1080
+bytes: <n>
+help[2]: affinity-axi export <uuid8> PNG ~/Desktop/out.png / affinity-axi render <uuid8> --selection

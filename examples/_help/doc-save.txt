@@ -1,0 +1,17 @@
+command: affinity-axi doc save
+summary: Save a document as a .af file under the Desktop folder (makes it clean)
+args[2]{name,required,description}:
+  doc,yes,"session UUID, unique UUID prefix (8+ chars) or 'current'"
+  path,yes,output .af path; must be inside the Desktop folder
+flags[3]{flag,default,description}:
+  --force,,overwrite a .af that was changed outside affinity-axi (stale manifest)
+  --url,,Affinity MCP URL (default $AFFINITY_MCP_URL or http://[::1]:6767)
+  --help,,show this help
+examples[2]:
+  affinity-axi doc save current ~/Desktop/logo.af
+  affinity-axi doc save 70E876CB out/work.af   # relative to the current directory
+output[4]:
+  doc: <uuid>
+  bytes: <n>
+  dirty: false
+  help[2]:

@@ -1,0 +1,9 @@
+command: affinity-axi templates list
+summary: List the ready-made slot templates: name, size, platform, slots (offline)
+flags[1]{flag,default,description}:
+  --help,,show this help
+examples[1]:
+  affinity-axi templates list
+output[2]:
+  templates[5]{name,size,platform,slots}:
+    ig-post,1080x1080,ig-square,headline sub photo cta

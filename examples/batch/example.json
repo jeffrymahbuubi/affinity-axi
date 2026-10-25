@@ -1,0 +1,19 @@
+{
+  "id": "batch",
+  "feature": "batch",
+  "title": "Batch a post series",
+  "summary": "Run one template over every record in a data file, saving and closing each document",
+  "commands": [
+    "$BIN batch $OUT/script.js --data $OUT/data.json --key slug --with-helpers --save-dir $OUT/af --limit 2"
+  ],
+  "script": "script.js",
+  "output": [
+    "batch[2]{key,status,doc,ms,note}:",
+    "summary: ok=2 failed=0 skipped=0 ms=<n>",
+    "help[1]:"
+  ],
+  "images": [],
+  "needs": [
+    "affinity"
+  ]
+}

@@ -1,0 +1,11 @@
+command: affinity-axi hint add
+summary: Record a new SDK hint in Affinity (a mutation)
+args[1]{name,required,description}:
+  text,yes,the hint to record
+flags[2]{flag,default,description}:
+  --url,,Affinity MCP endpoint (AFFINITY_MCP_URL wins)
+  --help,,show this help
+examples[1]:
+  affinity-axi hint add "Set the current spread before editing nodes"
+output[1]:
+  hint: added
