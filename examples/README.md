@@ -165,9 +165,9 @@ content:
   This is a JavaScript SDK for the Affinity by Canva application.
 ```
 
-## Search SDK hints
+## Ask the global hint pool
 
-`hint-search`: Search Affinity's own SDK hints for a task
+`hint-search`: Ask Affinity's global SDK hint pool about a task (a reworded answer; hints you add are in the preamble, not here)
 
 ```
 affinity-axi hint search "export a document to PNG"
@@ -175,6 +175,7 @@ affinity-axi hint search "export a document to PNG"
 
 ```
 prompt: export a document to PNG
+source: global pool (the answer is reworded on each call; hints you add are in the preamble, not here)
 hints:
   To export a document to PNG using Affinity JavaScript, here's the basic approach:
   1. **Import the required modules** from '/document':
@@ -182,9 +183,9 @@ hints:
      - FileExportArea
 ```
 
-## Record an SDK hint
+## Append a hint to the preamble
 
-`hint-add`: Add a hint to Affinity's hint store (a mutation, so run it deliberately)
+`hint-add`: Append a hint to this install's preamble; every new session reads it, hint search does not (a mutation, so run it deliberately)
 
 ```
 affinity-axi hint add "Name artboards with axiArtboard so export --all-artboards can use {name}"
@@ -192,6 +193,9 @@ affinity-axi hint add "Name artboards with axiArtboard so export --all-artboards
 
 ```
 hint: added
+stored: preamble (this install)
+help[1]:
+  affinity-axi docs read preamble
 ```
 
 ## List library scripts

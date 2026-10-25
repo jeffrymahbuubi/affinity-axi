@@ -281,6 +281,8 @@ describe("hint", () => {
     expect(r.code).toBe(0);
     expect(r.stdout).toContain("prompt: rounded rectangle");
     expect(r.stdout).toContain("hints:\n  Set the current spread before editing");
+    expect(r.stdout).toContain("source: global pool (the answer is reworded on each call; hints you add are in the preamble, not here)");
+    expect(r.stdout).toContain("help[1]:\n  affinity-axi docs read preamble");
     expect(server.calls.at(-1)).toMatchObject({ name: "search_sdk_hints", args: { prompt: "rounded rectangle" } });
   });
 
@@ -288,6 +290,8 @@ describe("hint", () => {
     const r = await runCommand(hint()["hint search"]!, ["anything", "--url", server.url]);
     expect(r.code).toBe(0);
     expect(r.stdout).toContain("hints: 0 results");
+    expect(r.stdout).toContain("source: global pool");
+    expect(r.stdout).toContain("help[1]:\n  affinity-axi docs read preamble");
   });
 
   it("search truncates long output and names the exact --full command", async () => {
@@ -295,6 +299,8 @@ describe("hint", () => {
     const r = await runCommand(hint()["hint search"]!, ["spread", "--url", server.url]);
     expect(r.stdout).toContain("truncated");
     expect(r.stdout).toContain('affinity-axi hint search "spread" --full');
+    expect(r.stdout).toContain("help[2]:\n  affinity-axi hint search \"spread\" --full\n  affinity-axi docs read preamble");
+    expect(r.stdout.match(/^help\[/gm)).toHaveLength(1);
     const full = await runCommand(hint()["hint search"]!, ["spread", "--full", "--url", server.url]);
     expect(full.stdout).toContain("hint number 119");
   });
@@ -302,8 +308,35 @@ describe("hint", () => {
   it("add records the hint and prints hint: added with exit 0", async () => {
     const r = await runCommand(hint()["hint add"]!, ["Use", "Millimetre", "units", "--url", server.url]);
     expect(r.code).toBe(0);
-    expect(r.stdout.trim()).toBe("hint: added");
-    expect(server.hints).toEqual(["Use Millimetre units"]);
+    expect(r.stdout.trim()).toBe(
+      "hint: added\nstored: preamble (this install)\nhelp[1]:\n  affinity-axi docs read preamble",
+    );
+    expect(server.hints).toEqual(["\nUse Millimetre units"]);
+    expect(server.calls.at(-1)?.args["hint"]).toBe("\nUse Millimetre units");
+  });
+
+  it("add keeps a text that already starts with a newline unchanged", async () => {
+    const r = await runCommand(hint()["hint add"]!, ["\nAlready on its own line", "--url", server.url]);
+    expect(r.code).toBe(0);
+    expect(server.calls.at(-1)?.args["hint"]).toBe("\nAlready on its own line");
+  });
+
+  it("add trims trailing whitespace before sending", async () => {
+    const r = await runCommand(hint()["hint add"]!, ["Trim me   \n ", "--url", server.url]);
+    expect(r.code).toBe(0);
+    expect(server.calls.at(-1)?.args["hint"]).toBe("\nTrim me");
+  });
+
+  it("add with empty or whitespace-only text is a usage error and makes no call", async () => {
+    for (const argv of [["   "], [" ", "\n"]]) {
+      const before = server.calls.length;
+      const r = await runCommand(hint()["hint add"]!, [...argv, "--url", server.url]);
+      expect(r.code).toBe(2);
+      expect(r.stdout).toContain("error:");
+      expect(server.calls.slice(before).filter((c) => c.name === "add_sdk_hint")).toHaveLength(0);
+      expect(server.calls.length).toBe(before);
+    }
+    expect(server.hints).toEqual([]);
   });
 
   it("add does not claim success when Affinity is unreachable", async () => {

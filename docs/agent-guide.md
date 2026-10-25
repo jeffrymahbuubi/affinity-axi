@@ -53,8 +53,8 @@ commands[35]{command,summary}:
   presets,List export preset names for this install
   docs,List SDK documentation topics grouped by kind
   docs read <file>,"Read a topic, narrowed with --grep or --lines"
-  hint search <prompt>,Search Affinity's SDK hints
-  hint add <text>,Record a new SDK hint
+  hint search <prompt>,Ask the global hint pool (a reworded answer)
+  hint add <text>,Append a hint to this install's preamble
   library list,List scripts in Affinity's script library
   library read <title>,"Read a library script, optionally to a file"
   library save <file>,Save a script to the library under a new title

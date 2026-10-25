@@ -4,7 +4,7 @@ An AXI (Agent eXperience Interface) CLI that drives Affinity by Canva through it
 
 **What this is.** A command-line tool for producing designs in Affinity from scripts: social posts, carousels, website launch files (favicons, OG and X cards), ad sizes under a file budget, print PDFs. You write a short JavaScript file against Affinity's scripting SDK (or use the tested `axi*` helpers and ready-made templates), and the CLI runs it, renders, exports and keeps a manifest of how each file was made. A brand kit keeps colours and fonts per project.
 
-**Status:** 0.3.0, macOS, tested against Affinity 3.3.1; installed locally with `npm link` (not published to npm).
+**Status:** 0.3.1, macOS, tested against Affinity 3.3.1; installed locally with `npm link` (not published to npm).
 
 **Requirements:** macOS, Affinity by Canva 3.3 or later with its MCP server enabled, Node.js 20 or later.
 
@@ -83,7 +83,7 @@ affinity-axi                               # home view: connection, open documen
 | `export <doc> <preset> <path>` | Export to a path under Desktop with a validated preset. Area: `--all-artboards` (path uses `{name}`), `--artboard`, `--selection`, `--spread`. Size: `--scale`, `--width`, `--height`, `--square`. AI-touched documents get a sidecar and IPTC metadata. Metadata: Affinity's account name is stripped from PNG (text chunks), JPEG (Exif, XMP and IPTC segments), WebP (XMP) and TIFF (EXIF, IPTC and XMP, needs `exiftool`); `--creator <name>` / `--copyright <text>` (or the brand kit's `credit`, `--brand`) embed your own credit with `exiftool`; `--keep-metadata` keeps Affinity's metadata (XMP; in JPEG also EXIF and IPTC) and cannot be combined with a credit. `--max-kb <n>` (with `--min-scale`) steps JPEG, WebP or PNG presets down, then the size, until the file fits. Each export prints an `alt:` stub built from the document's text, top-down (125 characters; `--no-alt` skips it), recorded in the manifest |
 | `presets` | List this install's export preset names |
 | `docs` / `docs read <file>` | List or read SDK docs (`--grep`, `--lines`, `--full`) |
-| `hint search` / `hint add` | Search or add SDK hints |
+| `hint search` / `hint add` | Ask Affinity's global hint pool / append a hint to the preamble |
 | `library` / `library read` / `library save` | Affinity script library; `save` is idempotent and never overwrites |
 | `setup hook` | Print the session-start command for your agent, or keep it in a JSON file with `--file <path> [--key hooks.SessionStart]` (`--check`, `--remove`). `setup hooks` is an alias. |
 

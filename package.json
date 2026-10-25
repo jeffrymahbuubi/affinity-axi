@@ -1,6 +1,6 @@
 {
   "name": "affinity-axi",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "AXI CLI that drives Affinity by Canva through its MCP server: scripts by path, renders to disk, ML helpers, generative AI opt-in per run",
   "license": "MIT",
   "author": "Aunuun Jeffry Mahbuubi",

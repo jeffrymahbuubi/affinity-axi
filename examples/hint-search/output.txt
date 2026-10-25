@@ -1,5 +1,6 @@
 $ affinity-axi hint search "export a document to PNG"
 prompt: export a document to PNG
+source: global pool (the answer is reworded on each call; hints you add are in the preamble, not here)
 hints:
   To export a document to PNG using Affinity JavaScript, here's the basic approach:
   
@@ -28,3 +29,5 @@ hints:
   - For desktop paths, use `app.getUserDesktopPath()` to get the desktop location
   - The export may hang if writing to certain paths - if you encounter issues, consider using alternative methods
   - To export with transparency, you can set document properties with `isTransparent=true` before exporting
+help[1]:
+  affinity-axi docs read preamble

@@ -1,13 +1,15 @@
 {
   "id": "hint-add",
   "feature": "hint add",
-  "title": "Record an SDK hint",
-  "summary": "Add a hint to Affinity's hint store (a mutation, so run it deliberately)",
+  "title": "Append a hint to the preamble",
+  "summary": "Append a hint to this install's preamble; every new session reads it, hint search does not (a mutation, so run it deliberately)",
   "commands": [
     "$BIN hint add \"Name artboards with axiArtboard so export --all-artboards can use {name}\""
   ],
   "output": [
-    "hint: added"
+    "hint: added",
+    "stored: preamble (this install)",
+    "help[1]:"
   ],
   "images": [],
   "needs": [
