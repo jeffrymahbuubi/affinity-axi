@@ -9,9 +9,9 @@ import { ML_INDEX, ML_INTERNAL, ML_SOURCE } from "../src/affinity/helpers-ml.js"
 import { calls, fakeDoc, load } from "./helpers-ml-fake.js";
 
 describe("ML helper registration", () => {
-  it("indexes the ML helpers once, in ML_INDEX order, with axiPick internal", () => {
+  it("indexes the ML helpers once, in ML_INDEX order, with axiPick and axiPixelStats internal", () => {
     expect(ML_INDEX.map((h) => h.name)).toEqual(["axiRemoveBackground", "axiSelectSubject", "axiDeselect", "axiCutout", "axiContentBox", "axiAlignIn", "axiDetectDepth", "axiDepthBlur", "axiColourise"]);
-    expect(ML_INTERNAL).toEqual(["axiPick"]);
+    expect(ML_INTERNAL).toEqual(["axiPick", "axiPixelStats"]);
     for (const h of ML_INDEX) {
       expect(HELPER_INDEX).toContain(h);
       expect(h.signature.startsWith(h.name + "(")).toBe(true);
@@ -19,6 +19,7 @@ describe("ML helper registration", () => {
     }
     for (const n of ML_INTERNAL) expect(INTERNAL_HELPERS).toContain(n);
     expect(HELPERS_SOURCE.match(/^function axiPick\(/gm)).toHaveLength(1);
+    expect(HELPERS_SOURCE.match(/^function axiPixelStats\(/gm)).toHaveLength(1);
   });
 
   it("keeps the block free of backticks, template placeholders, backslashes and closing calls", () => {
@@ -36,6 +37,12 @@ describe("ML helper registration", () => {
     expect(by["axiDetectDepth"]).toContain("inPlace");
     expect(by["axiDepthBlur"]).toContain("DESTRUCTIVE");
     expect(by["axiDepthBlur"]).toContain("{photo, depth}");
+    expect(by["axiRemoveBackground"]).toContain("nothing was removed");
+    expect(by["axiRemoveBackground"]).toContain("allowEmpty");
+    expect(by["axiSelectSubject"]).toContain("allowEmpty");
+    expect(by["axiCutout"]).toContain("allowEmpty");
+    expect(by["axiColourise"]).toContain("already in colour");
+    expect(by["axiColourise"]).toContain("force");
   });
 });
 
@@ -239,6 +246,123 @@ describe("axiDepthBlur", () => {
     const { doc, node, log } = fakeDoc({ image: true });
     load(log).axiDepthBlur(doc, node);
     expect(log.indexOf("rasteriseObjects")).toBeLessThan(log.indexOf("duplicate:identity"));
+  });
+});
+
+describe("K1: a removal that removes nothing", () => {
+  const GREY = { r: 128, g: 128, b: 128, alpha: 255 };
+
+  it("axiCutout throws, changes no document property and logs no transparent step", () => {
+    const f = fakeDoc({ removedPixel: null });
+    const h = load(f.log, f);
+    expect(() => h.axiCutout(f.doc, f.node)).toThrow(/axiRemoveBackground: nothing was removed \(no subject found\)/);
+    expect(f.log).not.toContain("setDocumentProperties");
+    expect(f.log.some((l) => l.startsWith("transparent:"))).toBe(false);
+    expect(f.props).toEqual([]);
+  });
+
+  it("axiCutout with allowEmpty returns the node and still makes the document transparent", () => {
+    const f = fakeDoc({ removedPixel: null });
+    const out = load(f.log, f).axiCutout(f.doc, f.node, { allowEmpty: true });
+    expect(out).toBe(f.node);
+    expect(f.log).toContain("removeBackground");
+    expect(f.log).toContain("transparent:true");
+    expect(f.props).toEqual([{ isTransparent: true }]);
+  });
+
+  it("axiRemoveBackground throws on a no-op and returns the node with allowEmpty", () => {
+    const a = fakeDoc({ removedPixel: null });
+    expect(() => load(a.log, a).axiRemoveBackground(a.doc, a.node)).toThrow("nothing was removed");
+    expect(a.log.filter((l) => l === "removeBackground")).toHaveLength(1);
+    const b = fakeDoc({ removedPixel: null });
+    expect(load(b.log, b).axiRemoveBackground(b.doc, b.node, { allowEmpty: true })).toBe(b.node);
+    expect(b.log.filter((l) => l === "removeBackground")).toHaveLength(1);
+  });
+
+  it("a real removal passes and every readback reader is disposed", () => {
+    const f = fakeDoc();
+    expect(load(f.log, f).axiRemoveBackground(f.doc, f.node)).toBe(f.node);
+    expect(f.disposed).toBe(2);
+    const g = fakeDoc();
+    load(g.log, g).axiCutout(g.doc, g.node);
+    expect(g.disposed).toBe(2);
+  });
+
+  it("a failed readback skips the guard: no throw, removal called once", () => {
+    const f = fakeDoc({ readback: false, removedPixel: null });
+    expect(load(f.log, f).axiCutout(f.doc, f.node)).toBe(f.node);
+    expect(f.log.filter((l) => l === "removeBackground")).toHaveLength(1);
+    expect(f.disposed).toBe(0);
+  });
+
+  it("an input that was already transparent counts as nothing removed", () => {
+    const clear = { r: 0, g: 0, b: 0, alpha: 0 };
+    const f = fakeDoc({ pixel: clear, removedPixel: clear });
+    expect(() => load(f.log, f).axiRemoveBackground(f.doc, f.node)).toThrow("nothing was removed");
+  });
+
+  it("method subject with allowEmpty and no subject skips invert/delete, returns the node, stays transparent", () => {
+    const f = fakeDoc({ subject: false });
+    const out = load(f.log, f).axiCutout(f.doc, f.node, { method: "subject", allowEmpty: true });
+    expect(out).toBe(f.node);
+    expect(f.log).toContain("selectSubject");
+    expect(f.log).not.toContain("invert");
+    expect(f.log).not.toContain("delete:false");
+    expect(f.log).not.toContain("deselect");
+    expect(f.log).toContain("transparent:true");
+  });
+
+  it("axiSelectSubject with allowEmpty returns null instead of throwing", () => {
+    const f = fakeDoc({ subject: false });
+    expect(load(f.log, f).axiSelectSubject(f.doc, f.node, { allowEmpty: true })).toBeNull();
+    const g = fakeDoc();
+    expect(load(g.log, g).axiSelectSubject(g.doc, g.node, { allowEmpty: true })).toBe(g.node);
+  });
+
+  it("allowEmpty on a no-op leaves the pixels as they were", () => {
+    const f = fakeDoc({ removedPixel: null });
+    load(f.log, f).axiCutout(f.doc, f.node, { allowEmpty: true });
+    expect(f.node.pixel).toEqual(GREY);
+  });
+});
+
+describe("K2: a colour layer is not colourised", () => {
+  it("a grey layer is colourised: the only SDK call is colourise", () => {
+    const f = fakeDoc();
+    expect(load(f.log, f).axiColourise(f.doc, f.node)).toBe(f.node);
+    expect(calls(f.log)).toEqual(["colourise"]);
+    expect(f.disposed).toBe(1);
+  });
+
+  it("a colour layer throws with the measured saturation and never colourises", () => {
+    const f = fakeDoc({ pixel: { r: 200, g: 120, b: 60, alpha: 255 } });
+    expect(() => load(f.log, f).axiColourise(f.doc, f.node)).toThrow(/already in colour \(mean saturation 0\.7/);
+    expect(f.log).not.toContain("colourise");
+  });
+
+  it("force:true colourises a colour layer anyway, without reading it", () => {
+    const f = fakeDoc({ pixel: { r: 200, g: 120, b: 60, alpha: 255 } });
+    expect(load(f.log, f).axiColourise(f.doc, f.node, { force: true })).toBe(f.node);
+    expect(f.log).toContain("colourise");
+    expect(f.disposed).toBe(0);
+  });
+
+  it("a layer that is clear everywhere measures saturation 0 and proceeds", () => {
+    const f = fakeDoc({ pixel: { r: 200, g: 120, b: 60, alpha: 0 } });
+    load(f.log, f).axiColourise(f.doc, f.node);
+    expect(f.log).toContain("colourise");
+  });
+
+  it("a saturation just under the threshold proceeds", () => {
+    const f = fakeDoc({ pixel: { r: 100, g: 97, b: 96, alpha: 255 } });
+    load(f.log, f).axiColourise(f.doc, f.node);
+    expect(f.log).toContain("colourise");
+  });
+
+  it("a failed readback skips the guard", () => {
+    const f = fakeDoc({ readback: false, pixel: { r: 200, g: 120, b: 60, alpha: 255 } });
+    load(f.log, f).axiColourise(f.doc, f.node);
+    expect(f.log).toContain("colourise");
   });
 });
 

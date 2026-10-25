@@ -14,7 +14,7 @@ export type Severity = "error" | "warning";
 
 export interface Finding {
   severity: Severity;
-  check: "contrast" | "safe-zone" | "min-font" | "slot" | "off-kit";
+  check: "contrast" | "safe-zone" | "min-font" | "slot" | "off-kit" | "off-board";
   /** The element name, or `<path> "<text>"` / `<path>` when it has none. */
   node: string;
   /** Index path in the inventory, e.g. "0/0/2". */
@@ -27,7 +27,7 @@ export interface LintOptions {
   platform?: string;
   /** Only this artboard (exact name) and what it contains. */
   artboard?: string;
-  /** Text below this size (px) is a warning. */
+  /** Text below this size (px at 72 dpi; scaled by dpi / 72 above 72 dpi) is a warning. */
   minFont: number;
   /** Warnings become errors. */
   strict: boolean;
@@ -105,9 +105,28 @@ function overPhoto(inv: Inventory, text: InventoryNode): boolean {
   for (const n of below(inv, text)) {
     if (n.text !== undefined || n.type === "Artboard" || !active(inv, n) || !contains(n.box, cx, cy)) continue;
     if (n.fill && SOLID.test(n.fill)) return false;
-    if (n.fill === "gradient" || n.fill === "bitmap" || n.type === "Image") return true;
+    if (n.fill === "gradient" || n.fill === "bitmap" || n.type === "Image" || n.type === "Raster") return true;
   }
   return false;
+}
+
+/** Text that is only zero-width spaces and whitespace is an emptied slot, not ink. */
+const ZWSP = /​/g;
+
+type Side = "right" | "left" | "top" | "bottom";
+
+/** Sides of `bounds` that the text box leaves by more than half a pixel, with how far. */
+function overshoot(t: [number, number, number, number], b: [number, number, number, number]): Array<{ side: Side; px: number }> {
+  const out: Array<{ side: Side; px: number }> = [];
+  const r = t[0] + t[2] - (b[0] + b[2]);
+  const l = b[0] - t[0];
+  const tp = b[1] - t[1];
+  const bt = t[1] + t[3] - (b[1] + b[3]);
+  if (r > 0.5) out.push({ side: "right", px: r });
+  if (l > 0.5) out.push({ side: "left", px: l });
+  if (tp > 0.5) out.push({ side: "top", px: tp });
+  if (bt > 0.5) out.push({ side: "bottom", px: bt });
+  return out;
 }
 
 function label(n: InventoryNode): string {
@@ -165,9 +184,11 @@ export function lintInventory(inv: Inventory, opts: LintOptions): { findings: Fi
   const kitHex = opts.kit ? Object.values(opts.kit.colours).map((c) => c.toUpperCase()) : [];
   const slotSeen = new Set<string>();
   let skipped = 0;
+  const scale = inv.doc.dpi > 72 ? inv.doc.dpi / 72 : 1;
+  const minPx = opts.minFont * scale;
 
   for (const n of nodes) {
-    const inkText = n.text !== undefined && n.text.trim() !== "";
+    const inkText = n.text !== undefined && n.text.replace(ZWSP, "").trim() !== "";
     const px = inkText ? fontPx(n, inv) : null;
 
     if (inkText) {
@@ -182,9 +203,23 @@ export function lintInventory(inv: Inventory, opts: LintOptions): { findings: Fi
       } else {
         skipped += 1;
       }
-      if (px !== null && px < opts.minFont) add("warning", "min-font", n, `${px} px is below the ${opts.minFont} px minimum`);
+      if (px !== null && px < minPx) {
+        const detail =
+          scale > 1
+            ? `${px} px is below the ${Math.round(minPx)} px minimum at ${inv.doc.dpi} dpi (${opts.minFont} px at 72 dpi; ${((px * 72) / inv.doc.dpi).toFixed(1)} pt)`
+            : `${px} px is below the ${opts.minFont} px minimum`;
+        add("warning", "min-font", n, detail);
+      }
 
       const ab = n.artboard !== undefined ? abs.find((a) => a.name === n.artboard) : undefined;
+      // Off-board: its artboard's box; a document without artboards uses the document size.
+      // Text outside every artboard of an artboard document is pasteboard and is not checked.
+      const bounds: Box | undefined = ab ? ab.box : inv.artboards.length === 0 ? [0, 0, inv.doc.width, inv.doc.height] : undefined;
+      // Text rows carry the ink box; the spread box grows by ~19 px on the anchored side after setText.
+      const over = bounds ? overshoot(n.ink ?? n.box, bounds) : [];
+      if (over.length > 0) {
+        add("error", "off-board", n, `extends ${over.map((o) => `${Math.round(o.px)} px past the ${o.side} edge of ${ab ? ab.name : "the document"}`).join(" and ")}`);
+      }
       const row = ab ? platformFor(ab.box, explicit, anyMatch) : undefined;
       const hit = ab && row ? crossed(row, ab.box, n.box) : [];
       if (hit.length > 0) add("error", "safe-zone", n, `crosses ${hit.join(" and ")} of ${row!.key}`);

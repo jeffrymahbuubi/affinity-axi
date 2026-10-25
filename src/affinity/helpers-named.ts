@@ -26,7 +26,7 @@ export const NAMED_INDEX: readonly HelperInfo[] = [
   { name: "axiNames", signature: "axiNames(doc)", summary: "every named element as [{path,name,type,artboard}] in document order; same rows and paths as `inspect --named`" },
   { name: "axiFind", signature: "axiFind(doc, ref)", summary: "the node for ref: 'name', 'artboard/name', '#0/2/1' (index path) or {text: /regex/}; throws not found, or ambiguous with the candidates and their paths" },
   { name: "axiFindAll", signature: "axiFindAll(doc, ref)", summary: "every node matching ref, as an array (empty when none); never throws on duplicates" },
-  { name: "axiSetText", signature: "axiSetText(doc, ref, text)", summary: "replace the text of one text node (keeps its font and size); works on any spread; returns the node" },
+  { name: "axiSetText", signature: "axiSetText(doc, ref, text)", summary: "replace the text of one text node (keeps its font, size and fill); an empty string keeps the style (a zero-width space is written); works on any spread; returns the node" },
   { name: "axiSetFill", signature: "axiSetFill(doc, ref, hex)", summary: "solid fill colour of one node ('#RRGGBB'; for text it colours the text); works on any spread; returns the node" },
   { name: "axiSetBox", signature: "axiSetBox(doc, ref, {x,y,w,h})", summary: "move and resize one node to the given box in document px; every field optional, missing ones are kept; works on any spread; returns the node" },
   { name: "axiRename", signature: "axiRename(doc, ref, name)", summary: "set the node's name (its userDescription); works on any spread; returns the node" },
@@ -35,7 +35,7 @@ export const NAMED_INDEX: readonly HelperInfo[] = [
 ];
 
 /** Internal building blocks, not in the index. */
-export const NAMED_INTERNAL: readonly string[] = ["axiRows", "axiRowLabel", "axiResolve", "axiOne", "axiNodeBox", "axiSpreadOf", "axiOnSpread", "axiStoryRange"];
+export const NAMED_INTERNAL: readonly string[] = ["axiRows", "axiRowLabel", "axiResolve", "axiOne", "axiNodeBox", "axiSpreadOf", "axiOnSpread", "axiStoryRange", "axiAlignOf", "axiBoardBox"];
 
 export const NAMED_SOURCE: string = String.raw`
 /* ---- named-element helpers ---- */
@@ -189,7 +189,9 @@ function axiStoryRange(doc, node) {
 // Replace the text of one text node, keeping its first run's font, size and
 // fill (setText alone restyles from the document's current text style: live,
 // the headline fell to the subline's font and fill). Character spacing and other
-// glyph attributes are not captured.
+// glyph attributes are not captured. An empty string writes a zero-width space
+// (U+200B): an empty story has no first run, so the style would be lost and a
+// refill would come back in the default font.
 function axiSetText(doc, ref, text) {
   const row = axiOne(doc, ref);
   if (row.text === null) { throw new Error('axiSetText: ' + axiRowLabel(row) + ' is not a text node'); }
@@ -203,6 +205,7 @@ function axiSetText(doc, ref, text) {
     first = { font: g.font, height: g.height, brushFill: g.brushFill };
     break;
   }
+  if (text === '') { text = String.fromCharCode(8203); }
   const back = axiOnSpread(doc, row.node);
   try {
     doc.setText(text, axiStoryRange(doc, row.node));
@@ -249,6 +252,40 @@ function axiNodeBox(n) {
   const x = Math.min.apply(null, xs);
   const y = Math.min.apply(null, ys);
   return { x: x, y: y, w: Math.max.apply(null, xs) - x, h: Math.max.apply(null, ys) - y };
+}
+
+// Internal: the horizontal alignment of a text node's first paragraph, 'l', 'c'
+// or 'r'. Compares the enum by identity and by .value; 'l' on any failure.
+function axiAlignOf(node) {
+  try {
+    const { ParagraphAlignXType } = require('/paragraphatts.js');
+    const t = node.story.getParagraphAtts(0).alignXType;
+    const same = function (a, b) {
+      return a === b || (!!a && !!b && a.value !== undefined && a.value === b.value);
+    };
+    if (same(t, ParagraphAlignXType.Right)) { return 'r'; }
+    if (same(t, ParagraphAlignXType.Centre)) { return 'c'; }
+    return 'l';
+  } catch (e) { return 'l'; }
+}
+
+// Internal: {x,y,w,h,name} of the nearest artboard above node (box as axiNodeBox,
+// name as the Layers label), else the whole document {0,0,widthPixels,heightPixels}
+// with name ''.
+function axiBoardBox(doc, node) {
+  let n = null;
+  try { n = node.parent; } catch (e) { n = null; }
+  for (let i = 0; i < 64 && n; i += 1) {
+    let is = false;
+    try { is = !!n.isArtboardEnabled; } catch (e) { is = false; }
+    if (is) {
+      const b = axiNodeBox(n);
+      const name = String(n.userDescription || n.description || '');
+      return { x: b.x, y: b.y, w: b.w, h: b.h, name: name };
+    }
+    try { n = n.parent; } catch (e) { n = null; }
+  }
+  return { x: 0, y: 0, w: doc.widthPixels, h: doc.heightPixels, name: '' };
 }
 
 // Move and resize one node to box {x,y,w,h} (document px, x,y the top-left).

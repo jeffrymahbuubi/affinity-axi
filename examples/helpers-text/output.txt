@@ -5,8 +5,8 @@ ms: <n>
 output[1]:
   {"added":["bg","headline","headline-2","body"],"bodySize":52,"lines":4}
 help[2]:
-  affinity-axi render current
-  affinity-axi export current PNG <path-under-Desktop>
+  affinity-axi render <doc>   # print doc.sessionUuid in the script to get the id
+  affinity-axi export <doc> PNG <path-under-Desktop>
 
 $ affinity-axi render $DOC --out examples/helpers-text/render.jpg
 render: examples/helpers-text/render.jpg

@@ -85,6 +85,8 @@ interface Env {
   log: string[];
   table: any;
   texts(): string[];
+  /** Fake table width: `width` is what getSpreadVisibleBox reports, `onFormat` sees each format call, `throws` makes the read fail. */
+  state: { width: number; reads: number; throws: boolean; onFormat?: (kinds: string[]) => void };
 }
 
 /** Evaluates the core helpers and the table block with a stubbed `require` and a fake document. */
@@ -92,7 +94,16 @@ function setup(cols: number, rowsN: number): Env {
   const log: string[] = [];
   const cellsEmpty = Array.from({ length: cols * rowsN }, () => "");
   const story = storyOf(cellsEmpty);
-  const table: any = { story, userDescription: "" };
+  const state: Env["state"] = { width: 900, reads: 0, throws: false };
+  const table: any = {
+    story,
+    userDescription: "",
+    getSpreadVisibleBox() {
+      state.reads++;
+      if (state.throws) throw new Error("no box");
+      return { width: state.width, height: 500 };
+    },
+  };
 
   // Cell contents derived from the story so range maths can be checked.
   const texts = (): string[] => {
@@ -115,7 +126,9 @@ function setup(cols: number, rowsN: number): Env {
       story.glyphs.splice(r.begin, r.end - r.begin, ...[...text].map((ch) => ({ ch, brk: false })));
     },
     formatText(delta: any, sel: any) {
-      log.push(`format:${sel.range.begin}-${sel.range.end}:${(delta.kinds ?? [delta.kind]).join("+")}`);
+      const kinds: string[] = delta.kinds ?? [delta.kind];
+      log.push(`format:${sel.range.begin}-${sel.range.end}:${kinds.join("+")}`);
+      state.onFormat?.(kinds);
     },
   };
 
@@ -139,6 +152,7 @@ function setup(cols: number, rowsN: number): Env {
         createGlyphDouble: (_t: any, v: number) => ({ kind: `size${v}` }),
         createBrushFill: () => ({ kind: "fill" }),
         createAlignX: (v: any) => ({ kind: `align${v}` }),
+        createParagraphDouble: (t: string, v: number) => ({ kind: `${t}${v}` }),
         createComposite: (ds: any[]) => ({ kinds: ds.map((d) => d.kind) }),
       },
     },
@@ -146,7 +160,10 @@ function setup(cols: number, rowsN: number): Env {
     "/glyphatts.js": { GlyphAttDoubleType: { Height: 0 } },
     "/fills.js": { FillDescriptor: { createSolid: (c: any) => ({ c }) } },
     "/colours.js": { RGBA8: (...a: number[]) => a },
-    "/paragraphatts.js": { ParagraphAlignXType: { Left: "L", Centre: "C", Right: "R", JustifyLeft: "J" } },
+    "/paragraphatts.js": {
+      ParagraphAlignXType: { Left: "L", Centre: "C", Right: "R", JustifyLeft: "J" },
+      ParagraphAttDoubleType: { LeftIndent: "LeftIndent", RightIndent: "RightIndent", FirstLineIndent: "FirstLineIndent", SpaceBefore: "SpaceBefore", SpaceAfter: "SpaceAfter" },
+    },
   };
   const req = (m: string) => {
     if (!mods[m]) throw new Error(`SDK module ${m} touched`);
@@ -155,10 +172,10 @@ function setup(cols: number, rowsN: number): Env {
   const names = [...(CORE_SOURCE + TABLE_SOURCE).matchAll(/^function (axi\w+)\(/gm)].map((m) => m[1]!);
   const body = `${CORE_SOURCE}\n${TABLE_SOURCE}\naxiFont = function (n) { return { ps: n }; };\nreturn { ${names.join(", ")} };`;
   const fn = new Function("require", body)(req) as Record<string, Fn>;
-  return { fn, doc, log, table, texts };
+  return { fn, doc, log, table, texts, state };
 }
 
-const good = { x: 90, y: 330, w: 900, h: 500, font: "Helvetica", size: 32, rows: [["Room", "Hourly"], ["A", "40"], ["B", "55"]] };
+const good = { x: 90, y: 330, w: 900, h: 500, font: "Helvetica", size: 32, padding: 0, rows: [["Room", "Hourly"], ["A", "40"], ["B", "55"]] };
 
 // --- validation ----------------------------------------------------------------
 
@@ -287,5 +304,64 @@ describe("axiTable build", () => {
   it("throws when the table does not have the expected number of cells", () => {
     const e = setup(2, 2);
     expect(() => e.fn.axiTable!(e.doc, good)).toThrow(/expected 6 cells, the table has 4/);
+  });
+});
+
+// --- padding: first-line indent and the width guard -------------------------------------
+
+describe("axiTable padding guard", () => {
+  const padded = { ...good, padding: 12 };
+  const padFormats = (log: string[]) => log.filter((l) => l.includes("FirstLineIndent"));
+
+  it("padding adds five paragraph deltas including FirstLineIndent, once when the width fits", () => {
+    const e = setup(2, 3);
+    e.fn.axiTable!(e.doc, padded);
+    expect(padFormats(e.log)).toEqual(["format:0-21:LeftIndent12+RightIndent12+FirstLineIndent12+SpaceBefore6+SpaceAfter6"]);
+    expect(e.state.reads).toBe(1);
+  });
+
+  it("a width of w + 0.5 still counts as fitting", () => {
+    const e = setup(2, 3);
+    e.state.width = 900.5;
+    e.fn.axiTable!(e.doc, padded);
+    expect(padFormats(e.log)).toHaveLength(1);
+  });
+
+  it("a too-wide table steps the padding down by 2 until it fits", () => {
+    const e = setup(2, 3);
+    e.state.width = 906;
+    e.state.onFormat = (kinds) => {
+      if (kinds.some((k) => k.startsWith("FirstLineIndent"))) {
+        const pad = Number(kinds.find((k) => k.startsWith("FirstLineIndent"))!.slice("FirstLineIndent".length));
+        e.state.width = 906 - ((12 - pad) / 2) * 3;
+      }
+    };
+    e.state.width = 906;
+    e.fn.axiTable!(e.doc, padded);
+    const f = padFormats(e.log);
+    expect(f.map((l) => l.match(/FirstLineIndent(\d+)/)![1])).toEqual(["12", "10", "8"]);
+    expect(f[2]).toContain("LeftIndent8+RightIndent8+FirstLineIndent8+SpaceBefore4+SpaceAfter4");
+  });
+
+  it("a table that never fits ends at padding 0 (a final format with 0) and stops", () => {
+    const e = setup(2, 3);
+    e.state.width = 5000;
+    e.fn.axiTable!(e.doc, { ...padded, padding: 5 });
+    const f = padFormats(e.log);
+    expect(f.map((l) => l.match(/FirstLineIndent(\d+)/)![1])).toEqual(["5", "3", "1", "0"]);
+  });
+
+  it("padding 0 writes no paragraph format and never reads the box", () => {
+    const e = setup(2, 3);
+    e.fn.axiTable!(e.doc, good);
+    expect(padFormats(e.log)).toEqual([]);
+    expect(e.state.reads).toBe(0);
+  });
+
+  it("a width read that throws ends the loop after the first format", () => {
+    const e = setup(2, 3);
+    e.state.throws = true;
+    expect(() => e.fn.axiTable!(e.doc, padded)).not.toThrow();
+    expect(padFormats(e.log)).toHaveLength(1);
   });
 });

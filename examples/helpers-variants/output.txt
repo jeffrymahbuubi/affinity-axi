@@ -5,8 +5,8 @@ ms: <n>
 output[1]:
   {"route":"adapt","mode":"anchor","boards":["story 1080x1920","og 1200x630"],"clamped":[],"names":["ig-square/headline","ig-square/cta","ig-square/cta-label","story/headline@story","story/cta@story","story/cta-label@story","og/headline@og","og/cta@og","og/cta-label@og"]}
 help[2]:
-  affinity-axi render current
-  affinity-axi export current PNG <path-under-Desktop>
+  affinity-axi render <doc>   # print doc.sessionUuid in the script to get the id
+  affinity-axi export <doc> PNG <path-under-Desktop>
 
 $ affinity-axi render $DOC --out examples/helpers-variants/render.jpg
 render: examples/helpers-variants/render.jpg
@@ -22,7 +22,9 @@ help[2]:
 $ affinity-axi export $DOC PNG examples/helpers-variants/{name}.png --all-artboards
 doc: <uuid>
 preset: PNG
-exports[3]{artboard,path,bytes,size}:
-  ig-square,examples/helpers-variants/ig-square.png,<n>,1080x1080
-  story,examples/helpers-variants/story.png,<n>,1080x1920
-  og,examples/helpers-variants/og.png,<n>,1200x630
+exports[3]{artboard,path,bytes,size,alt}:
+  ig-square,examples/helpers-variants/ig-square.png,<n>,1080x1080,lumen. Light for every room. Book a session
+  story,examples/helpers-variants/story.png,<n>,1080x1920,lumen. Light for every room. Book a session
+  og,examples/helpers-variants/og.png,<n>,1200x630,lumen. Light for every room. Book a session
+help[1]:
+  edit the alt text before publishing

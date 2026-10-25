@@ -12,20 +12,23 @@
 import type { HelperInfo } from "./helpers-core.js";
 
 export const IMAGE_INDEX: readonly HelperInfo[] = [
-  { name: "axiImage", signature: "axiImage(doc, {path,x,y,w,h,fit,radius,frame,focus,raster,name})", summary: "place an image file (under Desktop) as a pixel layer; fit contain (default, inside the box, top-left) | cover (fills w x h, clipped to a picture frame, centred on focus {x,y} 0-1) | stretch; radius px (or frame:true) clips to a rounded picture frame; raster:false keeps an image node; name sets the image node's userDescription (its frame gets name-frame); returns the image node (its parent is the frame)" },
-  { name: "axiReplaceImage", signature: "axiReplaceImage(doc, node, path, {fit,raster,name})", summary: "swap the picture in node (image, pixel layer or its frame) for another file, same slot: createReplaceBitmap when the pixel size matches, else re-placed with fit cover (default) into the old box and frame, keeping the old node's name unless name is given; returns the new node" },
+  { name: "axiImage", signature: "axiImage(doc, {path,x,y,w,h,fit,radius,frame,focus,raster,name,rotate,mirror})", summary: "place an image file (under Desktop) as a pixel layer; rotate 0|90|180|270 (degrees clockwise) and mirror:true (horizontal flip, applied first) turn the picture before the fit, for a file whose EXIF orientation Affinity ignores; fit contain (default, inside the box, top-left) | cover (fills w x h, clipped to a picture frame, centred on focus {x,y} 0-1) | stretch; radius px (or frame:true) clips to a rounded picture frame; raster:false keeps an image node; name sets the image node's userDescription (its frame gets name-frame); returns the image node (its parent is the frame)" },
+  { name: "axiReplaceImage", signature: "axiReplaceImage(doc, node, path, {fit,raster,name,rotate,mirror})", summary: "swap the picture in node (image, pixel layer or its frame) for another file, same slot: createReplaceBitmap when the pixel size matches, else re-placed with fit cover (default) into the old box and frame, keeping the old node's name unless name is given; rotate/mirror as axiImage (the picture is then always re-placed, never swapped in place); returns the new node" },
   { name: "axiGrade", signature: "axiGrade(doc, node, spec|look)", summary: "non-destructive adjustment stack on an image or pixel layer from a JSON spec; keys whiteBalance{temp,tint} exposure levels{black,white,gamma,outBlack,outWhite} curves brightnessContrast{brightness,contrast} shadowsHighlights{shadows,highlights} vibrance saturation hsl{hue,saturation,luminosity} splitToning{shadowsHue,shadowsSat,highlightsHue,highlightsSat,balance}; spec may be a look name" },
   { name: "axiLook", signature: "axiLook(name)", summary: "grade spec preset: 'warm-soft' (warm, lifted blacks, gentle colour) or 'neutral' (light tone correction only, for Google Business Profile where heavy filters are disallowed)" },
 ];
 
 /** Internal building blocks, not in the index. */
-export const IMAGE_INTERNAL: readonly string[] = ["axiPlace", "axiGradeTarget", "axiGradeSteps"];
+export const IMAGE_INTERNAL: readonly string[] = ["axiPlace", "axiOrientCheck", "axiCmykGuard", "axiGradeTarget", "axiGradeSteps"];
 
 export const IMAGE_SOURCE: string = String.raw`
 // Internal: load path and add it as an image node. target (a frame or other
 // parent node) makes it a child, in front; null adds it to the current insertion
 // point. box {x,y,w,h} and fit place it: contain (default, top-left aligned),
-// cover or stretch. focus {x,y} (0-1) positions the overflow of cover. Returns the image node.
+// cover or stretch. focus {x,y} (0-1) positions the overflow of cover. o.mirror
+// (horizontal flip, first) and o.rotate (0, 90, 180, 270 degrees clockwise on screen,
+// y down) turn the placed node about its centre before the fit is measured.
+// Returns the image node.
 function axiPlace(doc, o, box, target) {
   const { ImageNodeDefinition } = require('/nodes.js');
   const { Bitmap, RasterFormat } = require('/rasterobject.js');
@@ -45,6 +48,15 @@ function axiPlace(doc, o, box, target) {
     doc.addNode(def);
   }
   const node = doc.selection.nodes.first;
+  if (o.mirror || o.rotate) {
+    const c0 = axiMeasure(doc);
+    const cx = c0.x + c0.w / 2;
+    const cy = c0.y + c0.h / 2;
+    let turn = Transform.createTranslate(cx, cy);
+    if (o.rotate) { turn = turn.multiply(Transform.createRotate(o.rotate * Math.PI / 180)); }
+    if (o.mirror) { turn = turn.multiply(Transform.createScale(-1, 1)); }
+    doc.applyTransform(turn.multiply(Transform.createTranslate(-cx, -cy)));
+  }
   const m = axiMeasure(doc);
   let sx = 1;
   let sy = 1;
@@ -67,6 +79,31 @@ function axiPlace(doc, o, box, target) {
   return node;
 }
 
+// Internal: validate the rotate and mirror options before any SDK call.
+function axiOrientCheck(who, o) {
+  if (o.rotate !== undefined && [0, 90, 180, 270].indexOf(o.rotate) < 0) { throw new Error(who + ': rotate must be 0, 90, 180 or 270 (degrees clockwise)'); }
+  if (o.mirror !== undefined && typeof o.mirror !== 'boolean') { throw new Error(who + ': mirror must be true or false'); }
+}
+
+// Internal: throw before any SDK edit when doc is a CMYK document (addNode fails inside
+// Affinity there). doc.format is compared with the CMYK members of RasterFormat
+// (/rasterobject.js: CMYK8, CMYKA8, CMYK16, CMYKA16, plus any other key containing CMYK),
+// falling back to a CMYK match on String(doc.format). A failed read never blocks.
+function axiCmykGuard(who, doc) {
+  let cmyk = false;
+  try {
+    const f = doc.format;
+    if (f !== undefined && f !== null) {
+      const { RasterFormat } = require('/rasterobject.js');
+      const names = ['CMYK8', 'CMYKA8', 'CMYK16', 'CMYKA16'];
+      for (const k of Object.keys(RasterFormat || {})) { if (k.indexOf('CMYK') >= 0 && names.indexOf(k) < 0) { names.push(k); } }
+      for (const k of names) { if (RasterFormat && RasterFormat[k] !== undefined && f === RasterFormat[k]) { cmyk = true; } }
+      if (!cmyk && String(f).indexOf('CMYK') >= 0) { cmyk = true; }
+    }
+  } catch (e) { cmyk = false; }
+  if (cmyk) { throw new Error(who + ': cannot place a picture in a CMYK document; place it while the document is RGB, then convert (doc.format = CMYKA8 or print --cmyk)'); }
+}
+
 // Place an image file (the file must be under the Desktop). x,y is the top-left
 // corner (default 0,0); w and/or h give the box. fit: 'contain' (default) keeps
 // the aspect ratio inside the box and sits top-left; 'cover' fills the whole
@@ -77,6 +114,8 @@ function axiPlace(doc, o, box, target) {
 // rasterised at its placed size unless o.raster === false. Returns the image
 // (or pixel) node; with a frame it is the frame's child: node.parent is the frame.
 function axiImage(doc, o) {
+  axiOrientCheck('axiImage', o);
+  axiCmykGuard('axiImage', doc);
   const fit = o.fit || 'contain';
   if (fit !== 'contain' && fit !== 'cover' && fit !== 'stretch') { throw new Error('axiImage: fit must be contain, cover or stretch'); }
   const framed = !!(o.radius || o.frame || fit === 'cover');
@@ -93,13 +132,17 @@ function axiImage(doc, o) {
 
 // Replace the picture in node (an image node, a pixel layer or the picture
 // frame holding one) with the file at path. Same pixel size as a pixel layer:
-// DocumentCommand.createReplaceBitmap in place. Otherwise the old picture is
+// DocumentCommand.createReplaceBitmap in place (not when o.rotate or o.mirror is
+// set: the picture must be turned, so it is always re-placed). Otherwise the old picture is
 // deleted and the new one placed into the same box and frame (fit 'cover' by
 // default, o.fit overrides), in front of its siblings. Returns the new node.
 function axiReplaceImage(doc, node, path, o) {
   const { Bitmap, RasterFormat } = require('/rasterobject.js');
   const { DocumentCommand } = require('/commands.js');
   const opts = o || {};
+  axiOrientCheck('axiReplaceImage', opts);
+  axiCmykGuard('axiReplaceImage', doc);
+  const turned = !!(opts.rotate || opts.mirror);
   let n = node || doc.selection.nodes.first;
   if (!n) { throw new Error('axiReplaceImage: nothing selected; pass a node'); }
   if (n.pictureFrameEnabled && !n.isImageNode && !n.isRasterNode) {
@@ -113,7 +156,7 @@ function axiReplaceImage(doc, node, path, o) {
   const inFrame = !!(parent && parent.pictureFrameEnabled);
   const bm = Bitmap.loadFromFile(path, RasterFormat.RGBA8);
   doc.selection = n;
-  if (n.isRasterNode && n.rasterWidth === bm.width && n.rasterHeight === bm.height) {
+  if (!turned && n.isRasterNode && n.rasterWidth === bm.width && n.rasterHeight === bm.height) {
     doc.executeCommand(DocumentCommand.createReplaceBitmap(doc.selection, bm));
     return axiName(doc.selection.nodes.first, opts.name);
   }
@@ -122,7 +165,7 @@ function axiReplaceImage(doc, node, path, o) {
   doc.selection = n;
   doc.deleteSelection();
   const target = parent && (inFrame || parent.isArtboardEnabled) ? parent : null;
-  const out = axiPlace(doc, { path: path, fit: opts.fit || (inFrame ? 'cover' : 'contain'), raster: opts.raster, focus: opts.focus }, box, target);
+  const out = axiPlace(doc, { path: path, fit: opts.fit || (inFrame ? 'cover' : 'contain'), raster: opts.raster, focus: opts.focus, rotate: opts.rotate, mirror: opts.mirror }, box, target);
   return axiName(out, keepName || undefined);
 }
 

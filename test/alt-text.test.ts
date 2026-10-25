@@ -1,7 +1,7 @@
 // altFor: pure alt-text stub from an Inventory.
 
 import { describe, expect, it } from "vitest";
-import { ALT_MAX, NO_ALT_FLAG, altFor } from "../src/affinity/alt-text.js";
+import { ALT_MAX, NO_ALT_FLAG, altFor, readingOrder } from "../src/affinity/alt-text.js";
 import type { Inventory, InventoryNode } from "../src/affinity/manifest-types.js";
 
 const row = (path: string, box: [number, number, number, number], text: string | undefined, over: Partial<InventoryNode> = {}): InventoryNode => ({
@@ -102,5 +102,69 @@ describe("altFor", () => {
 
   it("exports the shared --no-alt flag", () => {
     expect(NO_ALT_FLAG).toMatchObject({ name: "no-alt", type: "boolean" });
+  });
+  describe("reading order", () => {
+    // 119 characters: the 125 cut falls inside "detail", so it backs up to the last space.
+    const EXPECT_A9 =
+      "Left one opens the story. Left two keeps it going. Left three ends the column. Right one is a sidebar. Right two adds a";
+    const L = ["Left one opens the story", "Left two keeps it going", "Left three ends the column"];
+    const R = [
+      "Right one is a sidebar",
+      "Right two adds a detail",
+      "Right three closes the sidebar with a rather long sentence that should be cut somewhere sensible at a word boundary",
+    ];
+    const cols = (): InventoryNode[] => [
+      row("0/0/0", [40, 100, 340, 34], L[0], { artboard: "cols" }),
+      row("0/0/1", [420, 150, 250, 28], R[0], { artboard: "cols" }),
+      row("0/0/2", [40, 200, 300, 34], L[1], { artboard: "cols" }),
+      row("0/0/3", [420, 250, 260, 28], R[1], { artboard: "cols" }),
+      row("0/0/4", [40, 300, 360, 34], L[2], { artboard: "cols" }),
+      row("0/0/5", [420, 350, 900, 28], R[2], { artboard: "cols" }),
+      row("0/0/6", [40, 700, 300, 34], "HIDDEN TEXT", { artboard: "cols", visible: false }),
+      row("0/0/7", [1000, 400, 300, 34], "OUTSIDE TEXT", { artboard: undefined }),
+    ];
+
+    it("reads the whole left column before the right (A9)", () => {
+      const out = altFor(inv(cols()), { kind: "artboard", name: "cols" });
+      expect(out).toBe(EXPECT_A9);
+      expect(out).toHaveLength(119);
+      expect(out.length).toBeLessThanOrEqual(ALT_MAX);
+    });
+
+    it("reads a full-width headline first, then the left column, then the right", () => {
+      const head = row("0/0/9", [40, 20, 1000, 60], "Headline", { artboard: "cols" });
+      const out = altFor(inv([...cols(), head]), { kind: "artboard", name: "cols" });
+      expect(out).toBe(
+        "Headline. Left one opens the story. Left two keeps it going. Left three ends the column. Right one is a sidebar. Right two",
+      );
+    });
+
+    it("does not treat touching boxes as a gap", () => {
+      const rows = [
+        { id: "b", box: [300, 100, 100, 20] as [number, number, number, number] },
+        { id: "a", box: [100, 200, 200, 20] as [number, number, number, number] },
+      ];
+      // x intervals 300-400 and 100-300 touch, so the order is top then left.
+      expect(readingOrder(rows).map((r) => r.id)).toEqual(["b", "a"]);
+    });
+
+    it("reads three columns left to right, each whole, even when the rows are not aligned", () => {
+      const mk = (id: string, x: number, y: number) => ({ id, box: [x, y, 100, 20] as [number, number, number, number] });
+      const rows = [mk("c1", 500, 10), mk("a2", 0, 400), mk("b1", 250, 90), mk("a1", 0, 50), mk("c2", 500, 300), mk("b2", 250, 220)];
+      expect(readingOrder(rows).map((r) => r.id)).toEqual(["a1", "a2", "b1", "b2", "c1", "c2"]);
+    });
+
+    it("handles no rows and one row", () => {
+      expect(readingOrder([])).toEqual([]);
+      const one = [{ box: [1, 2, 3, 4] as [number, number, number, number] }];
+      expect(readingOrder(one)).toEqual(one);
+      expect(readingOrder(one)).not.toBe(one);
+    });
+
+    it("applies the box and spread filters before ordering", () => {
+      const i = inv(cols());
+      expect(altFor(i, { kind: "box", box: [0, 0, 400, 800] })).toBe("Left one opens the story. Left two keeps it going. Left three ends the column");
+      expect(altFor(i, { kind: "spread", spread: 0 }, 60)).toBe("Left one opens the story. Left two keeps it going. Left");
+    });
   });
 });

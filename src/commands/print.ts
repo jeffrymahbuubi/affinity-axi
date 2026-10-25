@@ -173,6 +173,9 @@ export function make(connect: ConnectFn): CommandModule {
       if (external) rows.push(...external.rows);
       const notes: string[] = [];
       if (!external) notes.push("exiftool, pdfinfo and qpdf were not found on PATH: byte scan only");
+      if (rows.some((r) => r.check === "author-metadata")) {
+        notes.push("PDF Author/Creator come from Affinity and are not stripped; a PDF rewrite tool (qpdf) is needed");
+      }
       if (cmyk && format !== undefined && format !== "CMYKA8") notes.push(`the document format reads back as ${format}, so the CMYK conversion did not apply`);
       if (cmyk) notes.push("--cmyk changed the open document; save or undo it");
       if (rows.some((r) => r.check === "bleed-box" && r.status === "warn")) {

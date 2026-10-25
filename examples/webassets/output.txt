@@ -5,8 +5,8 @@ ms: <n>
 output[1]:
   {"artboards":["mark","og","x-card","hero"]}
 help[2]:
-  affinity-axi render current
-  affinity-axi export current PNG <path-under-Desktop>
+  affinity-axi render <doc>   # print doc.sessionUuid in the script to get the id
+  affinity-axi export <doc> PNG <path-under-Desktop>
 
 $ affinity-axi render $DOC --out examples/webassets/render.jpg
 render: examples/webassets/render.jpg

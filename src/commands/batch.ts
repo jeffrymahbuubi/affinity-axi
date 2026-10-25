@@ -6,14 +6,20 @@
 // classify, provenance (generative), and optionally save + close the document.
 // A document is closed only after saveAs succeeded and the .af exists, and
 // DOC_CLOSE re-checks isDirty inside Affinity before calling close().
+//
+// Left-open documents: one listing at the start seeds `known` (every open
+// document). After a failed record the listing is diffed against it, and each
+// new document (plus the reported one when dirty) is named in the row note and
+// in a `leftOpen:` line after the summary. Row notes join with "; ".
 
-import { existsSync, mkdirSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import type { CommandModule } from "../cli/router.js";
 import { positiveFlag, type Parsed } from "../cli/args.js";
 import { BRAND_FLAG, injectBrand, loadBrand, resolveBrandRef, type BrandKit } from "../affinity/brand.js";
 import { refusalMessage, refusalSuggestion, scanForAi, scanForBlocking } from "../affinity/guard.js";
 import { withHelpers } from "../affinity/helpers.js";
+import { creditFor, finalizeFile, metadataNote, type Credit, type MetaOutcome } from "../affinity/metadata.js";
 import { appendProvenance, extractUuids, sha256 } from "../affinity/provenance.js";
 import { recordSave } from "../affinity/manifest.js";
 import { checkOverwrite, FORCE_FLAG } from "../affinity/overwrite.js";
@@ -26,7 +32,7 @@ import { helpBlock } from "../output/suggest.js";
 import { emitList, print } from "../output/toon.js";
 import type { AffinityClient, AiHit, ConnectFn } from "../mcp/types.js";
 import { DOC_CLOSE, DOC_SAVE } from "./doc.js";
-import { callJson, listDocs, logRun, replayFlags, runDocuments } from "./run.js";
+import { callJson, listDocs, logRun, replayFlags, runDocuments, type DocListing } from "./run.js";
 import { BATCH_RESERVED, deriveKeys, loadRecords, reservedFields, type DataRecord } from "./batch-data.js";
 
 const BIN = "affinity-axi";
@@ -48,6 +54,28 @@ class FatalRecord extends Error {}
 function oneLine(s: string): string {
   const t = s.replace(/\s+/g, " ").trim();
   return t.length > NOTE_LIMIT ? t.slice(0, NOTE_LIMIT - 3) + "..." : t;
+}
+
+/** Joins row note parts with "; ", dropping empty ones. */
+export function joinNotes(parts: string[]): string {
+  return parts.filter((p) => p !== "").join("; ");
+}
+
+/** Documents a failed record left behind: not in `known` (upper-cased UUIDs), plus `reported` when it is listed and dirty. */
+export function strayDocs(known: ReadonlySet<string>, listing: DocListing | null, reported?: string): DocListing["documents"] {
+  if (!listing) return [];
+  const rep = reported?.toUpperCase();
+  return listing.documents.filter((d) => {
+    const id = d.uuid.toUpperCase();
+    return !known.has(id) || (rep !== undefined && id === rep && d.dirty);
+  });
+}
+
+/** `left open: 6681ED67 (unsaved)` | `(unsaved changes in welcome.af)` | `(welcome.af)`. */
+export function leftOpenNote(d: { uuid: string; path: string; dirty: boolean }): string {
+  const name = d.path === "" ? "" : (d.path.split(/[\\/]/).pop() ?? d.path);
+  const what = name === "" ? "unsaved" : d.dirty ? `unsaved changes in ${name}` : name;
+  return `left open: ${d.uuid.slice(0, 8).toUpperCase()} (${what})`;
 }
 
 /** The document UUID a template reported: a `{"uuid":...}` line first, else the first UUID in the output. */
@@ -79,6 +107,40 @@ interface Ctx {
   saveDir: string | undefined;
   brand: { kit: BrandKit; ref: BrandRef } | undefined;
   refused: Array<{ key: string; path: string }>; // targets checkOverwrite refused, for the help block
+  credit: Credit | undefined; // the kit's credit, embedded into the rasters a template wrote to --out-dir
+  cleaned: Cleaned;
+  known: Set<string>; // upper-cased UUIDs of documents already open or already accounted for
+  leftOpen: string[]; // UUIDs of documents a failed record left open, for the leftOpen: line
+}
+
+/** Raster files in --out-dir finalized so far, and the mtime each had afterwards (a file is not redone until it changes). */
+interface Cleaned {
+  n: number;
+  seen: Map<string, number>;
+}
+
+const RASTER_EXT = /\.(png|jpe?g|webp)$/i;
+
+/** Finalizes the rasters at the top level of `dir` written since `since` (ms) and not yet finalized; returns the outcomes. */
+function cleanOutDir(dir: string, since: number, credit: Credit | undefined, seen: Map<string, number>): MetaOutcome[] {
+  let names: string[];
+  try {
+    names = readdirSync(dir);
+  } catch {
+    return [];
+  }
+  return names.flatMap((name) => {
+    const file = join(dir, name);
+    try {
+      const st = statSync(file);
+      if (!st.isFile() || !RASTER_EXT.test(name) || st.mtimeMs < since - 1000 || seen.get(file) === st.mtimeMs) return [];
+      const o = finalizeFile(file, credit ? { credit } : {});
+      seen.set(file, statSync(file).mtimeMs);
+      return [o];
+    } catch {
+      return [];
+    }
+  });
 }
 
 /** Provenance for one generative record, with that record's args. */
@@ -154,36 +216,64 @@ async function runOne(c: Ctx, rec: DataRecord, key: string, index: number): Prom
   }
   logRecord(outcome.kind, text, listing);
   const notes: string[] = [];
+  if (outcome.kind === "ok") {
+    if (uuid) c.known.add(uuid.toUpperCase());
+    for (const d of listing?.documents ?? []) c.known.add(d.uuid.toUpperCase());
+  }
+  if (c.outDir !== undefined) {
+    const done = cleanOutDir(c.outDir, started, c.credit, c.cleaned.seen);
+    c.cleaned.n += done.filter((o) => o.kind !== null && o.error === undefined).length;
+    const meta = metadataNote(done);
+    if (meta !== null) notes.push(`metadata: ${meta}`);
+  }
   if (c.hits.length > 0) {
     const n = logGenerative(c, args, outcome.kind, text, current);
     if (n) notes.push(n);
   }
 
+  if (outcome.kind !== "ok") {
+    // A failed record may have left a document open: diff the listing against what was open before.
+    const strays = strayDocs(c.known, listing ?? (await listDocs(c.client)), uuid);
+    for (const d of strays) {
+      c.known.add(d.uuid.toUpperCase());
+      c.leftOpen.push(d.uuid);
+      notes.push(leftOpenNote(d));
+    }
+    if (!uuid && strays.length === 1) uuid = strays[0]!.uuid;
+  }
+
   if (outcome.kind === "exception") {
-    return row("failed", uuid, [outcome.error, outcome.at ? `at ${outcome.at}` : "", ...notes].filter(Boolean).join(" "));
+    return row("failed", uuid, joinNotes([[outcome.error, outcome.at ? `at ${outcome.at}` : ""].filter(Boolean).join(" "), ...notes]));
   }
   if (outcome.kind === "sdk-error") {
-    return row("failed", uuid, [text.split("\n").find((l) => l.trim() !== "") ?? "sdk error", ...notes].join(" "));
+    return row("failed", uuid, joinNotes([text.split("\n").find((l) => l.trim() !== "") ?? "sdk error", ...notes]));
   }
   if (outcome.kind === "not-allowed") {
     const why = c.hits.length > 0 ? "enable Affinity > Settings > Use Canva AI Studio features" : "enable the matching permission in Affinity > Settings";
-    return row("failed", uuid, [`not allowed: ${why}`, ...notes].join(" "));
+    return row("failed", uuid, joinNotes([`not allowed: ${why}`, ...notes]));
   }
 
   if (c.saveDir !== undefined) {
-    if (!uuid) return row("failed", undefined, ["no document UUID in the output, so it cannot be saved or closed; log JSON.stringify({uuid: String(doc.sessionUuid)})", ...notes].join(" "));
+    if (!uuid) return row("failed", undefined, joinNotes(["no document UUID in the output, so it cannot be saved or closed; log JSON.stringify({uuid: String(doc.sessionUuid)})", ...notes]));
     const path = join(c.saveDir, `${key}.af`);
     // A hand-edited or never-saved target is not overwritten without --force; this record fails, the batch goes on (--continue-on-error).
     const verdict = checkOverwrite(path, { force: c.force, cmd: `${BIN} batch <template> --data <file> --save-dir <dir>` });
     if (!verdict.ok) {
       // The note stays short; the --force line and the full path go in the help block, once per run.
       c.refused.push({ key, path });
-      return row("failed", uuid, [`${verdict.message} (--force to replace); left open`, ...notes].join(" "));
+      c.leftOpen.push(uuid);
+      return row("failed", uuid, joinNotes([`${verdict.message} (--force to replace); left open`, ...notes]));
     }
     const saved = await docScript<{ status: string; dirty?: boolean }>(c, DOC_SAVE(uuid, path), "saving the document");
-    if (saved.status === "missing") return row("failed", uuid, ["document not found to save (the template may have closed it)", ...notes].join(" "));
-    if (saved.dirty === true) return row("failed", uuid, [`still dirty after save; left open (${path})`, ...notes].join(" "));
-    if (!existsSync(path)) return row("failed", uuid, [`save reported success but ${path} was not written; left open`, ...notes].join(" "));
+    if (saved.status === "missing") return row("failed", uuid, joinNotes(["document not found to save (the template may have closed it)", ...notes]));
+    if (saved.dirty === true) {
+      c.leftOpen.push(uuid);
+      return row("failed", uuid, joinNotes([`still dirty after save; left open (${path})`, ...notes]));
+    }
+    if (!existsSync(path)) {
+      c.leftOpen.push(uuid);
+      return row("failed", uuid, joinNotes([`save reported success but ${path} was not written; left open`, ...notes]));
+    }
     try {
       // The same writer as `doc save`: hash, folded history, madeBy. A null inventory skips the extra script.
       recordSave(path, uuid, null, process.cwd(), { forced: verdict.forced });
@@ -192,10 +282,10 @@ async function runOne(c: Ctx, rec: DataRecord, key: string, index: number): Prom
     }
     const closed = await docScript<{ status: string }>(c, DOC_CLOSE(uuid), "closing the document");
     if (closed.status === "still-open") throw new FatalRecord(`document ${uuid} is still open after close; check Affinity for a dialog`);
-    if (closed.status !== "closed") return row("failed", uuid, [`saved ${path} but not closed (${closed.status})`, ...notes].join(" "));
+    if (closed.status !== "closed") return row("failed", uuid, joinNotes([`saved ${path} but not closed (${closed.status})`, ...notes]));
     notes.unshift(`saved ${path}, closed`);
   }
-  return row("ok", uuid, notes.join(" "));
+  return row("ok", uuid, joinNotes(notes));
 }
 
 export function make(connect: ConnectFn): CommandModule {
@@ -253,6 +343,7 @@ export function make(connect: ConnectFn): CommandModule {
       // Validated before any connection; every record gets the same kit and logs it.
       const brandPath = resolveBrandRef(typeof parsed.flags["brand"] === "string" ? parsed.flags["brand"] : undefined, process.env, process.cwd());
       const brand = brandPath ? loadBrand(brandPath) : undefined;
+      const credit = creditFor(parsed, brand?.kit);
       const keyField = typeof parsed.flags["key"] === "string" ? parsed.flags["key"] : undefined;
 
       const all = loadRecords(dataFile);
@@ -281,6 +372,8 @@ export function make(connect: ConnectFn): CommandModule {
       const client = await connect({ url });
       const rows: Row[] = [];
       const refused: Ctx["refused"] = [];
+      const cleaned: Cleaned = { n: 0, seen: new Map() };
+      const leftOpen: string[] = [];
       try {
         if (outDir !== undefined || saveDir !== undefined) {
           const app = await callJson<{ desktop: string }>(client, APP_INFO, "reading Affinity app info");
@@ -290,8 +383,11 @@ export function make(connect: ConnectFn): CommandModule {
           if (outDir !== undefined) mkdirSync(outDir, { recursive: true });
           if (saveDir !== undefined) mkdirSync(saveDir, { recursive: true });
         }
+        // Every document open now is not this batch's to report; a null listing leaves the set empty.
+        const start = await listDocs(client);
+        const known = new Set((start?.documents ?? []).map((d) => d.uuid.toUpperCase()));
         const force = parsed.flags["force"] === true;
-        const ctx: Ctx = { client, flags: [...replayFlags(parsed), ...(force ? ["--force"] : [])], force, source, hits, file, helpers: parsed.flags["with-helpers"] === true, timeoutMs, outDir, saveDir, brand, refused };
+        const ctx: Ctx = { client, flags: [...replayFlags(parsed), ...(force ? ["--force"] : [])], force, source, hits, file, helpers: parsed.flags["with-helpers"] === true, timeoutMs, outDir, saveDir, brand, refused, credit, cleaned, known, leftOpen };
         const keepGoing = parsed.flags["continue-on-error"] === true;
         let stopped: string | undefined;
         for (let i = 0; i < records.length; i++) {
@@ -322,6 +418,9 @@ export function make(connect: ConnectFn): CommandModule {
         `summary: ok=${count("ok")} failed=${failed} skipped=${count("skipped")} ms=${Date.now() - started}` +
           (limit !== undefined && all.length > records.length ? ` (limited to ${records.length} of ${all.length} records)` : ""),
       ];
+      if (outDir !== undefined) out.push(`cleaned: ${cleaned.n}`);
+      const open = [...new Set(leftOpen)];
+      if (open.length > 0) out.push(`leftOpen: ${open.join(" ")}`);
       const reserved = reservedFields(records);
       if (reserved.length > 0) {
         const many = reserved.length > 1;
@@ -332,6 +431,7 @@ export function make(connect: ConnectFn): CommandModule {
       const firstDoc = rows.find((r) => r.status === "ok" && r.doc);
       if (firstDoc && saveDir === undefined) helps.push(`${BIN} render ${firstDoc.doc}`, `${BIN} doc save ${firstDoc.doc} <path-under-Desktop>.af   # documents stay open; use --save-dir to save and close them`);
       if (firstDoc && saveDir !== undefined) helps.push(`${BIN}   # home view: confirm no documents are left open`);
+      if (open.length > 0) helps.push(`${BIN} doc save <doc> <path-under-Desktop>.af   # then doc close <doc>; a left-open document has unsaved changes`);
       if (refused.length > 0) {
         const names = refused.slice(0, 5).map((r) => `${r.key}.af`).join(", ") + (refused.length > 5 ? ", ..." : "");
         helps.push(

@@ -17,7 +17,7 @@ export interface RunRecord {
   /** Parsed --args, or the batch record. */
   args: unknown;
   flags: string[];
-  /** ok | exception | sdk-error | not-allowed | error */
+  /** ok | exception | sdk-error | not-allowed | timeout | error */
   outcome: string;
   ms: number;
   cwd: string;
@@ -41,6 +41,8 @@ export interface InventoryNode {
   artboard?: string;
   /** Text nodes: first 40 characters. */
   text?: string;
+  /** Text nodes: the exact visible (ink) box, same format as box; absent when the read failed. */
+  ink?: [number, number, number, number];
   /** Text nodes: "<postscriptName> <size>". */
   font?: string;
   /** "#RRGGBB" | "gradient" | "bitmap" | "none" | "other" */

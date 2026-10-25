@@ -24,7 +24,7 @@ function chain(s: string): any {
  * call is recorded; the real one is used when it exists, else a stand-in that
  * does what it documents (DocumentProperties.isTransparent + setDocumentProperties).
  */
-export function load(log: Log): Record<string, Fn> {
+export function load(log: Log, fake?: Fake): Record<string, Fn> {
   const names = [...HELPERS_SOURCE.matchAll(/^function (axi\w+)\(/gm)].map((m) => m[1]!);
   const extra = `
     var realT = typeof axiTransparent === 'function' ? axiTransparent : function (d, on) {
@@ -59,6 +59,28 @@ export function load(log: Log): Record<string, Fn> {
     },
     "/selections.js": { Selection: { create: (_d: unknown, n: unknown) => ({ node: n }) } },
     "/documentproperties.js": { DocumentProperties: { create: () => ({}) } },
+    // pixel readback (axiPixelStats): not logged, so calls() stays the SDK edits only
+    "/rasterobject.js": {
+      NodeRenderingEngine: {
+        createDefault: (n: any) => ({
+          createCompatibleBitmap: () => {
+            if (fake && fake.readback === false) throw new Error("no bitmap");
+            return { width: 8, height: 8, node: n };
+          },
+        }),
+      },
+      RasterFormat: { RGBA8: "rgba8" },
+    },
+    "/pixelaccessor.js": {
+      PixelReaderRGBA8: {
+        create: (bm: { node: any }) => ({
+          readPixel: () => bm.node.pixel as Pixel,
+          dispose: () => {
+            if (fake) fake.disposed += 1;
+          },
+        }),
+      },
+    },
   };
   const req = (id: string) => {
     if (!(id in modules)) throw new Error(`unexpected require ${id}`);
@@ -68,12 +90,23 @@ export function load(log: Log): Record<string, Fn> {
   return new Function("require", "LOG", body)(req, log) as Record<string, Fn>;
 }
 
+export interface Pixel {
+  r: number;
+  g: number;
+  b: number;
+  alpha: number;
+}
+
 export interface Fake {
   doc: any;
   node: any;
   copy: any;
   log: Log;
   props: Array<Record<string, unknown>>;
+  /** Readers disposed so far (one per axiPixelStats readback). */
+  disposed: number;
+  /** False when the readback is set to fail. */
+  readback: boolean;
 }
 
 export interface FakeOpts {
@@ -87,6 +120,12 @@ export interface FakeOpts {
   frame?: Rect;
   /** The box the layer shrinks to after removeBackground or the subject delete. */
   shrinkTo?: Rect;
+  /** The layer's pixel at every sample. Default mid grey, opaque. */
+  pixel?: Pixel;
+  /** What removeBackground and the subject delete turn the pixels into. Default fully clear; null leaves them (the no-op case). */
+  removedPixel?: Pixel | null;
+  /** false: createCompatibleBitmap throws, so the readback fails. */
+  readback?: false;
 }
 
 /** A SDK-style baseBoxInterface (width/height) for a document-px rectangle. */
@@ -104,9 +143,11 @@ export function fakeDoc(opts: FakeOpts = {}): Fake {
     parent: opts.frame ? { pictureFrameEnabled: true, baseBoxInterface: baseOf(opts.frame), transform: identity } : null,
     baseBoxInterface: baseOf(opts.box ?? { x: 0, y: 0, w: 100, h: 100 }),
     transform: identity,
+    pixel: opts.pixel ?? { r: 128, g: 128, b: 128, alpha: 255 },
   };
   const shrink = () => {
     if (opts.shrinkTo) node.baseBoxInterface = baseOf(opts.shrinkTo);
+    if (opts.removedPixel !== null) node.pixel = opts.removedPixel ?? { r: 0, g: 0, b: 0, alpha: 0 };
   };
   if (opts.duplicate !== false) node.duplicate = (xf: unknown) => (log.push(`duplicate:${xf}`), copy);
   let sel: any = null;
@@ -148,7 +189,7 @@ export function fakeDoc(opts: FakeOpts = {}): Fake {
       log.push("setDocumentProperties");
     },
   };
-  return { doc, node, copy, log, props };
+  return { doc, node, copy, log, props, disposed: 0, readback: opts.readback !== false };
 }
 
 /** The SDK calls in `log`, without selection and require bookkeeping. */

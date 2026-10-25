@@ -6,8 +6,8 @@
 // ArtboardInterface (description, spreadBaseBox; the name is the artboard
 // node's userDescription), Document.addGuide (guides are per artboard: select
 // the artboard first; positions are spread coordinates), and for text fitting
-// Node.getExactSpreadVisibleBox, the ink box of a frame text node, which counts
-// the text that overflows the frame.
+// Node.getExactSpreadVisibleBox (the ink box) and, for frame text nodes,
+// Node.getSpreadVisibleBox (which also grows with the text that overflows).
 
 import type { HelperInfo } from "./helpers-core.js";
 
@@ -18,6 +18,7 @@ export const LAYOUT_INDEX: readonly HelperInfo[] = [
   { name: "axiOn", signature: "axiOn(doc, name)", summary: "select the artboard so new nodes land inside it, and return its origin {name,x,y,w,h}; coordinates stay in the spread, so draw at origin.x + dx" },
   { name: "axiSafeZone", signature: "axiSafeZone(doc, artboardName, platformKey, {overlay})", summary: "add guides at the platform's safe-area insets on that artboard (story: 250 px top, 340 px bottom); guides show in the editor only; overlay:true also draws locked translucent red bands named axi-safe-zone so a render shows them (delete before export); returns [{horizontal,pos}], empty when the platform has no safe area" },
   { name: "axiFitText", signature: "axiFitText(doc, {x,y,w,h,text,font,size,minSize,maxLines,colour,align,leading,spacing,name})", summary: "wrapped text in the box x,y,w,h, shrunk from size toward minSize until it fits the box and maxLines; name sets the node's userDescription; returns {size,lines,overflow,node}; overflow true means even minSize does not fit" },
+  { name: "axiShrinkText", signature: "axiShrinkText(doc, ref, {w,h,minSize})", summary: "shrink an existing text node (ref as axiFind) until its box is <= w by h (a frame text node must also have a spread visible box, the one inspect reports, no taller than h plus max(4, 5% of h); that box's width is ignored), bisecting in 0.5 px steps from its current size down to minSize (default half the size, at least 8); returns {from,size,fits}; from === size when it already fit, fits false means even minSize does not fit (the node is left at minSize)" },
 ];
 
 /** Internal building blocks, not in the index. */
@@ -183,5 +184,67 @@ function axiFitText(doc, o) {
   }
   const node = place(size, o.h, o.name);
   return { size: size, lines: m.lines, overflow: overflow, node: node };
+}
+
+// Shrink the text of an existing node (ref as axiFind) until its ink box is at
+// most w wide and h high. The size is the glyph height over the whole story: it
+// starts at the first run's height, then bisects in 0.5 steps down to minSize
+// (default half the start size, at least 8, never above it). Measured on the
+// node itself with the ink box (getExactSpreadVisibleBox), so wrapping and font
+// metrics are the actual ones. Returns {from, size, fits}: from === size and no
+// edit when it already fit; fits false means even minSize does not fit, and the
+// node is left at minSize. Use h of 1e9 for a one-line text that only has a width.
+// A frame text node fits when its ink box fits and its spread visible box (the
+// one inspect reports) is no taller than h plus max(4, 5% of h): the ink box of a
+// frame is clipped to the frame right after the text is set, so overflow only
+// shows as height in the spread box, whose width includes frame chrome and is
+// ignored. Art text keeps the ink box and never reads the spread box.
+function axiShrinkText(doc, ref, o) {
+  if (!o || typeof o !== 'object') { throw new Error('axiShrinkText: options {w,h} are required'); }
+  if (!(typeof o.w === 'number' && o.w > 0) || !(typeof o.h === 'number' && o.h > 0)) { throw new Error('axiShrinkText: w and h must be positive numbers'); }
+  if (o.minSize !== undefined && !(typeof o.minSize === 'number' && o.minSize > 0)) { throw new Error('axiShrinkText: minSize must be a positive number'); }
+  const row = axiOne(doc, ref);
+  if (row.text === null) { throw new Error('axiShrinkText: ' + axiRowLabel(row) + ' is not a text node'); }
+  const { StoryDelta } = require('/storydelta.js');
+  const { GlyphAttDoubleType } = require('/glyphatts.js');
+  let from = 0;
+  for (const run of row.node.story.getGlyphAttRunsFrom(0)) {
+    from = run.glyphAtts.height;
+    break;
+  }
+  if (!(from > 0)) { throw new Error('axiShrinkText: ' + axiRowLabel(row) + ' has no text size to shrink'); }
+  const frame = !!row.node.isFrameTextNode;
+  const back = axiOnSpread(doc, row.node);
+  try {
+    const fitsNow = function () {
+      const b = row.node.getExactSpreadVisibleBox(false, true);
+      if (!(b.width <= o.w + 0.5 && b.height <= o.h + 0.5)) { return false; }
+      if (frame) {
+        const l = row.node.getSpreadVisibleBox(false);
+        if (!(l.height <= o.h + Math.max(4, 0.05 * o.h))) { return false; }
+      }
+      return true;
+    };
+    if (fitsNow()) { return { from: from, size: from, fits: true }; }
+    const minSize = Math.min(from, o.minSize === undefined ? Math.max(8, from / 2) : o.minSize);
+    let cur = from;
+    const apply = function (size) {
+      doc.formatText(StoryDelta.createGlyphDouble(GlyphAttDoubleType.Height, size), axiStoryRange(doc, row.node));
+      cur = size;
+    };
+    let lo = minSize;
+    let hi = from;
+    if (lo >= hi) { return { from: from, size: from, fits: false }; }
+    apply(lo);
+    if (!fitsNow()) { return { from: from, size: lo, fits: false }; }
+    while (hi - lo > 0.5) {
+      const mid = Math.floor((lo + hi) / 2 * 2) / 2;
+      if (mid <= lo) { break; }
+      apply(mid);
+      if (fitsNow()) { lo = mid; } else { hi = mid; }
+    }
+    if (cur !== lo) { apply(lo); }
+    return { from: from, size: lo, fits: true };
+  } finally { back(); }
 }
 `;

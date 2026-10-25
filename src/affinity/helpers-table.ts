@@ -7,12 +7,17 @@
 // by a TableCell hard break, in row-major order, so a cell is a story range
 // [start, nextStart - 1). Cells are filled last to first: a range before the
 // one being edited never moves while the story grows. Columns and rows are
-// equal; widths and cell fills are not exposed (the summary says so).
+// equal; widths and cell fills are not exposed (the summary says so). Cell
+// insets are not either, so padding is paragraph indents and spacing: left,
+// right and first-line indent (so the first line lines up with the rest) plus
+// space above and below. When the formatted table is wider than w (a cell too
+// narrow for its longest word spills past its column), the padding steps down
+// by 2 px until the table fits or reaches 0.
 
 import type { HelperInfo } from "./helpers-core.js";
 
 export const TABLE_INDEX: readonly HelperInfo[] = [
-  { name: "axiTable", signature: "axiTable(doc, {x,y,w,h,rows,font,size,colour,header,align,name})", summary: "native table at x,y of size w,h from rows (array of equal-length arrays; numbers are stringified, at most 400 cells); equal columns; the first row is the header unless header:false, and header:{font,size,colour} restyles it; align l|c|r|j; name sets the node's userDescription; returns the node, no cell fills or column widths" },
+  { name: "axiTable", signature: "axiTable(doc, {x,y,w,h,rows,font,size,colour,header,align,padding,name})", summary: "native table at x,y of size w,h from rows (array of equal-length arrays; numbers are stringified, at most 400 cells); equal columns; the first row is the header unless header:false, and header:{font,size,colour} restyles it; align l|c|r|j; padding (px, default 12, 0 = none) is the gap between columns: left, right and first-line indent in every cell plus half of it above and below, and it steps down by 2 px while the content would push the table past w; name sets the node's userDescription; returns the node, no cell fills or column widths" },
 ];
 
 /** Internal building blocks, not in the index. */
@@ -76,6 +81,8 @@ function axiTable(doc, o) {
     if (head.colour !== undefined && !hexOk(head.colour)) { throw new Error('axiTable: header.colour must be a hex string like #RRGGBB'); }
   }
   if (o.align !== undefined && ['l', 'c', 'r', 'j'].indexOf(o.align) < 0) { throw new Error('axiTable: align must be l, c, r or j'); }
+  let pad = o.padding === undefined ? 12 : o.padding;
+  if (!num(pad) || pad < 0) { throw new Error('axiTable: padding must be a number >= 0 (px)'); }
 
   axiSurface(doc);
   const { TableTextNodeDefinition } = require('/nodes.js');
@@ -111,6 +118,26 @@ function axiTable(doc, o) {
     const { ParagraphAlignXType } = require('/paragraphatts.js');
     const ax = { l: ParagraphAlignXType.Left, c: ParagraphAlignXType.Centre, r: ParagraphAlignXType.Right, j: ParagraphAlignXType.JustifyLeft }[o.align];
     doc.formatText(StoryDelta.createAlignX(ax), axiCellRange(doc, table, 0, table.story.length));
+  }
+  if (pad > 0) {
+    const { ParagraphAttDoubleType } = require('/paragraphatts.js');
+    const applyPad = function (p) {
+      doc.formatText(StoryDelta.createComposite([
+        StoryDelta.createParagraphDouble(ParagraphAttDoubleType.LeftIndent, p),
+        StoryDelta.createParagraphDouble(ParagraphAttDoubleType.RightIndent, p),
+        StoryDelta.createParagraphDouble(ParagraphAttDoubleType.FirstLineIndent, p),
+        StoryDelta.createParagraphDouble(ParagraphAttDoubleType.SpaceBefore, p / 2),
+        StoryDelta.createParagraphDouble(ParagraphAttDoubleType.SpaceAfter, p / 2),
+      ]), axiCellRange(doc, table, 0, table.story.length));
+    };
+    const tooWide = function () {
+      try { return table.getSpreadVisibleBox(false).width > o.w + 0.5; } catch (e) { return false; }
+    };
+    applyPad(pad);
+    while (pad > 0 && tooWide()) {
+      pad = Math.max(0, pad - 2);
+      applyPad(pad);
+    }
   }
   if (head !== false && rows.length > 0) {
     const hend = rows.length > 1 ? starts[cols] - 1 : table.story.length;

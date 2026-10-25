@@ -48,7 +48,7 @@ describe("parseTemplateArgs", () => {
     expect(() => parseTemplateArgs(post, '{"rows":[["a"]]}')).toThrow(/has no table/);
     expect(() => parseTemplateArgs(price, '{"photo":"x.png"}')).toThrow(/no photo slot/);
     expect(() => parseTemplateArgs(post, '{"photo":"nope.png"}')).toThrow(/photo not found/);
-    expect(() => parseTemplateArgs(post, '{"photo":"notes.txt"}')).toThrow(/\.png, \.jpg or \.webp/);
+    expect(() => parseTemplateArgs(post, '{"photo":"notes.txt"}')).toThrow(/\.png, \.jpg, \.jpeg, \.webp, \.heic, \.heif, \.tif or \.tiff/);
     expect(() => parseTemplateArgs(price, '{"rows":[["a"],["b","c"]]}')).toThrow(/same 1 to 4 cells/);
   });
 });

@@ -1,6 +1,6 @@
 // preflightPdf and externalPdfInfo on synthetic PDFs built here (no Affinity, no real export).
 
-import { chmodSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { deflateSync } from "node:zlib";
@@ -162,5 +162,19 @@ describe("externalPdfInfo", () => {
     const r = externalPdfInfo(join(dir, "x.pdf"));
     expect(r?.tool).toBe("exiftool");
     expect(r?.rows.map((x) => `${x.check}=${x.note}`)).toEqual(["tool-pdf-version=1.6 (exiftool)", "tool-page-count=3 (exiftool)", "tool-producer=Test"]);
+  });
+
+  it("asks exiftool for -Author -Creator and warns when either is set", () => {
+    const dir = mkdtempSync(join(tmpdir(), "axi-pf-"));
+    dirs.push(dir);
+    const tool = join(dir, "exiftool");
+    writeFileSync(tool, `#!/bin/sh\necho "$@" > "${join(dir, "args")}"\necho '[{"SourceFile":"x","Creator":"studio-handle"}]'\n`);
+    chmodSync(tool, 0o755);
+    process.env["PATH"] = dir;
+    const r = externalPdfInfo(join(dir, "x.pdf"));
+    expect(readFileSync(join(dir, "args"), "utf8")).toContain("-Author -Creator");
+    expect(r?.rows).toEqual([
+      { check: "author-metadata", status: "warn", note: 'Author/Creator "studio-handle" written by Affinity; PDF metadata is not stripped (see the guide)' },
+    ]);
   });
 });

@@ -20,7 +20,7 @@ export const CORE_INDEX: readonly HelperInfo[] = [
   { name: "axiDoc", signature: "axiDoc(w, h, dpi?, {transparent}?)", summary: "new pixel document (1 unit = 1 px at 72 dpi); {transparent: true} gives a transparent background so a PNG export keeps alpha (a plain document is white)" },
   { name: "axiTransparent", signature: "axiTransparent(doc, on?)", summary: "make an open document's background transparent (on defaults to true; false restores it); returns the document" },
   { name: "axiFont", signature: "axiFont(postscript)", summary: "find a font by postscriptName (cached); throws with near matches" },
-  { name: "axiText", signature: "axiText(doc, {x,y,text,font,size,colour,spacing,align,maxW,name})", summary: "one text line, y is the baseline; align l|c|r anchors x; name sets the node's userDescription; returns the node" },
+  { name: "axiText", signature: "axiText(doc, {x,y,text,font,size,colour,spacing,align,maxW,name})", summary: "one text line, y is the baseline; align l|c|r anchors x and (c, r) also sets the paragraph alignment so the line re-flows about x when its text changes; c and r text is anchored at x natively (no shift, so the glyph bearing may leave the ink edge about 2 px inside x), only l text is moved so its ink starts at x; name sets the node's userDescription; returns the node" },
   { name: "axiParagraph", signature: "axiParagraph(doc, {x,y,w,h,text,font,size,colour,lead,spacing,align,name})", summary: "wrapped text in a frame (top-left x,y); lead is relative leading, default 1.5; align l|c|r|j; name sets the node's userDescription" },
   { name: "axiMeasure", signature: "axiMeasure(doc)", summary: "{x,y,w,h} in document px of the node just added or moved (selection.nodes.first)" },
   { name: "axiMove", signature: "axiMove(doc, dx, dy)", summary: "translate the current selection by dx, dy px" },
@@ -154,13 +154,27 @@ function axiSurface(doc) {
 }
 
 // One line of text at baseline y. align: 'l' (x = left edge of the ink, default),
-// 'c' (x = centre) or 'r' (x = right edge). maxW shrinks the size to fit.
-// Returns the node; axiMeasure(doc) then gives its final box.
+// 'c' (x = centre) or 'r' (x = right edge). For 'c' and 'r' the story's paragraph
+// alignment is set too, so a later setText re-flows about the anchor instead of
+// growing rightwards. Affinity anchors that text natively at x, so it is NOT shifted
+// (shifting by the ink box would move the anchor by the glyph bearing and every later
+// setText would re-flow about the moved anchor); only left text is moved so its ink
+// starts at x.
+// maxW shrinks the size to fit. Returns the node; axiMeasure(doc) then gives its
+// final box.
 function axiText(doc, o) {
   axiSurface(doc);
   const { ArtTextNodeDefinition } = require('/nodes.js');
+  const kind = o.align === 'c' || o.align === 'r' ? o.align : '';
+  let anchorDelta = null;
+  if (kind !== '') {
+    const { StoryDelta } = require('/storydelta.js');
+    const { ParagraphAlignXType } = require('/paragraphatts.js');
+    anchorDelta = StoryDelta.createAlignX(kind === 'c' ? ParagraphAlignXType.Centre : ParagraphAlignXType.Right);
+  }
   const make = function (size) {
     const sb = axiStyled(doc, { font: o.font, size: size, colour: o.colour, spacing: o.spacing }, false);
+    if (anchorDelta) { sb.applyParagraphDelta(anchorDelta); }
     sb.addText(o.text);
     doc.addNode(ArtTextNodeDefinition.createFromStoryBuilder({ x: o.x, y: o.y }, sb));
     return axiMeasure(doc);
@@ -170,9 +184,10 @@ function axiText(doc, o) {
     doc.deleteSelection();
     b = make(o.size * o.maxW / b.w);
   }
-  const align = o.align || 'l';
-  const shift = align === 'c' ? o.x - (b.x + b.w / 2) : align === 'r' ? o.x - (b.x + b.w) : o.x - b.x;
-  if (Math.abs(shift) > 0.01) { axiMove(doc, shift, 0); }
+  if (kind === '') {
+    const shift = o.x - b.x;
+    if (Math.abs(shift) > 0.01) { axiMove(doc, shift, 0); }
+  }
   return axiName(doc.selection.nodes.first, o.name);
 }
 

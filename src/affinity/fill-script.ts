@@ -13,13 +13,17 @@
 // The console.log calls inside the script strings are required output: the
 // only channel back from Affinity.
 
-import { existsSync } from "node:fs";
+import { existsSync, statSync } from "node:fs";
 import { isAbsolute, resolve } from "node:path";
 import { UsageError } from "../output/errors.js";
+import { exifOrientation, orientationOps } from "./orientation.js";
 import { expandHome } from "./paths.js";
 
 const BIN = "affinity-axi";
-const IMAGE_EXT = /\.(png|jpe?g|webp)$/i;
+/** The picture types a slot takes (HEIC, HEIF and TIFF were loaded live by Bitmap.loadFromFile). */
+export const IMAGE_EXT = /\.(png|jpe?g|webp|heic|heif|tiff?)$/i;
+const IMAGE_TYPES = "png, jpg, jpeg, webp, heic, heif, tif or tiff";
+const FILE_EXT = /\.[a-z0-9]{2,5}$/i;
 const HEX = /^#[0-9a-fA-F]{6}$/;
 const FITS = ["contain", "cover", "stretch"];
 const OBJECT_KEYS = ["text", "fill", "colour", "image", "fit", "box", "hidden", "cutout", "colourise", "align", "padding"];
@@ -56,6 +60,10 @@ export interface Edit {
   padding?: number;
   box?: Box;
   hidden?: boolean;
+  /** Degrees clockwise that make the picture upright (from its EXIF orientation); absent when none. */
+  rotate?: 90 | 180 | 270;
+  /** Horizontal flip, applied before rotate (from its EXIF orientation). */
+  mirror?: true;
 }
 
 /** What the apply script logs. */
@@ -65,6 +73,12 @@ export interface ApplyReply {
   duplicate: Array<{ key: string; paths: string[] }>;
   mismatch: Array<{ key: string; node: string; got: string }>;
   slots: string[];
+  /** Per-slot remarks, e.g. "headline: text shrunk from 64 to 41 px to stay on ig-square". */
+  notes: string[];
+  /** The apply exception message when the script failed (applied is then []). */
+  error?: string;
+  /** With error: true when undo left the document clean. */
+  cleaned?: boolean;
 }
 
 /** Absolute form of an image path: relative to the data file's folder unless absolute or ~. */
@@ -78,6 +92,14 @@ export function slotRef(key: string): string {
   const i = key.lastIndexOf("/");
   if (i < 0) return `slot:${key}`;
   return `${key.slice(0, i)}/slot:${key.slice(i + 1)}`;
+}
+
+function isFile(p: string): boolean {
+  try {
+    return statSync(p).isFile();
+  } catch {
+    return false;
+  }
 }
 
 function bad(key: string, why: string, fix: string): UsageError {
@@ -94,9 +116,18 @@ function checkKey(key: string): void {
 function imageFile(key: string, raw: unknown, dataDir: string): string {
   if (typeof raw !== "string" || raw === "") throw bad(key, "image must be a file path", `use {"image": "photo.png"}`);
   const p = imagePath(raw, dataDir);
-  if (!IMAGE_EXT.test(p)) throw bad(key, `'${raw}' is not a .png, .jpg, .jpeg or .webp file`, "use a PNG, JPEG or WebP image");
+  if (!IMAGE_EXT.test(p)) throw bad(key, `'${raw}' is not a .png, .jpg, .jpeg, .webp, .heic, .heif, .tif or .tiff file`, `use ${IMAGE_TYPES}`);
   if (!existsSync(p)) throw bad(key, `image file not found: ${p}`, "paths are relative to the data file's folder");
   return p;
+}
+
+/** Sets rotate/mirror on a picture edit from the file's EXIF orientation (JPEG and TIFF); nothing when upright or unknown. */
+function orient(e: Edit, file: string): void {
+  const o = exifOrientation(file);
+  if (o === null) return;
+  const ops = orientationOps(o);
+  if (ops.rotate !== 0) e.rotate = ops.rotate;
+  if (ops.mirror) e.mirror = true;
 }
 
 function boxOf(key: string, v: unknown): Box {
@@ -131,7 +162,10 @@ function explicit(key: string, ref: string, o: Record<string, unknown>, dataDir:
     if (typeof colour !== "string" || !HEX.test(colour)) throw bad(key, `${colourKey} must be a #RRGGBB colour`, `e.g. {"${colourKey}": "#FFC857"}`);
     e.fill = colour;
   }
-  if (o["image"] !== undefined) e.image = imageFile(key, o["image"], dataDir);
+  if (o["image"] !== undefined) {
+    e.image = imageFile(key, o["image"], dataDir);
+    orient(e, e.image);
+  }
   if (o["fit"] !== undefined) {
     if (e.image === undefined) throw bad(key, "fit needs an image", `use {"image": "photo.png", "fit": "cover"}`);
     if (typeof o["fit"] !== "string" || !FITS.includes(o["fit"])) throw bad(key, `invalid fit '${String(o["fit"])}'`, `fit is one of ${FITS.join(", ")}`);
@@ -175,8 +209,10 @@ function explicit(key: string, ref: string, o: Record<string, unknown>, dataDir:
 /**
  * The slot edits for one record. Pure apart from checking that image files
  * exist; every error is a UsageError so the run stops before connecting.
- * A plain string that ends in .png/.jpg/.jpeg/.webp is an image candidate when
- * the file exists or the string has no whitespace; otherwise it is text.
+ * A plain string that ends in .png/.jpg/.jpeg/.webp/.heic/.heif/.tif/.tiff is an image
+ * candidate when the file exists or the string has no whitespace; otherwise it is text.
+ * A plain string without whitespace that is an existing file of another type is an
+ * unsupported image type. EXIF orientation of JPEG and TIFF pictures becomes rotate/mirror.
  */
 export function planEdits(record: Record<string, unknown>, keyField: string | undefined, dataDir: string): Edit[] {
   const edits: Edit[] = [];
@@ -188,8 +224,12 @@ export function planEdits(record: Record<string, unknown>, keyField: string | un
       const e: Edit = { key, ref, str: v };
       if (IMAGE_EXT.test(v)) {
         const p = imagePath(v, dataDir);
-        if (existsSync(p)) e.strImage = p;
-        else if (!/\s/.test(v)) throw bad(key, `image file not found: ${p}`, "paths are relative to the data file's folder");
+        if (existsSync(p)) {
+          e.strImage = p;
+          orient(e, p);
+        } else if (!/\s/.test(v)) throw bad(key, `image file not found: ${p}`, "paths are relative to the data file's folder");
+      } else if (FILE_EXT.test(v) && !/\s/.test(v) && isFile(imagePath(v, dataDir))) {
+        throw bad(key, `'${v}' is an unsupported image type`, `use ${IMAGE_TYPES}`);
       }
       edits.push(e);
     } else if (typeof v === "number" && Number.isFinite(v)) {
@@ -260,7 +300,7 @@ export function FILL_APPLY(docUuid: string, edits: Edit[], ignoreUnknown: boolea
     "const doc = Document.all.find((d) => String(d.sessionUuid) === targetUuid);",
     "if (!doc) { throw new Error('No document with that Uuid exists.'); }",
     "const HEX = /^#[0-9a-fA-F]{6}$/;",
-    "const out = { applied: [], unknown: [], duplicate: [], mismatch: [], slots: [] };",
+    "const out = { applied: [], unknown: [], duplicate: [], mismatch: [], slots: [], notes: [] };",
     "const seen = {};",
     "axiNames(doc).forEach(function (r) {",
     "  if (r.name.indexOf('slot:') === 0 && !seen[r.name]) { seen[r.name] = true; out.slots.push(r.name); }",
@@ -280,33 +320,104 @@ export function FILL_APPLY(docUuid: string, edits: Edit[], ignoreUnknown: boolea
     "  if (e.str !== undefined) {",
     "    if (isText) { ops.push(['text', e.str]); }",
     "    else if (HEX.test(e.str) && !isPic) { ops.push(['fill', e.str]); }",
-    "    else if (e.strImage !== undefined && isPic) { ops.push(['image', e.strImage, '']); }",
+    "    else if (e.strImage !== undefined && isPic) { ops.push(['image', e.strImage, '', false, '', '', 0, e.rotate || 0, !!e.mirror]); }",
     "    else { problem = e.strImage !== undefined ? 'an image' : (HEX.test(e.str) ? 'a colour' : 'text'); }",
     "  }",
     "  if (e.text !== undefined) { if (isText) { ops.push(['text', e.text]); } else { problem = problem || 'text'; } }",
     "  if (e.fill !== undefined) { if (!isPic) { ops.push(['fill', e.fill]); } else { problem = problem || 'a colour'; } }",
-    "  if (e.image !== undefined) { if (isPic) { ops.push(['image', e.image, e.fit || '', !!e.colourise, e.cutout || '', e.align || '', e.padding || 0]); } else { problem = problem || 'an image'; } }",
+    "  if (e.image !== undefined) { if (isPic) { ops.push(['image', e.image, e.fit || '', !!e.colourise, e.cutout || '', e.align || '', e.padding || 0]); ops[ops.length - 1].push(e.rotate || 0, !!e.mirror); } else { problem = problem || 'an image'; } }",
     "  if (e.box !== undefined) { ops.push(['box', e.box]); }",
     "  if (e.hidden !== undefined) { ops.push(['hidden', e.hidden]); }",
     "  if (problem) { out.mismatch.push({ key: key, node: kind, got: problem }); return; }",
     "  plan.push({ key: key, ref: e.ref, ops: ops });",
     "});",
+    // Sets a text slot, then keeps it in bounds: a frame fits its pre-edit frame box, artistic
+    // text fits the board (width by anchor, same margin as before on the anchored side). It is
+    // shrunk to half its size at most. Affinity keeps a right/centre story on its anchor natively
+    // (setText and the shrink alike), so the fill never moves a text node; a shrink that reaches
+    // the floor always says so and says how far the text still runs.
+    "function fillText(p, text) {",
+    "  const tn = axiFind(doc, p.ref);",
+    "  const before = axiNodeBox(tn);",
+    "  const anchor = axiAlignOf(tn);",
+    "  const isFrame = String(tn[Symbol.toStringTag]) === 'FrameTextNode';",
+    "  const board = axiBoardBox(doc, tn);",
+    "  axiSetText(doc, p.ref, text);",
+    "  if (text === '') { return; }",
+    "  const right = before.x + before.w;",
+    "  const boardRight = board.x + board.w;",
+    "  const cx = before.x + before.w / 2;",
+    "  let w = before.w;",
+    "  let h = before.h;",
+    "  let limitLeft = before.x;",
+    "  let limitRight = right;",
+    "  if (!isFrame) {",
+    "    h = 1e9;",
+    "    if (anchor === 'r') { limitLeft = board.x + (boardRight - right); limitRight = right; }",
+    "    else if (anchor === 'c') { const half = Math.min(cx - board.x, boardRight - cx); limitLeft = cx - half; limitRight = cx + half; }",
+    "    else { limitLeft = before.x; limitRight = boardRight - (before.x - board.x); }",
+    "    w = limitRight - limitLeft;",
+    "  }",
+    "  if (!(w > 0)) { return; }",
+    "  const r = axiShrinkText(doc, p.ref, { w: w, h: h });",
+    "  const after = axiNodeBox(tn);",
+    "  const where = board.name || 'the document';",
+    "  const dims = Math.round(before.w) + 'x' + Math.round(before.h);",
+    "  const shrunkTo = 'text shrunk from ' + r.from + ' to ' + r.size + ' px';",
+    "  if (isFrame) {",
+    "    if (r.fits) { if (r.size < r.from) { out.notes.push(p.key + ': ' + shrunkTo + ' to fit its ' + dims + ' frame'); } }",
+    "    else if (r.size < r.from) { out.notes.push(p.key + ': ' + shrunkTo + ' (the floor); still overflows its ' + dims + ' frame'); }",
+    "    else { out.notes.push(p.key + ': overflows its ' + dims + ' frame at ' + r.size + ' px (cannot shrink below 8 px)'); }",
+    "  } else if (r.fits) {",
+    "    if (r.size < r.from) { out.notes.push(p.key + ': ' + shrunkTo + ' to stay on ' + where); }",
+    "  } else {",
+    "    const pastRight = (after.x + after.w) - boardRight;",
+    "    const pastLeft = board.x - after.x;",
+    "    const intoRight = (after.x + after.w) - limitRight;",
+    "    const intoLeft = limitLeft - after.x;",
+    "    let how = '';",
+    "    if (pastRight > 0.5 || pastLeft > 0.5) {",
+    "      const sideB = pastRight >= pastLeft ? 'right' : 'left';",
+    "      how = Math.round(sideB === 'right' ? pastRight : pastLeft) + ' px past the ' + sideB + ' edge of ' + where;",
+    "    } else if (intoRight > 0.5 || intoLeft > 0.5) {",
+    "      const sideM = intoRight >= intoLeft ? 'right' : 'left';",
+    "      how = Math.round(sideM === 'right' ? intoRight : intoLeft) + ' px into the ' + sideM + ' margin of ' + where;",
+    "    }",
+    "    if (r.size < r.from) { out.notes.push(p.key + ': ' + shrunkTo + ' (the floor)' + (how ? '; still runs ' + how : '')); }",
+    "    else if (how) { out.notes.push(p.key + ': runs ' + how + ' at ' + r.size + ' px (cannot shrink below 8 px)'); }",
+    "  }",
+    "}",
     "const blocked = out.duplicate.length > 0 || out.mismatch.length > 0 || (out.unknown.length > 0 && !ignoreUnknown);",
+    // An exception undoes what the script did so far (until the document is clean) and is
+    // reported in the reply, so the command can close the document and go on.
+    // A document that was already dirty is never undone: its earlier changes are not ours.
+    "const wasDirty = !!doc.isDirty;",
     "if (!blocked) {",
-    "  plan.forEach(function (p) {",
-    "    p.ops.forEach(function (op) {",
-    "      if (op[0] === 'text') { axiSetText(doc, p.ref, op[1]); }",
-    "      else if (op[0] === 'fill') { axiSetFill(doc, p.ref, op[1]); }",
-    "      else if (op[0] === 'image') {",
-    "        const n = axiReplaceImage(doc, axiFind(doc, p.ref), op[1], op[2] ? { fit: op[2] } : undefined);",
-    "        if (op[3]) { axiColourise(doc, n); }",
-    "        if (op[4]) { axiCutout(doc, n, { method: op[4], transparent: false, align: op[5] || 'none', padding: op[6] || 0 }); }",
-    "      }",
-    "      else if (op[0] === 'box') { axiSetBox(doc, p.ref, op[1]); }",
-    "      else if (op[0] === 'hidden') { doc.executeCommand(DocumentCommand.createSetVisibility(Selection.create(doc, axiFind(doc, p.ref)), !op[1])); }",
+    "  try {",
+    "    plan.forEach(function (p) {",
+    "      p.ops.forEach(function (op) {",
+    "        if (op[0] === 'text') { fillText(p, op[1]); }",
+    "        else if (op[0] === 'fill') { axiSetFill(doc, p.ref, op[1]); }",
+    "        else if (op[0] === 'image') {",
+    "          const io = {};",
+    "          if (op[2]) { io.fit = op[2]; }",
+    "          if (op[7]) { io.rotate = op[7]; }",
+    "          if (op[8]) { io.mirror = true; }",
+    "          const n = axiReplaceImage(doc, axiFind(doc, p.ref), op[1], io);",
+    "          if (op[3]) { axiColourise(doc, n); }",
+    "          if (op[4]) { axiCutout(doc, n, { method: op[4], transparent: false, align: op[5] || 'none', padding: op[6] || 0 }); }",
+    "        }",
+    "        else if (op[0] === 'box') { axiSetBox(doc, p.ref, op[1]); }",
+    "        else if (op[0] === 'hidden') { doc.executeCommand(DocumentCommand.createSetVisibility(Selection.create(doc, axiFind(doc, p.ref)), !op[1])); }",
+    "      });",
+    "      out.applied.push(p.key);",
     "    });",
-    "    out.applied.push(p.key);",
-    "  });",
+    "  } catch (e) {",
+    "    for (let i = 0; i < 200 && !wasDirty && doc.isDirty && doc.canUndo; i++) { doc.undo(); }",
+    "    out.applied = [];",
+    "    out.error = String(e && e.message ? e.message : e);",
+    "    out.cleaned = !doc.isDirty;",
+    "  }",
     "}",
     "console.log(JSON.stringify(out));",
   ].join("\n");

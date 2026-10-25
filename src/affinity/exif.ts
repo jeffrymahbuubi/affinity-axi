@@ -40,14 +40,13 @@ export interface EmbedResult {
   error?: string;
 }
 
-/** Writes XMP-iptcExt:DigitalSourceType and XMP-dc:Description into a PNG, JPEG or WebP, in place. */
-export function embedAiMetadata(file: string, sourceType: string, description: string): EmbedResult {
-  const args = [
-    "-overwrite_original",
-    `-XMP-iptcExt:DigitalSourceType=${sourceType}`,
-    `-XMP-dc:Description=${description}`,
-    file,
-  ];
+/**
+ * Writes XMP tags ("Group:Name", value) into a PNG, JPEG or WebP, in place, in one exiftool call.
+ * `clearXmp` deletes the existing XMP first (`-XMP:all=`); exiftool applies it before the writes.
+ * Never clears other groups, so the ICC profile survives.
+ */
+export function writeXmp(file: string, tags: Array<[string, string]>, opts: { clearXmp?: boolean } = {}): EmbedResult {
+  const args = ["-overwrite_original", ...(opts.clearXmp ? ["-XMP:all="] : []), ...tags.map(([k, v]) => `-${k}=${v}`), file];
   const r = spawnSync("exiftool", args, { encoding: "utf8", timeout: TIMEOUT_MS });
   if (r.error) return { ok: false, error: r.error.message };
   if (r.status !== 0) {
@@ -55,4 +54,12 @@ export function embedAiMetadata(file: string, sourceType: string, description: s
     return { ok: false, error: first.trim() };
   }
   return { ok: true };
+}
+
+/** Writes XMP-iptcExt:DigitalSourceType and XMP-dc:Description into a PNG, JPEG or WebP, in place. */
+export function embedAiMetadata(file: string, sourceType: string, description: string): EmbedResult {
+  return writeXmp(file, [
+    ["XMP-iptcExt:DigitalSourceType", sourceType],
+    ["XMP-dc:Description", description],
+  ]);
 }

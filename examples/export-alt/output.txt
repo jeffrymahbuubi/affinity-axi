@@ -5,8 +5,8 @@ ms: <n>
 output[1]:
   {"added":["bg","rule","headline","hours"]}
 help[2]:
-  affinity-axi render current
-  affinity-axi export current PNG <path-under-Desktop>
+  affinity-axi render <doc>   # print doc.sessionUuid in the script to get the id
+  affinity-axi export <doc> PNG <path-under-Desktop>
 
 $ affinity-axi export $DOC PNG examples/export-alt/card.png --artboard ig-square
 export: examples/export-alt/card.png

@@ -7,6 +7,8 @@ import { McpError, type AffinityClient, type Content, type ServerInfo, type Tool
 import { debug, openSse, type SseStream } from "./sse.js";
 
 export const DEFAULT_CALL_TIMEOUT_MS = 30_000;
+/** Longest a timed-out request waits for its cancellation to be posted. */
+const CANCEL_WAIT_MS = 1_000;
 
 /** Connection-level failure: refused, lost session, stream closed, timeout. */
 export class TransportError extends McpError {}
@@ -93,9 +95,19 @@ export class RpcSession {
         this.pending.delete(id);
         const hint =
           method === "tools/call"
-            ? "Affinity may be waiting on a dialog (e.g. a save prompt); check the app before retrying, and do not re-run the same script"
+            ? "the script may still be running in Affinity and can create or change documents after this; check Affinity and the home view before retrying, and do not re-run the same script; it may also be waiting on a dialog (e.g. a save prompt)"
             : undefined;
-        reject(new TransportError(`${method} timed out after ${timeoutMs} ms`, hint));
+        const failure = new TransportError(`${method} timed out after ${timeoutMs} ms`, hint);
+        // The server keeps executing a timed-out script; ask it to stop (MCP cancellation, best
+        // effort). Reject only once the notification is posted (or after CANCEL_WAIT_MS): callers
+        // close the session right after, and closing the stream drops the server's session.
+        let wait: NodeJS.Timeout | undefined;
+        const posted = this.notify("notifications/cancelled", { requestId: id, reason: `timeout after ${timeoutMs} ms` }).catch(() => {});
+        const limit = new Promise<void>((r) => (wait = setTimeout(r, CANCEL_WAIT_MS)));
+        void Promise.race([posted, limit]).then(() => {
+          clearTimeout(wait);
+          reject(failure);
+        });
       }, timeoutMs);
       this.pending.set(id, { method, resolve, reject, timer });
       this.send(url, { jsonrpc: "2.0", id, method, params }).catch((err: Error) => {

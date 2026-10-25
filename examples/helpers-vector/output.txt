@@ -5,8 +5,8 @@ ms: <n>
 output[1]:
   {"mark":"union-subtract","outlined":true}
 help[2]:
-  affinity-axi render current
-  affinity-axi export current PNG <path-under-Desktop>
+  affinity-axi render <doc>   # print doc.sessionUuid in the script to get the id
+  affinity-axi export <doc> PNG <path-under-Desktop>
 
 $ affinity-axi render $DOC --out examples/helpers-vector/render.jpg
 render: examples/helpers-vector/render.jpg
@@ -24,6 +24,9 @@ export: examples/helpers-vector/mark.svg
 doc: <uuid>
 preset: SVG (for export)
 bytes: <n>
+alt: (none; add one)
+help[1]:
+  edit the alt text before publishing
 
 $ affinity-axi export $DOC PNG examples/helpers-vector/favicon-32.png --artboard mark --square 32
 export: examples/helpers-vector/favicon-32.png
@@ -32,3 +35,6 @@ preset: PNG
 artboard: mark
 bytes: <n>
 size: 32x32
+alt: (none; add one)
+help[1]:
+  edit the alt text before publishing

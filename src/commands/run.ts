@@ -15,6 +15,7 @@ import { AxiError, UsageError } from "../output/errors.js";
 import { helpBlock } from "../output/suggest.js";
 import { emitBlock, emitKV, print } from "../output/toon.js";
 import { truncate, truncationNote } from "../output/truncate.js";
+import { TransportError } from "../mcp/client.js";
 import type { AffinityClient, ConnectFn } from "../mcp/types.js";
 
 const OUTPUT_LIMIT = 1500;
@@ -51,7 +52,7 @@ export async function callJson<T>(
 
 export interface DocListing {
   current: string | null;
-  documents: Array<{ uuid: string; path: string }>;
+  documents: Array<{ uuid: string; path: string; dirty: boolean }>;
 }
 
 /** The open documents and the current one, or null when they cannot be read (best effort). */
@@ -59,10 +60,10 @@ export async function listDocs(client: AffinityClient): Promise<DocListing | nul
   try {
     const r = await client.callTool("execute_script", { script: LIST_DOCUMENTS });
     const lines = resultText(r).split("\n").filter((l) => l.trim() !== "");
-    const v = JSON.parse(lines[lines.length - 1] ?? "") as { current: string | null; documents?: Array<{ uuid: string; path?: string }> };
+    const v = JSON.parse(lines[lines.length - 1] ?? "") as { current: string | null; documents?: Array<{ uuid: string; path?: string; dirty?: boolean }> };
     return {
       current: v.current ?? null,
-      documents: (v.documents ?? []).map((d) => ({ uuid: String(d.uuid), path: d.path ?? "" })),
+      documents: (v.documents ?? []).map((d) => ({ uuid: String(d.uuid), path: d.path ?? "", dirty: d.dirty === true })),
     };
   } catch {
     return null;
@@ -70,17 +71,25 @@ export async function listDocs(client: AffinityClient): Promise<DocListing | nul
 }
 
 /**
- * The documents a run touched: UUIDs in its output plus the current document
- * (as provenance does), each with the saved path from the listing ("" when unsaved).
+ * The documents a run touched: UUIDs in its output plus those named in --args,
+ * each with the saved path from the listing ("" when unsaved). The current
+ * document is the fallback, used only when neither names one.
  */
-export function runDocuments(text: string, listing: DocListing | null): Array<{ uuid: string; path: string }> {
-  const uuids = extractUuids(text);
+export function runDocuments(text: string, listing: DocListing | null, argsJson?: string): Array<{ uuid: string; path: string }> {
+  const uuids = namedUuids(text, argsJson);
   const cur = listing?.current?.toUpperCase();
-  if (cur && !uuids.includes(cur)) uuids.push(cur);
+  if (cur && uuids.length === 0) uuids.push(cur);
   return uuids.map((uuid) => ({
     uuid,
     path: listing?.documents.find((d) => d.uuid.toUpperCase() === uuid)?.path ?? "",
   }));
+}
+
+/** UUIDs in the output, then those in --args not already present. */
+function namedUuids(text: string, argsJson?: string): string[] {
+  const uuids = extractUuids(text);
+  if (argsJson !== undefined) for (const u of extractUuids(argsJson)) if (!uuids.includes(u)) uuids.push(u);
+  return uuids;
 }
 
 /** Appends one run-log record. Best effort: the run log must never fail a command. */
@@ -110,8 +119,8 @@ interface GenerativeRun {
 
 /** Appends the provenance record; returns the text `run` prints after "provenance: ". */
 function logGenerative(g: GenerativeRun): string {
-  const documents = extractUuids(g.text);
-  if (g.current && !documents.includes(g.current.toUpperCase())) documents.push(g.current.toUpperCase());
+  const documents = namedUuids(g.text, g.argsJson);
+  if (g.current && documents.length === 0) documents.push(g.current.toUpperCase());
   try {
     appendProvenance({
       time: new Date().toISOString(),
@@ -222,7 +231,7 @@ export function make(connect: ConnectFn): CommandModule {
           flags: replayFlags(parsed),
           outcome: outcomeKind,
           ms,
-          documents: runDocuments(output, listing),
+          documents: runDocuments(output, listing, argsJson),
           ...(brand ? { brand } : {}),
         });
       try {
@@ -234,15 +243,16 @@ export function make(connect: ConnectFn): CommandModule {
           // The call may have reached Canva AI before failing: log it anyway.
           if (generative) logGenerative({ file, source: userSource, hits, argsJson, outcome: "error", text: "" });
           ms = Date.now() - started;
-          logged("error", "", null);
+          const timedOut = err instanceof TransportError && /timed out/.test(err.message);
+          logged(timedOut ? "timeout" : "error", "", null);
           throw err;
         }
         ms = Date.now() - started;
         // One listing serves provenance (current document) and the run log (saved paths).
         const listing = await listDocs(client);
         if (generative) {
-          // A script that never prints its document UUID still touched the current one.
-          const current = extractUuids(text).length === 0 ? (listing?.current ?? undefined) : undefined;
+          // A script that names no document (output or --args) still touched the current one.
+          const current = namedUuids(text, argsJson).length === 0 ? (listing?.current ?? undefined) : undefined;
           provenance = logGenerative({ file, source: userSource, hits, argsJson, outcome: outcome.kind, text, current });
         }
         logged(outcome.kind, text, listing);

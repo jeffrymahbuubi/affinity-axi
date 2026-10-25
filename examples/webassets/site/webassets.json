@@ -1,7 +1,7 @@
 {
   "schema": "affinity-axi/webassets/1",
-  "doc": "C83BA9A9-AA28-4519-A57E-C6A9A0D749AD",
-  "at": "2026-10-24T19:35:47.987Z",
+  "doc": "965B9441-A3A0-45BB-8D5D-6F7612D883EB",
+  "at": "2026-10-25T17:42:54.379Z",
   "files": [
     {
       "role": "favicon",
@@ -62,7 +62,7 @@
       "role": "og",
       "file": "og.png",
       "size": "1200x630",
-      "bytes": 22345,
+      "bytes": 22522,
       "artboard": "og",
       "alt": "lumen. light for small studios"
     },
@@ -70,7 +70,7 @@
       "role": "x-card",
       "file": "x-card.png",
       "size": "1200x600",
-      "bytes": 21100,
+      "bytes": 21164,
       "artboard": "x-card",
       "alt": "lumen. light for small studios"
     },

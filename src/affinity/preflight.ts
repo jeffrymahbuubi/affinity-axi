@@ -154,7 +154,7 @@ function run(tool: string, args: string[]): string | null {
 
 /** Extra rows from exiftool, pdfinfo or qpdf, whichever is first on PATH. Null when none is. */
 export function externalPdfInfo(file: string): { tool: string; rows: PreflightRow[] } | null {
-  const ex = run("exiftool", ["-j", "-PDFVersion", "-PageCount", "-Producer", file]);
+  const ex = run("exiftool", ["-j", "-PDFVersion", "-PageCount", "-Producer", "-Author", "-Creator", file]);
   if (ex !== null) {
     try {
       const r = (JSON.parse(ex) as Array<Record<string, unknown>>)[0] ?? {};
@@ -162,6 +162,10 @@ export function externalPdfInfo(file: string): { tool: string; rows: PreflightRo
       if (r["PDFVersion"] !== undefined) rows.push({ check: "tool-pdf-version", status: "ok", note: `${String(r["PDFVersion"])} (exiftool)` });
       if (r["PageCount"] !== undefined) rows.push({ check: "tool-page-count", status: "ok", note: `${String(r["PageCount"])} (exiftool)` });
       if (r["Producer"] !== undefined) rows.push({ check: "tool-producer", status: "ok", note: String(r["Producer"]) });
+      const who = [r["Author"], r["Creator"]].find((v) => v !== undefined && String(v).trim() !== "");
+      if (who !== undefined) {
+        rows.push({ check: "author-metadata", status: "warn", note: `Author/Creator "${String(who)}" written by Affinity; PDF metadata is not stripped (see the guide)` });
+      }
       return { tool: "exiftool", rows };
     } catch {
       // fall through to the next tool

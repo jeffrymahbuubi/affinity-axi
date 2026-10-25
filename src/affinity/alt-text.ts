@@ -1,5 +1,6 @@
 // Alt-text stubs. A pure function over the document Inventory: the visible
-// text inside the exported area, top-down then left-right, as one short line.
+// text inside the exported area, columns left to right and each column
+// top-down, as one short line.
 // It is a starting point for a person to edit, never a finished description.
 
 import type { Inventory, InventoryNode } from "./manifest-types.js";
@@ -51,18 +52,51 @@ function cap(s: string, max: number): string {
   return cut.trimEnd().replace(/[,;:\-–—]+$/, "").trimEnd();
 }
 
+type Box = [number, number, number, number];
+
 /**
- * Alt text for an area: the visible text rows inside it, ordered by box top
- * then left, whitespace collapsed, joined with ". " (a piece already ending in
- * . ! or ? is joined with a space), cut to `max` characters on a word
- * boundary. Empty string when the area has no text.
+ * Cuts `rows` at the first uncovered interval of positive width on one axis
+ * (0 = x, 1 = y); [rows] when there is none. Cutting at one gap, not all, keeps
+ * the rest together so the next level can still find columns.
+ */
+function cutAtFirstGap<T extends { box: Box }>(rows: T[], axis: 0 | 1): T[][] {
+  const sorted = [...rows].sort((a, b) => a.box[axis] - b.box[axis]);
+  let end = -Infinity;
+  for (const [i, r] of sorted.entries()) {
+    if (i > 0 && r.box[axis] > end) return [sorted.slice(0, i), sorted.slice(i)];
+    end = Math.max(end, r.box[axis] + r.box[axis === 0 ? 2 : 3]);
+  }
+  return [sorted];
+}
+
+/**
+ * Reading order by recursive XY-cut, columns first: split at any vertical gap
+ * into columns left to right; else at a horizontal gap into bands top to
+ * bottom; else top then left. Boxes that touch are not a gap. Recurses into
+ * each part.
+ */
+export function readingOrder<T extends { box: Box }>(rows: T[]): T[] {
+  if (rows.length < 2) return [...rows];
+  for (const axis of [0, 1] as const) {
+    const parts = cutAtFirstGap(rows, axis);
+    if (parts.length > 1) return parts.flatMap((p) => readingOrder(p));
+  }
+  return [...rows].sort((a, b) => a.box[1] - b.box[1] || a.box[0] - b.box[0]);
+}
+
+/**
+ * Alt text for an area: the visible text rows inside it, in reading order
+ * (columns left to right, each top-down), whitespace collapsed, joined with
+ * ". " (a piece already ending in . ! or ? is joined with a space), cut to
+ * `max` characters on a word boundary. Empty string when the area has no text.
  */
 export function altFor(inv: Inventory, area: AltArea, max = ALT_MAX): string {
-  const rows = inv.nodes
-    .filter((n) => n.visible && typeof n.text === "string" && inArea(n, area))
-    .map((n) => ({ n, text: (n.text ?? "").replace(/\s+/g, " ").trim() }))
-    .filter((r) => r.text !== "")
-    .sort((a, b) => a.n.box[1] - b.n.box[1] || a.n.box[0] - b.n.box[0]);
+  const rows = readingOrder(
+    inv.nodes
+      .filter((n) => n.visible && typeof n.text === "string" && inArea(n, area))
+      .map((n) => ({ box: n.box, text: (n.text ?? "").replace(/\s+/g, " ").trim() }))
+      .filter((r) => r.text !== ""),
+  );
   let out = "";
   for (const { text } of rows) {
     if (out === "") out = text;

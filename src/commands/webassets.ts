@@ -11,6 +11,7 @@ import { resolveDocRef } from "../affinity/docref.js";
 import { ALT_TEXT_CHARS, NO_ALT_FLAG, altFor } from "../affinity/alt-text.js";
 import { EXPORT_AREA, LIST_ARTBOARDS, imageSize, type Dim } from "../affinity/export-area.js";
 import { INSPECT } from "../affinity/inspect-script.js";
+import { finalizeFile, metadataNote, type MetaOutcome } from "../affinity/metadata.js";
 import { readManifest, writeManifest } from "../affinity/manifest.js";
 import type { Inventory } from "../affinity/manifest-types.js";
 import { requireUnderDesktop, requireVisible, userPath } from "../affinity/paths.js";
@@ -232,6 +233,7 @@ export function make(connect: ConnectFn): CommandModule {
       const written: Written[] = [];
       const notes: string[] = [];
       const bytesOf = new Map<string, Buffer>();
+      const outcomes: MetaOutcome[] = [];
       try {
         const presets = await callJson<string[]>(client, LIST_PRESETS, "listing export presets");
         for (const need of presetsNeeded(flags)) {
@@ -266,6 +268,7 @@ export function make(connect: ConnectFn): CommandModule {
         for (const j of jobs) {
           const file = join(opts.outDir, j.file);
           await runScript(client, EXPORT_AREA(doc.uuid, j.preset, file, j.area, j.size), `export of ${j.file} (artboard '${j.artboard}') failed`);
+          outcomes.push(finalizeFile(file, {})); // strip Affinity's XMP; webassets embeds no credit
           const buf = readBytes(file, `export of ${j.file}`);
           bytesOf.set(j.file, buf);
           const dim = imageSize(buf);
@@ -301,6 +304,8 @@ export function make(connect: ConnectFn): CommandModule {
         notes.push("apple-touch-icon uses the artboard fill as its ground; give the mark artboard a fill");
       }
       put("head", "head.html", headHtml(written, opts.href));
+      const metaNote = metadataNote(outcomes);
+      if (metaNote !== null) notes.push(`metadata: ${metaNote}`);
       const generated = recordsFor(doc.uuid).length > 0;
       if (generated) notes.push("document has generative provenance; webassets writes no metadata or sidecars, use 'export' for tagged files");
       const jsonPath = join(opts.outDir, "webassets.json");

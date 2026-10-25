@@ -171,6 +171,7 @@ function makeShow(): CommandModule {
       if (kit.space) out.push(emitKV([["space", kit.space.join(" ")]]));
       if (kit.radius) out.push(emitList("radius", Object.entries(kit.radius).map(([key, px]) => ({ key, px })), ["key", "px"]));
       if (kit.logo) out.push(emitList("logo", Object.entries(kit.logo).map(([key, p]) => ({ key, path: shownPath(p) })), ["key", "path"]));
+      if (kit.credit) out.push(emitKV([["creator", kit.credit.creator], ...(kit.credit.copyright !== undefined ? ([["copyright", kit.credit.copyright]] as Array<[string, string]>) : [])]));
       if (kit.pairs) out.push(emitList("contrast", kit.pairs.map(([fg, bg]) => contrastRow(kit, fg, bg)), ["fg", "bg", "ratio", "aa"]));
       const extra = extraKeys(kit);
       if (extra.length > 0) out.push(emitKV([["extra", extra.join(" ")]]));

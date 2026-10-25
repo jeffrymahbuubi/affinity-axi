@@ -34,7 +34,7 @@ export function make(connect: ConnectFn): CommandModule {
         BRAND_FLAG,
         { name: "platform", type: "string", description: "check the safe insets of this platform row (see 'platforms'); default: the row matching each artboard's size" },
         { name: "artboard", type: "string", description: "only this artboard (exact name) and what it contains" },
-        { name: "min-font", type: "string", default: String(DEFAULT_MIN_FONT), description: "text below this size in px is a warning" },
+        { name: "min-font", type: "string", default: String(DEFAULT_MIN_FONT), description: "text below this size in px (at 72 dpi; the minimum scales with the document dpi) is a warning" },
         { name: "strict", type: "boolean", description: "treat warnings as errors" },
         { name: "out", type: "string", description: "also write the findings as JSON to this path" },
         { name: "url", type: "string", description: "Affinity MCP URL (AFFINITY_MCP_URL wins; default http://[::1]:6767)" },

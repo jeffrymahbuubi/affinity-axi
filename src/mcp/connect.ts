@@ -9,6 +9,8 @@ import { SseError, debug, normalizeBase } from "./sse.js";
 export const DEFAULT_URL = "http://[::1]:6767";
 export const PROTOCOL_VERSION = "2025-11-25";
 export const DEFAULT_TIMEOUT_MS = 10_000;
+/** One retry of the preamble read after Affinity answers isError (seen once as a flake). */
+export const PREAMBLE_RETRY_MS = 300;
 /** Suggestion shown for every refused connection. */
 export const CONNECT_SUGGESTION =
   "open Affinity, enable Settings > Model Context Protocol > Enable MCP server, restart Affinity";
@@ -68,7 +70,13 @@ export const connect: ConnectFn = async (opts = {}) => {
     };
     const client = createClient(session, info);
     if (opts.readPreamble !== false) {
-      const pre = await client.callTool("read_sdk_documentation_topic", { filename: "preamble" }, { timeoutMs });
+      const readPre = () => client.callTool("read_sdk_documentation_topic", { filename: "preamble" }, { timeoutMs });
+      let pre = await readPre();
+      if (pre.isError) {
+        debug("preamble refused once, retrying");
+        await new Promise((r) => setTimeout(r, PREAMBLE_RETRY_MS));
+        pre = await readPre();
+      }
       if (pre.isError) throw new McpError("Affinity refused to serve the SDK preamble");
       debug("preamble read");
     }

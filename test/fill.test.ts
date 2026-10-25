@@ -346,7 +346,7 @@ describe("fill execution", () => {
     const r = await runCommand(fill, [template, "--data", data, "--key", "slug", "--out-dir", out, "--continue-on-error"]);
     expect(r.code).toBe(1);
     expect(r.stdout).toContain(`leftOpen: ${uuidFor(1).toUpperCase()}`);
-    expect(r.stdout).toContain("has unsaved changes");
+    expect(r.stdout).toMatch(/boom.*has unsaved changes/);
     expect(r.stdout).toContain("apr,skipped");
     expect(markers().filter((m) => m === "fill-open")).toHaveLength(1);
   });

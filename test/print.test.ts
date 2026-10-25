@@ -1,7 +1,7 @@
 // `print`: preset checks, the export and CMYK scripts, the offline preflight and exit codes,
 // against the fake server. The area-export handler writes synthetic PDFs at the output path.
 
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { deflateSync } from "node:zlib";
@@ -214,6 +214,45 @@ describe("print", () => {
     expect(missing.code).toBe(2);
     expect(missing.stdout).toContain("no artboard named 'side'");
     expect(missing.stdout).toContain("artboards: front, back");
+  });
+
+  describe("PDF author metadata", () => {
+    const origPath = process.env["PATH"];
+    afterEach(() => {
+      process.env["PATH"] = origPath;
+    });
+
+    /** PATH with only a fake exiftool answering `-j` with the given JSON (sbin dirs are kept off PATH so no real tool answers). */
+    function fakeExiftool(json: string): void {
+      const bin = join(root, "bin");
+      mkdirSync(bin, { recursive: true });
+      const file = join(bin, "exiftool");
+      writeFileSync(file, `#!/bin/sh\necho '${json}'\n`);
+      chmodSync(file, 0o755);
+      process.env["PATH"] = `${bin}:/usr/bin:/bin`;
+    }
+
+    it("warns with an author-metadata row and a note when exiftool reports Author, without changing the exit code", async () => {
+      stubAll();
+      fakeExiftool('[{"SourceFile":"x","PDFVersion":"1.6","Author":"account-handle","Creator":"account-handle"}]');
+      const out = join(desktop, "flyer.pdf");
+      exportWrites(pdf(), out);
+      const r = await runCommand(print, ["current", "--out", out]);
+      expect(r.code).toBe(0);
+      expect(r.stdout).toContain('author-metadata,warn,"Author/Creator ""account-handle"" written by Affinity; PDF metadata is not stripped (see the guide)"');
+      expect(r.stdout).toContain("PDF Author/Creator come from Affinity and are not stripped; a PDF rewrite tool (qpdf) is needed");
+    });
+
+    it("adds no row when exiftool reports no Author or Creator", async () => {
+      stubAll();
+      fakeExiftool('[{"SourceFile":"x","PDFVersion":"1.6"}]');
+      const out = join(desktop, "flyer.pdf");
+      exportWrites(pdf(), out);
+      const r = await runCommand(print, ["current", "--out", out]);
+      expect(r.code).toBe(0);
+      expect(r.stdout).not.toContain("author-metadata");
+      expect(r.stdout).not.toContain("PDF rewrite tool");
+    });
   });
 
   it("--help makes zero connections and lists flags and examples", async () => {

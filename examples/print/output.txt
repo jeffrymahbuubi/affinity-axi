@@ -5,15 +5,15 @@ ms: <n>
 output[1]:
   {"poster":"ig-square"}
 help[2]:
-  affinity-axi render current
-  affinity-axi export current PNG <path-under-Desktop>
+  affinity-axi render <doc>   # print doc.sessionUuid in the script to get the id
+  affinity-axi export <doc> PNG <path-under-Desktop>
 
 $ affinity-axi print $DOC --out examples/print/poster.pdf
 doc: <uuid>
 preset: PDF/X-4
 file: examples/print/poster.pdf
 bytes: <n>
-preflight[11]{check,status,note}:
+preflight[12]{check,status,note}:
   pdf-header,ok,PDF 1.6
   pdfx-version,ok,PDF/X-4
   output-intent,ok,U.S. Web Coated (SWOP) v2
@@ -25,8 +25,10 @@ preflight[11]{check,status,note}:
   tool-pdf-version,ok,1.6 (exiftool)
   tool-page-count,ok,1 (exiftool)
   tool-producer,ok,PDFlib+PDI 10.0.0p1-i (macOS (arm64))
+  author-metadata,warn,"Author/Creator ""jeffrymahbuubi"" written by Affinity; PDF metadata is not stripped (see the guide)"
 note: crop marks are drawn by axiPrintSheet for proofs; press PDFs carry bleed boxes, not marks
-notes[1]:
+notes[2]:
+  PDF Author/Creator come from Affinity and are not stripped; a PDF rewrite tool (qpdf) is needed
   PDF/X presets export the trim area only: for bleed, build the document with axiPrintDoc({bleed}) and export with --preset "PDF (press ready)"
 help[2]:
   affinity-axi export <uuid8> PNG <path-under-Desktop>   # a raster proof

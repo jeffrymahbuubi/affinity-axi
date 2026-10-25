@@ -25,6 +25,7 @@ export interface BrandKit {
   radius?: Record<string, number>;
   logo?: Record<string, string>;
   pairs?: [string, string][];
+  credit?: { creator: string; copyright?: string }; // embedded as XMP dc:Creator / dc:Rights by export, fill and batch
 }
 
 export const BRAND_FLAG = {
@@ -33,7 +34,7 @@ export const BRAND_FLAG = {
   description: "brand kit: a .brand.json path or a name under ./brands/ (default $AFFINITY_AXI_BRAND, then ./brand.json)",
 };
 
-const KNOWN_KEYS = ["schema", "name", "colours", "fonts", "type", "space", "radius", "logo", "pairs"];
+const KNOWN_KEYS = ["schema", "name", "colours", "fonts", "type", "space", "radius", "logo", "pairs", "credit"];
 const HEX = /^#[0-9a-fA-F]{6}$/;
 const TOKEN_KEY = /^[A-Za-z][A-Za-z0-9_-]*$/;
 const RASTER = /\.(png|jpe?g)$/i;
@@ -150,6 +151,22 @@ export function validateKit(json: unknown, file: string): BrandKit {
       for (const key of p) if (typeof key !== "string" || !(key in colours)) bad(file, `pairs[${i}]`, `names an unknown colour key ${JSON.stringify(key)} (have ${Object.keys(colours).join(", ")})`);
       return [p[0] as string, p[1] as string] as [string, string];
     });
+  }
+
+  if (json["credit"] !== undefined) {
+    const c = json["credit"];
+    if (!isObject(c)) bad(file, "credit", "must be an object {creator, copyright?}");
+    const creator = c["creator"];
+    if (typeof creator !== "string" || creator.trim() === "") bad(file, "credit.creator", "must be a non-empty string");
+    if (creator.length > 200) bad(file, "credit.creator", "must be 200 characters or fewer");
+    const credit: NonNullable<BrandKit["credit"]> = { creator };
+    if (c["copyright"] !== undefined) {
+      const rights = c["copyright"];
+      if (typeof rights !== "string") bad(file, "credit.copyright", "must be a string");
+      if (rights.length > 500) bad(file, "credit.copyright", "must be 500 characters or fewer");
+      credit.copyright = rights;
+    }
+    kit.credit = credit;
   }
   return kit;
 }

@@ -22,6 +22,7 @@ import { helpBlock } from "../output/suggest.js";
 import { emitKV, emitList, print } from "../output/toon.js";
 import type { ConnectFn } from "../mcp/types.js";
 import { TEMPLATES, templateByName, type Template } from "../templates/index.js";
+import { IMAGE_EXT } from "../affinity/fill-script.js";
 import { DOC_CLOSE, DOC_SAVE } from "./doc.js";
 import { callJson, logRun } from "./run.js";
 
@@ -29,7 +30,6 @@ const BIN = "affinity-axi";
 const DEFAULT_TIMEOUT_MS = 60000;
 const USAGE = `usage: ${BIN} templates new <name> --out <file.af under Desktop> --brand <kit>`;
 const NAMES = TEMPLATES.map((t) => t.name).join(", ");
-const PHOTO_EXT = /\.(png|jpe?g|webp)$/i;
 const REQUIRED_TYPES = ["display", "h1", "body"];
 
 // ---- a one-colour PNG, used as the photo placeholder so `fill` can swap a real picture in ----
@@ -100,7 +100,7 @@ export function parseTemplateArgs(t: Template, raw: string | undefined): Templat
   for (const [k, val] of Object.entries(v as Record<string, unknown>)) {
     if (k === "photo") {
       if (!t.slots.includes("photo")) throw new UsageError(`template ${t.name} has no photo slot`, `photo applies to: ${TEMPLATES.filter((x) => x.slots.includes("photo")).map((x) => x.name).join(", ")}`);
-      if (typeof val !== "string" || !PHOTO_EXT.test(val)) throw new UsageError("photo must be the path of a .png, .jpg or .webp file", `example: --args '{"photo":"~/Desktop/photo.png"}'`);
+      if (typeof val !== "string" || !IMAGE_EXT.test(val)) throw new UsageError("photo must be the path of a .png, .jpg, .jpeg, .webp, .heic, .heif, .tif or .tiff file", `example: --args '{"photo":"~/Desktop/photo.png"}'`);
       const p = userPath(val);
       if (!existsSync(p)) throw new UsageError(`photo not found: ${p}`, "paths are relative to the current directory");
       requireVisible(p, "photo");

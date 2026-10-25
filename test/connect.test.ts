@@ -3,7 +3,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { startFakeServer, type FakeServer } from "./fake-mcp/server.js";
-import { connect, CONNECT_SUGGESTION, DEFAULT_URL, resolveUrl, version } from "../src/mcp/connect.js";
+import { connect, CONNECT_SUGGESTION, DEFAULT_URL, PREAMBLE_RETRY_MS, resolveUrl, version } from "../src/mcp/connect.js";
 import { RpcSession, TransportError } from "../src/mcp/client.js";
 import { ConnectError, McpError, type AffinityClient } from "../src/mcp/types.js";
 
@@ -91,8 +91,12 @@ describe("connect() failure paths", () => {
     server = await startFakeServer();
     const real = RpcSession.prototype.request;
     const closed = vi.spyOn(RpcSession.prototype, "close");
+    let calls = 0;
     vi.spyOn(RpcSession.prototype, "request").mockImplementation(function (this: RpcSession, method, params, timeoutMs) {
-      if (method === "tools/call") return Promise.resolve({ isError: true, content: [{ type: "text", text: "no" }] });
+      if (method === "tools/call") {
+        calls += 1;
+        return Promise.resolve({ isError: true, content: [{ type: "text", text: "no" }] });
+      }
       return real.call(this, method, params, timeoutMs);
     });
     const err = await connect({ url: server.url }).catch((e: unknown) => e);
@@ -100,6 +104,43 @@ describe("connect() failure paths", () => {
     expect(err).not.toBeInstanceOf(ConnectError);
     expect((err as McpError).message).toBe("Affinity refused to serve the SDK preamble");
     expect(closed).toHaveBeenCalled();
+    expect(calls).toBe(2);
+  });
+
+  it("one refusal then success connects and reads the preamble twice", async () => {
+    server = await startFakeServer();
+    const real = RpcSession.prototype.request;
+    let calls = 0;
+    vi.spyOn(RpcSession.prototype, "request").mockImplementation(function (this: RpcSession, method, params, timeoutMs) {
+      if (method === "tools/call") {
+        calls += 1;
+        if (calls === 1) return Promise.resolve({ isError: true, content: [{ type: "text", text: "busy" }] });
+      }
+      return real.call(this, method, params, timeoutMs);
+    });
+    const t0 = Date.now();
+    client = await connect({ url: server.url });
+    expect(calls).toBe(2);
+    expect(PREAMBLE_RETRY_MS).toBe(300);
+    expect(Date.now() - t0).toBeGreaterThanOrEqual(PREAMBLE_RETRY_MS - 20);
+  });
+
+  it("a transport error during the retry maps to ConnectError", async () => {
+    server = await startFakeServer();
+    const real = RpcSession.prototype.request;
+    let calls = 0;
+    vi.spyOn(RpcSession.prototype, "request").mockImplementation(function (this: RpcSession, method, params, timeoutMs) {
+      if (method === "tools/call") {
+        calls += 1;
+        if (calls === 1) return Promise.resolve({ isError: true, content: [{ type: "text", text: "busy" }] });
+        return Promise.reject(new TransportError("tools/call timed out after 5 ms"));
+      }
+      return real.call(this, method, params, timeoutMs);
+    });
+    const err = (await connect({ url: server.url }).catch((e: unknown) => e)) as ConnectError;
+    expect(err).toBeInstanceOf(ConnectError);
+    expect(err.message).toBe(`cannot reach Affinity MCP server at ${server.url} (tools/call timed out after 5 ms)`);
+    expect(calls).toBe(2);
   });
 
   it("maps a transport failure during the handshake to ConnectError with the settings suggestion", async () => {
