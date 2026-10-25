@@ -283,8 +283,15 @@ export function make(connect: ConnectFn): CommandModule {
 
       if (outcome.kind === "ok") {
         const uuid = /\b[0-9A-Fa-f]{8}(?:-[0-9A-Fa-f]{4}){3}-[0-9A-Fa-f]{12}\b/.exec(text)?.[0];
-        const ref = uuid ? uuid.slice(0, 8).toUpperCase() : "current";
-        helps.push(`${BIN} render ${ref}`, `${BIN} export ${ref} PNG <path-under-Desktop>`);
+        if (uuid) {
+          const ref = uuid.slice(0, 8).toUpperCase();
+          helps.push(`${BIN} render ${ref}`, `${BIN} export ${ref} PNG <path-under-Desktop>`);
+        } else {
+          helps.push(
+            `${BIN} render <doc>   # print doc.sessionUuid in the script to get the id`,
+            `${BIN} export <doc> PNG <path-under-Desktop>`,
+          );
+        }
       } else if (outcome.kind === "not-allowed") {
         helps.push(
           generative

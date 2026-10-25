@@ -11,6 +11,7 @@ import { renderHelp } from "../src/cli/help.js";
 import { make as makeAssets } from "../src/commands/assets.js";
 import { make as makeHome, parseHomeInfo, rootHelp } from "../src/commands/home.js";
 import { ConnectError, type AffinityClient, type ConnectFn, type ToolResult } from "../src/mcp/types.js";
+import { version } from "../src/mcp/connect.js";
 import { runCommand } from "./fake-mcp/client.js";
 
 // The manifest scan is real unless a test asks for a failure or fixed rows.
@@ -290,7 +291,7 @@ describe("home: branch cases", () => {
   it("prints the version and exits without connecting", async () => {
     const connect = vi.fn<ConnectFn>();
     const r = await runCommand(home(connect), ["--version"]);
-    expect(r).toEqual({ code: 0, stdout: "affinity-axi: 0.1.0\n" });
+    expect(r).toEqual({ code: 0, stdout: `affinity-axi: ${version()}\n` });
     expect(connect).not.toHaveBeenCalled();
   });
 

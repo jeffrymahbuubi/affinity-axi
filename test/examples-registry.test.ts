@@ -81,7 +81,7 @@ describe("examples registry", () => {
   });
 
   it("covers the helper families; every feature is merged, so nothing is pending", () => {
-    for (const f of ["helpers:text", "helpers:shapes", "helpers:image", "helpers:layout", "helpers:named"]) {
+    for (const f of ["helpers:text", "helpers:shapes", "helpers:image", "helpers:ml", "helpers:layout", "helpers:named"]) {
       expect(examplesFor(f).length, f).toBeGreaterThan(0);
     }
     const pending = EXAMPLES.filter((e) => e.pending).map((e) => e.feature).sort();

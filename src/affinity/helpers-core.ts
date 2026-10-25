@@ -17,7 +17,8 @@ export interface HelperInfo {
 /** Core helpers. axiStyled and axiStroke are internal building blocks. */
 export const CORE_INDEX: readonly HelperInfo[] = [
   { name: "axiHex", signature: "axiHex(hex, alpha?)", summary: "'#RGB' or '#RRGGBB' to an RGBA8; alpha 0-1 (default 1; a value 2-255 is taken as a byte)" },
-  { name: "axiDoc", signature: "axiDoc(w, h, dpi?)", summary: "new pixel document (1 unit = 1 px at 72 dpi)" },
+  { name: "axiDoc", signature: "axiDoc(w, h, dpi?, {transparent}?)", summary: "new pixel document (1 unit = 1 px at 72 dpi); {transparent: true} gives a transparent background so a PNG export keeps alpha (a plain document is white)" },
+  { name: "axiTransparent", signature: "axiTransparent(doc, on?)", summary: "make an open document's background transparent (on defaults to true; false restores it); returns the document" },
   { name: "axiFont", signature: "axiFont(postscript)", summary: "find a font by postscriptName (cached); throws with near matches" },
   { name: "axiText", signature: "axiText(doc, {x,y,text,font,size,colour,spacing,align,maxW,name})", summary: "one text line, y is the baseline; align l|c|r anchors x; name sets the node's userDescription; returns the node" },
   { name: "axiParagraph", signature: "axiParagraph(doc, {x,y,w,h,text,font,size,colour,lead,spacing,align,name})", summary: "wrapped text in a frame (top-left x,y); lead is relative leading, default 1.5; align l|c|r|j; name sets the node's userDescription" },
@@ -45,13 +46,26 @@ function axiHex(hex, alpha) {
   return RGBA8(parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16), a);
 }
 
-// New pixel document: units Pixel, dpi 72, so 1 unit is 1 px.
-function axiDoc(w, h, dpi) {
+// New pixel document: units Pixel, dpi 72, so 1 unit is 1 px. o.transparent
+// true makes the background transparent (see axiTransparent).
+function axiDoc(w, h, dpi, o) {
   const { Document, NewDocumentOptions } = require('/document.js');
   const { UnitType } = require('/units.js');
-  const o = NewDocumentOptions.createDefault();
-  o.units = UnitType.Pixel; o.width = w; o.height = h; o.dpi = dpi || 72;
-  return Document.createFromOptions(o);
+  const opts = NewDocumentOptions.createDefault();
+  opts.units = UnitType.Pixel; opts.width = w; opts.height = h; opts.dpi = dpi || 72;
+  const doc = Document.createFromOptions(opts);
+  if (o && o.transparent === true) { axiTransparent(doc, true); }
+  return doc;
+}
+
+// Transparent (or opaque again) document background: a PNG export keeps alpha
+// only when it is transparent. Returns the document.
+function axiTransparent(doc, on) {
+  const { DocumentProperties } = require('/documentproperties.js');
+  const p = DocumentProperties.create();
+  p.isTransparent = on === undefined ? true : !!on;
+  doc.setDocumentProperties(p);
+  return doc;
 }
 
 // Font by postscriptName. Variable families report unreliable name/weight, so

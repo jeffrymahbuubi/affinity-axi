@@ -7,8 +7,9 @@ import { CORE_EXAMPLES } from "./registry-core.js";
 import { CORE2_EXAMPLES } from "./registry-core2.js";
 import { ROUND3_EXAMPLES } from "./registry-round3.js";
 import { ROUND4_EXAMPLES } from "./registry-round4.js";
+import { ROUND5_EXAMPLES } from "./registry-round5.js";
 
-export const EXAMPLES: readonly Example[] = [...CORE_EXAMPLES, ...CORE2_EXAMPLES, ...ROUND3_EXAMPLES, ...ROUND4_EXAMPLES];
+export const EXAMPLES: readonly Example[] = [...CORE_EXAMPLES, ...CORE2_EXAMPLES, ...ROUND3_EXAMPLES, ...ROUND4_EXAMPLES, ...ROUND5_EXAMPLES];
 
 /** Examples whose feature is exactly `command` (a command path or `helpers:<family>`). */
 export function examplesFor(command: string): Example[] {

@@ -22,7 +22,9 @@ const BIN = "affinity-axi";
 const IMAGE_EXT = /\.(png|jpe?g|webp)$/i;
 const HEX = /^#[0-9a-fA-F]{6}$/;
 const FITS = ["contain", "cover", "stretch"];
-const OBJECT_KEYS = ["text", "fill", "colour", "image", "fit", "box", "hidden"];
+const OBJECT_KEYS = ["text", "fill", "colour", "image", "fit", "box", "hidden", "cutout", "colourise", "align", "padding"];
+const CUTOUTS = ["background", "subject"];
+const ALIGNS = ["none", "centre", "fit"];
 
 export interface Box {
   x?: number;
@@ -44,6 +46,14 @@ export interface Edit {
   fill?: string;
   image?: string;
   fit?: string;
+  /** ML cut-out of the placed photo (needs image). */
+  cutout?: "background" | "subject";
+  /** ML colourise of the placed photo (needs image). */
+  colourise?: true;
+  /** Re-centre ("centre") or scale-to-fit ("fit") the cut-out in its frame; absent means none. Needs cutout. */
+  align?: "centre" | "fit";
+  /** Margin in px kept free by align "fit". */
+  padding?: number;
   box?: Box;
   hidden?: boolean;
 }
@@ -127,6 +137,33 @@ function explicit(key: string, ref: string, o: Record<string, unknown>, dataDir:
     if (typeof o["fit"] !== "string" || !FITS.includes(o["fit"])) throw bad(key, `invalid fit '${String(o["fit"])}'`, `fit is one of ${FITS.join(", ")}`);
     e.fit = o["fit"];
   }
+  if (o["cutout"] !== undefined) {
+    const c = o["cutout"];
+    const valid = typeof c === "boolean" || (typeof c === "string" && CUTOUTS.includes(c));
+    if (!valid) throw bad(key, "cutout must be true, false, 'background' or 'subject'", `e.g. {"image": "photo.jpg", "cutout": true}`);
+    if (e.image === undefined) throw bad(key, "cutout needs an image", `use {"image": "photo.jpg", "cutout": true}`);
+    if (c === true) e.cutout = "background";
+    else if (c !== false) e.cutout = c as "background" | "subject";
+  }
+  if (o["colourise"] !== undefined) {
+    if (typeof o["colourise"] !== "boolean") throw bad(key, "colourise must be true or false", `e.g. {"image": "photo.jpg", "colourise": true}`);
+    if (e.image === undefined) throw bad(key, "colourise needs an image", `use {"image": "photo.jpg", "colourise": true}`);
+    if (o["colourise"]) e.colourise = true;
+  }
+  if (o["align"] !== undefined) {
+    const a = o["align"];
+    if (typeof a !== "string" || !ALIGNS.includes(a)) throw bad(key, "align must be 'none', 'centre' or 'fit'", `e.g. {"image": "photo.jpg", "cutout": true, "align": "fit"}`);
+    if (e.cutout === undefined) throw bad(key, "align needs cutout", `use {"image": "photo.jpg", "cutout": true, "align": "fit"}`);
+    if (a !== "none") e.align = a as "centre" | "fit";
+  }
+  if (o["padding"] !== undefined) {
+    const p = o["padding"];
+    if (typeof p !== "number" || !Number.isFinite(p) || p < 0) throw bad(key, "padding must be a number of 0 or more", `e.g. {"image": "photo.jpg", "cutout": true, "align": "fit", "padding": 40}`);
+    if (e.align !== "fit") throw bad(key, "padding needs align 'fit'", `use {"image": "photo.jpg", "cutout": true, "align": "fit", "padding": 40}`);
+    e.padding = p;
+  }
+  // A cut-out in a picture slot is centred in its frame unless the record says otherwise.
+  if (e.cutout !== undefined && o["align"] === undefined) e.align = "centre";
   if (o["box"] !== undefined) e.box = boxOf(key, o["box"]);
   if (o["hidden"] !== undefined) {
     if (typeof o["hidden"] !== "boolean") throw bad(key, "hidden must be true or false", `e.g. {"hidden": true}`);
@@ -248,7 +285,7 @@ export function FILL_APPLY(docUuid: string, edits: Edit[], ignoreUnknown: boolea
     "  }",
     "  if (e.text !== undefined) { if (isText) { ops.push(['text', e.text]); } else { problem = problem || 'text'; } }",
     "  if (e.fill !== undefined) { if (!isPic) { ops.push(['fill', e.fill]); } else { problem = problem || 'a colour'; } }",
-    "  if (e.image !== undefined) { if (isPic) { ops.push(['image', e.image, e.fit || '']); } else { problem = problem || 'an image'; } }",
+    "  if (e.image !== undefined) { if (isPic) { ops.push(['image', e.image, e.fit || '', !!e.colourise, e.cutout || '', e.align || '', e.padding || 0]); } else { problem = problem || 'an image'; } }",
     "  if (e.box !== undefined) { ops.push(['box', e.box]); }",
     "  if (e.hidden !== undefined) { ops.push(['hidden', e.hidden]); }",
     "  if (problem) { out.mismatch.push({ key: key, node: kind, got: problem }); return; }",
@@ -260,7 +297,11 @@ export function FILL_APPLY(docUuid: string, edits: Edit[], ignoreUnknown: boolea
     "    p.ops.forEach(function (op) {",
     "      if (op[0] === 'text') { axiSetText(doc, p.ref, op[1]); }",
     "      else if (op[0] === 'fill') { axiSetFill(doc, p.ref, op[1]); }",
-    "      else if (op[0] === 'image') { axiReplaceImage(doc, axiFind(doc, p.ref), op[1], op[2] ? { fit: op[2] } : undefined); }",
+    "      else if (op[0] === 'image') {",
+    "        const n = axiReplaceImage(doc, axiFind(doc, p.ref), op[1], op[2] ? { fit: op[2] } : undefined);",
+    "        if (op[3]) { axiColourise(doc, n); }",
+    "        if (op[4]) { axiCutout(doc, n, { method: op[4], transparent: false, align: op[5] || 'none', padding: op[6] || 0 }); }",
+    "      }",
     "      else if (op[0] === 'box') { axiSetBox(doc, p.ref, op[1]); }",
     "      else if (op[0] === 'hidden') { doc.executeCommand(DocumentCommand.createSetVisibility(Selection.create(doc, axiFind(doc, p.ref)), !op[1])); }",
     "    });",

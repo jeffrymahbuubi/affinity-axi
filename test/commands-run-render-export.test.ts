@@ -6,6 +6,7 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { dispatch, type CommandModule, type Registry } from "../src/cli/router.js";
 import type { ConnectFn } from "../src/mcp/types.js";
+import { refusalSuggestion } from "../src/affinity/guard.js";
 import { make as makeRun } from "../src/commands/run.js";
 import { make as makeRender } from "../src/commands/render.js";
 import { make as makeExportModule } from "../src/commands/export.js";
@@ -125,6 +126,21 @@ describe("run", () => {
     const file = writeScript("ml.js", "doc.removeBackground();\n");
     const r = await run_(file);
     expect(r.code).toBe(0);
+  });
+
+  it("without a UUID in the output the help lines use <doc>, never current", async () => {
+    server.onScript("NOUUID", "done");
+    const r = await run_(writeScript("nouuid.js", "// NOUUID\nconsole.log('done');\n"));
+    expect(r.code).toBe(0);
+    expect(r.stdout).toContain("affinity-axi render <doc>   # print doc.sessionUuid in the script to get the id");
+    expect(r.stdout).toContain("affinity-axi export <doc> PNG <path-under-Desktop>");
+    expect(r.stdout).not.toContain("render current");
+    expect(r.stdout).not.toContain("export current");
+  });
+
+  it("the guard refusal suggestion names all four ML calls as flag-free", () => {
+    const s = refusalSuggestion("affinity-axi run x.js --allow-generative");
+    for (const name of ["removeBackground", "selectSubject", "detectDepth", "colourise"]) expect(s).toContain(name);
   });
 
   it("prints status ok and an output block", async () => {

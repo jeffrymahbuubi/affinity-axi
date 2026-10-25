@@ -225,7 +225,7 @@ export const CORE_EXAMPLES: readonly Example[] = [
     commands: ["$BIN helpers"],
     output: [
       `  axiHex,"axiHex(hex, alpha?)",'#RGB' or '#RRGGBB' to an RGBA8; alpha 0-1 (default 1; a value 2-255 is taken as a byte)`,
-      `  axiDoc,"axiDoc(w, h, dpi?)",new pixel document (1 unit = 1 px at 72 dpi)`,
+      `  axiDoc,"axiDoc(w, h, dpi?, {transparent}?)",new pixel document (1 unit = 1 px at 72 dpi); {transparent: true} gives a transparent background so a PNG export keeps alpha (a plain document is white)`,
       "help[2]:",
       "  affinity-axi run <file> --with-helpers",
     ],

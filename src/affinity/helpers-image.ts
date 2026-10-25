@@ -1,7 +1,7 @@
-// Image, ML and grade helpers for run --with-helpers. Same rules as
-// helpers-core.ts: function declarations only, prefixed axi, every require()
-// inside a function, no document-closing call, no generative API. The block is
-// String.raw: keep backticks, ${ and backslashes out of it.
+// Image and grade helpers for run --with-helpers (the ML helpers are in
+// helpers-ml.ts). Same rules as helpers-core.ts: function declarations only,
+// prefixed axi, every require() inside a function, no document-closing call, no
+// generative API. The block is String.raw: keep backticks, ${ and backslashes out of it.
 //
 // SDK classes used: ImageNodeDefinition and Bitmap (placement), the picture
 // frame flag on ShapeNodeDefinition (clipping), AddChildNodesCommandBuilder with
@@ -16,14 +16,10 @@ export const IMAGE_INDEX: readonly HelperInfo[] = [
   { name: "axiReplaceImage", signature: "axiReplaceImage(doc, node, path, {fit,raster,name})", summary: "swap the picture in node (image, pixel layer or its frame) for another file, same slot: createReplaceBitmap when the pixel size matches, else re-placed with fit cover (default) into the old box and frame, keeping the old node's name unless name is given; returns the new node" },
   { name: "axiGrade", signature: "axiGrade(doc, node, spec|look)", summary: "non-destructive adjustment stack on an image or pixel layer from a JSON spec; keys whiteBalance{temp,tint} exposure levels{black,white,gamma,outBlack,outWhite} curves brightnessContrast{brightness,contrast} shadowsHighlights{shadows,highlights} vibrance saturation hsl{hue,saturation,luminosity} splitToning{shadowsHue,shadowsSat,highlightsHue,highlightsSat,balance}; spec may be a look name" },
   { name: "axiLook", signature: "axiLook(name)", summary: "grade spec preset: 'warm-soft' (warm, lifted blacks, gentle colour) or 'neutral' (light tone correction only, for Google Business Profile where heavy filters are disallowed)" },
-  { name: "axiRemoveBackground", signature: "axiRemoveBackground(doc, node?)", summary: "ML background removal on node (or the selection; image nodes are rasterised first); returns the resulting node" },
-  { name: "axiSelectSubject", signature: "axiSelectSubject(doc, node?)", summary: "ML subject selection on node (or the selection); returns the resulting node" },
-  { name: "axiDetectDepth", signature: "axiDetectDepth(doc, node?)", summary: "ML depth detection on node (or the selection); returns the resulting node" },
-  { name: "axiColourise", signature: "axiColourise(doc, node?)", summary: "ML colourise of a greyscale node (or the selection); returns the resulting node" },
 ];
 
 /** Internal building blocks, not in the index. */
-export const IMAGE_INTERNAL: readonly string[] = ["axiPlace", "axiPick", "axiGradeTarget", "axiGradeSteps"];
+export const IMAGE_INTERNAL: readonly string[] = ["axiPlace", "axiGradeTarget", "axiGradeSteps"];
 
 export const IMAGE_SOURCE: string = String.raw`
 // Internal: load path and add it as an image node. target (a frame or other
@@ -128,42 +124,6 @@ function axiReplaceImage(doc, node, path, o) {
   const target = parent && (inFrame || parent.isArtboardEnabled) ? parent : null;
   const out = axiPlace(doc, { path: path, fit: opts.fit || (inFrame ? 'cover' : 'contain'), raster: opts.raster, focus: opts.focus }, box, target);
   return axiName(out, keepName || undefined);
-}
-
-// Select node (when given), else keep the current selection; throws if empty.
-// An image node is rasterised first: the ML commands do nothing on one.
-function axiPick(doc, node, who) {
-  if (node) { doc.selection = node; }
-  if (!doc.selection.nodes.first) { throw new Error(who + ': nothing selected; pass a node'); }
-  if (doc.selection.nodes.first.isImageNode) { doc.rasteriseObjects(); }
-}
-
-// ML background removal (on-device, not generative).
-function axiRemoveBackground(doc, node) {
-  axiPick(doc, node, 'axiRemoveBackground');
-  doc.removeBackground();
-  return doc.selection.nodes.first;
-}
-
-// ML subject selection (on-device, not generative).
-function axiSelectSubject(doc, node) {
-  axiPick(doc, node, 'axiSelectSubject');
-  doc.selectSubject();
-  return doc.selection.nodes.first;
-}
-
-// ML depth detection (on-device, not generative).
-function axiDetectDepth(doc, node) {
-  axiPick(doc, node, 'axiDetectDepth');
-  doc.detectDepth();
-  return doc.selection.nodes.first;
-}
-
-// ML colourise of a greyscale image (on-device, not generative).
-function axiColourise(doc, node) {
-  axiPick(doc, node, 'axiColourise');
-  doc.colourise();
-  return doc.selection.nodes.first;
 }
 
 // Grade presets as axiGrade specs. neutral is a light tone correction only;

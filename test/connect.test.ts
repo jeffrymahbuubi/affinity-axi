@@ -3,7 +3,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { startFakeServer, type FakeServer } from "./fake-mcp/server.js";
-import { connect, CONNECT_SUGGESTION, DEFAULT_URL, resolveUrl } from "../src/mcp/connect.js";
+import { connect, CONNECT_SUGGESTION, DEFAULT_URL, resolveUrl, version } from "../src/mcp/connect.js";
 import { RpcSession, TransportError } from "../src/mcp/client.js";
 import { ConnectError, McpError, type AffinityClient } from "../src/mcp/types.js";
 
@@ -67,7 +67,8 @@ describe("clientInfo version", () => {
   it("reports the version from package.json", async () => {
     server = await startFakeServer();
     client = await connect({ url: server.url, readPreamble: false });
-    expect(sentVersion(server)).toBe("0.1.0");
+    expect(version()).toMatch(/^\d+\.\d+\.\d+$/);
+    expect(sentVersion(server)).toBe(version());
   });
 
   it("falls back to 0.0.0 when package.json cannot be read", async () => {

@@ -1,0 +1,18 @@
+{
+  "id": "doc-new-transparent",
+  "feature": "doc new",
+  "title": "Create a transparent document",
+  "summary": "Create a document with a transparent background, so PNG exports keep alpha (cut-outs, stickers, logos)",
+  "commands": [
+    "$BIN doc new --width 800 --height 600 --transparent"
+  ],
+  "output": [
+    "doc: <uuid>",
+    "size: 800x600 px @ 72 dpi",
+    "transparent: true"
+  ],
+  "images": [],
+  "needs": [
+    "affinity"
+  ]
+}

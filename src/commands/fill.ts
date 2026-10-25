@@ -253,7 +253,7 @@ export function make(connect: ConnectFn): CommandModule {
       summary: "Fill a saved .af by element name from JSON or CSV: one file per record",
       args: [{ name: "template", required: true, description: "the saved .af whose fillable elements are named slot:<key> in the Layers panel" }],
       flags: [
-        { name: "data", type: "string", description: "records: a .json array of objects, or a .csv with a header row (required)" },
+        { name: "data", type: "string", description: "records: a .json array of objects, or a .csv with a header row (required). A picture slot may be {\"image\": \"photo.jpg\", \"cutout\": true|\"subject\", \"colourise\": true, \"align\": \"centre\"|\"fit\"|\"none\" (default centre with cutout), \"padding\": px (with fit)} (JSON only)" },
         { name: "out-dir", type: "string", description: "folder under Desktop: each record is saved as <dir>/<key>.af (required)" },
         { name: "key", type: "string", description: "record field that names each record (default: the record index); made filesystem-safe, must be unique" },
         { name: "export", type: "string", description: "also export each record with this preset (see: affinity-axi presets) as <dir>/<key>.<ext>" },
@@ -263,7 +263,7 @@ export function make(connect: ConnectFn): CommandModule {
         FORCE_FLAG,
         { name: "ignore-unknown", type: "boolean", description: "a data key with no slot is skipped instead of failing the record" },
         BRAND_FLAG,
-        { name: "timeout", type: "string", default: String(DEFAULT_TIMEOUT_MS), description: "per-script timeout in milliseconds" },
+        { name: "timeout", type: "string", default: String(DEFAULT_TIMEOUT_MS), description: "per-script timeout in milliseconds (ML options cutout and colourise take about 10 s per photo)" },
         { name: "url", type: "string", description: "Affinity MCP URL (AFFINITY_MCP_URL wins; default http://[::1]:6767)" },
       ],
       examples: [

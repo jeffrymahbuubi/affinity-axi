@@ -1,0 +1,20 @@
+$ affinity-axi run examples/helpers-ml/script.js --with-helpers --args '{"uuid":"$DOC"}'
+script: examples/helpers-ml/script.js
+status: ok
+ms: <n>
+output[1]:
+  RUN_OK
+help[2]:
+  affinity-axi render <doc>   # print doc.sessionUuid in the script to get the id
+  affinity-axi export <doc> PNG <path-under-Desktop>
+
+$ affinity-axi render $DOC --out examples/helpers-ml/render.jpg
+render: examples/helpers-ml/render.jpg
+doc: <uuid>
+spread: 0
+bytes: <n>
+size: 1024x1024
+note: preview capped at 1024px; use export for full resolution
+help[2]:
+  affinity-axi render <uuid8> --selection
+  affinity-axi export <uuid8> PNG <path-under-Desktop>

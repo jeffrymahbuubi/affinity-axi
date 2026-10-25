@@ -1,0 +1,11 @@
+Photos used by the gallery examples. Both are resized to 960 px on the long side.
+
+mug.jpg
+  Source: "Mug of Coffee on a Wooden Table (26804116318).jpg", Wikimedia Commons
+  Licence: CC0 1.0 (public domain dedication)
+  URL: https://commons.wikimedia.org/wiki/File:Mug_of_Coffee_on_a_Wooden_Table_(26804116318).jpg
+
+street-1930s.jpg
+  Source: "1930s Toronto YongeandQueenSt.jpg", Wikimedia Commons
+  Licence: Public domain
+  URL: https://commons.wikimedia.org/wiki/File:1930s_Toronto_YongeandQueenSt.jpg

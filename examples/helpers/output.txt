@@ -1,7 +1,8 @@
 $ affinity-axi helpers
-helpers[58]{name,signature,summary}:
+helpers[61]{name,signature,summary}:
   axiHex,"axiHex(hex, alpha?)",'#RGB' or '#RRGGBB' to an RGBA8; alpha 0-1 (default 1; a value 2-255 is taken as a byte)
-  axiDoc,"axiDoc(w, h, dpi?)",new pixel document (1 unit = 1 px at 72 dpi)
+  axiDoc,"axiDoc(w, h, dpi?, {transparent}?)",new pixel document (1 unit = 1 px at 72 dpi); {transparent: true} gives a transparent background so a PNG export keeps alpha (a plain document is white)
+  axiTransparent,"axiTransparent(doc, on?)",make an open document's background transparent (on defaults to true; false restores it); returns the document
   axiFont,axiFont(postscript),find a font by postscriptName (cached); throws with near matches
   axiText,"axiText(doc, {x,y,text,font,size,colour,spacing,align,maxW,name})","one text line, y is the baseline; align l|c|r anchors x; name sets the node's userDescription; returns the node"
   axiParagraph,"axiParagraph(doc, {x,y,w,h,text,font,size,colour,lead,spacing,align,name})","wrapped text in a frame (top-left x,y); lead is relative leading, default 1.5; align l|c|r|j; name sets the node's userDescription"
@@ -13,9 +14,11 @@ helpers[58]{name,signature,summary}:
   axiReplaceImage,"axiReplaceImage(doc, node, path, {fit,raster,name})","swap the picture in node (image, pixel layer or its frame) for another file, same slot: createReplaceBitmap when the pixel size matches, else re-placed with fit cover (default) into the old box and frame, keeping the old node's name unless name is given; returns the new node"
   axiGrade,"axiGrade(doc, node, spec|look)","non-destructive adjustment stack on an image or pixel layer from a JSON spec; keys whiteBalance{temp,tint} exposure levels{black,white,gamma,outBlack,outWhite} curves brightnessContrast{brightness,contrast} shadowsHighlights{shadows,highlights} vibrance saturation hsl{hue,saturation,luminosity} splitToning{shadowsHue,shadowsSat,highlightsHue,highlightsSat,balance}; spec may be a look name"
   axiLook,axiLook(name),"grade spec preset: 'warm-soft' (warm, lifted blacks, gentle colour) or 'neutral' (light tone correction only, for Google Business Profile where heavy filters are disallowed)"
-  axiRemoveBackground,"axiRemoveBackground(doc, node?)",ML background removal on node (or the selection; image nodes are rasterised first); returns the resulting node
-  axiSelectSubject,"axiSelectSubject(doc, node?)",ML subject selection on node (or the selection); returns the resulting node
-  axiDetectDepth,"axiDetectDepth(doc, node?)",ML depth detection on node (or the selection); returns the resulting node
+  axiRemoveBackground,"axiRemoveBackground(doc, node?)","ML background removal on node (or the selection; image nodes are rasterised first), in place; returns the resulting node"
+  axiSelectSubject,"axiSelectSubject(doc, node?)","ML subject selection on node (or the selection); the result is the document's pixel selection, not the node, which is returned unchanged; throws 'axiSelectSubject: no subject found' when nothing was selected; clear it with axiDeselect"
+  axiDeselect,axiDeselect(doc),clear the document's pixel selection (what axiSelectSubject sets); returns doc
+  axiCutout,"axiCutout(doc, node?, {method,transparent})","cut the subject out of a photo, in place: method 'background' (default, ML background removal) or 'subject' (select subject, delete the rest, clear the selection); unless transparent:false it also makes the document background transparent so a PNG export keeps alpha; returns the pixel node"
+  axiDetectDepth,"axiDetectDepth(doc, node?, {inPlace,visible})","ML depth map (near = white) on node (or the selection); keeps the photo: runs on a copy named '<name>-depth' that is hidden unless visible:true, and returns that copy; inPlace:true overwrites the layer with the map and returns it (old behaviour)"
   axiColourise,"axiColourise(doc, node?)",ML colourise of a greyscale node (or the selection); returns the resulting node
   axiPlatform,axiPlatform(key),"size row {key,w,h,safe?,notes} for a web or social platform (ig-square, ig-portrait, story, og, discover, gbp-post, favicon-32, web-hero ...); throws with the known keys; run `platforms` to list them"
   axiArtboard,"axiArtboard(doc, {name,x,y,w,h,fill})","add one rectangular artboard whose name (its userDescription) is required and unique; the first artboard of a document must be at 0,0 (fill is an optional hex); returns the artboard node"

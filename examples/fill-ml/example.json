@@ -1,0 +1,24 @@
+{
+  "id": "fill-ml",
+  "feature": "fill",
+  "title": "Fill a template with a cut-out photo",
+  "summary": "A picture slot takes cutout, colourise and align: ML runs on the placed photo, about 10 s each; the cut-out is centred in its frame",
+  "commands": [
+    "$BIN run $OUT/template.js --with-helpers --args '{\"uuid\":\"$DOC\"}'",
+    "$BIN doc save $DOC $OUT/template.af",
+    "$BIN doc close $DOC",
+    "$BIN fill $OUT/template.af --data $OUT/posts.json --key slug --out-dir $OUT --export PNG"
+  ],
+  "script": "template.js",
+  "output": [
+    "records[1]{key,status,doc,ms,note}:",
+    "exported: 1"
+  ],
+  "images": [
+    "mug.png"
+  ],
+  "needs": [
+    "affinity",
+    "document"
+  ]
+}

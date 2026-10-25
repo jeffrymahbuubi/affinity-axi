@@ -332,12 +332,12 @@ affinity-axi helpers
 ```
 
 ```
-helpers[58]{name,signature,summary}:
+helpers[61]{name,signature,summary}:
   axiHex,"axiHex(hex, alpha?)",'#RGB' or '#RRGGBB' to an RGBA8; alpha 0-1 (default 1; a value 2-255 is taken as a byte)
-  axiDoc,"axiDoc(w, h, dpi?)",new pixel document (1 unit = 1 px at 72 dpi)
+  axiDoc,"axiDoc(w, h, dpi?, {transparent}?)",new pixel document (1 unit = 1 px at 72 dpi); {transparent: true} gives a transparent background so a PNG export keeps alpha (a plain document is white)
+  axiTransparent,"axiTransparent(doc, on?)",make an open document's background transparent (on defaults to true; false restores it); returns the document
   axiFont,axiFont(postscript),find a font by postscriptName (cached); throws with near matches
   axiText,"axiText(doc, {x,y,text,font,size,colour,spacing,align,maxW,name})","one text line, y is the baseline; align l|c|r anchors x; name sets the node's userDescription; returns the node"
-  axiParagraph,"axiParagraph(doc, {x,y,w,h,text,font,size,colour,lead,spacing,align,name})","wrapped text in a frame (top-left x,y); lead is relative leading, default 1.5; align l|c|r|j; name sets the node's userDescription"
 ```
 
 ## Helpers: text
@@ -1027,5 +1027,64 @@ status: ok
 ms: <n>
 output[1]:
   {"added":["bg","rule","headline","hours"]}
+help[2]:
+```
+
+## Create a transparent document
+
+`doc-new-transparent`: Create a document with a transparent background, so PNG exports keep alpha (cut-outs, stickers, logos)
+
+```
+affinity-axi doc new --width 800 --height 600 --transparent
+```
+
+```
+doc: <uuid>
+size: 800x600 px @ 72 dpi
+units: Pixel
+dirty: true
+transparent: true
+help[4]:
+```
+
+## Helpers: ML cut-outs, depth and colourise
+
+`helpers-ml`: Cut a product out of its photo and fit it in its box, make a depth map that keeps the photo, blur a background by depth, and colourise an old greyscale photo
+
+![Helpers: ML cut-outs, depth and colourise](helpers-ml/render.jpg)
+
+```
+affinity-axi run examples/helpers-ml/script.js --with-helpers --args '{"uuid":"$DOC"}'
+affinity-axi render $DOC --out examples/helpers-ml/render.jpg
+```
+
+```
+script: examples/helpers-ml/script.js
+status: ok
+ms: <n>
+output[1]:
+  RUN_OK
+help[2]:
+```
+
+## Fill a template with a cut-out photo
+
+`fill-ml`: A picture slot takes cutout, colourise and align: ML runs on the placed photo, about 10 s each; the cut-out is centred in its frame
+
+![Fill a template with a cut-out photo](fill-ml/mug.png)
+
+```
+affinity-axi run examples/fill-ml/template.js --with-helpers --args '{"uuid":"$DOC"}'
+affinity-axi doc save $DOC examples/fill-ml/template.af
+affinity-axi doc close $DOC
+affinity-axi fill examples/fill-ml/template.af --data examples/fill-ml/posts.json --key slug --out-dir examples/fill-ml --export PNG
+```
+
+```
+script: examples/fill-ml/template.js
+status: ok
+ms: <n>
+output[1]:
+  {"slots":["slot:photo","slot:headline"]}
 help[2]:
 ```

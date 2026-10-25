@@ -55,6 +55,59 @@ describe("HELPERS_SOURCE", () => {
   });
 });
 
+describe("axiDoc and axiTransparent", () => {
+  type Fn = (...a: any[]) => any;
+  /** Evaluates HELPERS_SOURCE with stub SDK modules; `extra` runs in the same scope (to stub declarations). */
+  function loadDoc(extra = ""): { fns: Record<string, Fn>; props: Array<{ isTransparent?: boolean }> } {
+    const props: Array<{ isTransparent?: boolean }> = [];
+    const mods: Record<string, unknown> = {
+      "/document.js": {
+        Document: { createFromOptions: (o: unknown) => ({ o, setDocumentProperties: (p: { isTransparent?: boolean }) => props.push(p) }) },
+        NewDocumentOptions: { createDefault: () => ({}) },
+      },
+      "/units.js": { UnitType: { Pixel: "Pixel" } },
+      "/documentproperties.js": { DocumentProperties: { create: () => ({}) } },
+    };
+    const names = [...HELPERS_SOURCE.matchAll(/^function (axi\w+)\(/gm)].map((m) => m[1]!);
+    const body = `${HELPERS_SOURCE}\n${extra}\nreturn { ${names.join(", ")} };`;
+    const fns = new Function("require", body)((id: string) => {
+      if (!(id in mods)) throw new Error(`no stub for ${id}`);
+      return mods[id];
+    }) as Record<string, Fn>;
+    return { fns, props };
+  }
+  const STUB = "var seen = []; axiTransparent = function (d, on) { seen.push(on); return d; }; axiDoc.seen = seen;";
+
+  it("axiDoc(w, h, dpi, {transparent: true}) calls axiTransparent on the new document", () => {
+    const { fns } = loadDoc(STUB);
+    const doc = fns["axiDoc"]!(10, 10, 72, { transparent: true });
+    expect((fns["axiDoc"] as any).seen).toEqual([true]);
+    expect(doc.o).toMatchObject({ width: 10, height: 10, dpi: 72, units: "Pixel" });
+  });
+
+  it("axiDoc(w, h) and a non-true transparent do not call axiTransparent", () => {
+    const { fns } = loadDoc(STUB);
+    fns["axiDoc"]!(10, 10);
+    fns["axiDoc"]!(10, 10, 72, {});
+    fns["axiDoc"]!(10, 10, 72, { transparent: "yes" });
+    expect((fns["axiDoc"] as any).seen).toEqual([]);
+  });
+
+  it("axiTransparent sets isTransparent (default true), supports off, and returns the document", () => {
+    const { fns, props } = loadDoc();
+    const doc = { setDocumentProperties: (p: { isTransparent?: boolean }) => props.push(p) };
+    expect(fns["axiTransparent"]!(doc)).toBe(doc);
+    fns["axiTransparent"]!(doc, false);
+    fns["axiTransparent"]!(doc, true);
+    expect(props.map((p) => p.isTransparent)).toEqual([true, false, true]);
+  });
+
+  it("indexes axiTransparent and the new axiDoc signature", () => {
+    expect(HELPER_INDEX.find((h) => h.name === "axiTransparent")).toBeTruthy();
+    expect(HELPER_INDEX.find((h) => h.name === "axiDoc")!.signature).toBe("axiDoc(w, h, dpi?, {transparent}?)");
+  });
+});
+
 describe("withHelpers", () => {
   it("appends after the user source and keeps its lines in place", () => {
     const user = "const a = 1;\nconsole.log(axiHex('#fff'));\n";

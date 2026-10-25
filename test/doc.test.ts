@@ -64,6 +64,41 @@ describe("doc new", () => {
     expect(s).toContain('"Pixel"');
   });
 
+  it("--transparent sets isTransparent via DocumentProperties and reports transparent: true", async () => {
+    server.onScript("affinity-axi:doc-new", JSON.stringify({ ...reply, transparent: true }));
+    const r = await runCommand(cmds["doc new"], ["--width", "800", "--height", "600", "--transparent"]);
+    expect(r.code).toBe(0);
+    const s = marked("doc-new")[0]!;
+    expect(s).toContain("/documentproperties.js");
+    expect(s).toContain("p.isTransparent = true");
+    expect(s).toContain("doc.setDocumentProperties(p)");
+    expect(s.indexOf("setDocumentProperties")).toBeLessThan(s.indexOf("console.log"));
+    expect(s).toContain("transparent: true }));");
+    expect(r.stdout).toContain("transparent: true");
+    expect(r.stdout).toMatch(/help\[4\]:/);
+    expect(r.stdout).toContain("export 01E35352 PNG <path-under-Desktop>.png   # keeps alpha");
+  });
+
+  it("without the flag the script has no documentproperties and reports transparent: false", async () => {
+    server.onScript("affinity-axi:doc-new", JSON.stringify({ ...reply, transparent: false }));
+    const r = await runCommand(cmds["doc new"], ["--width", "800", "--height", "600"]);
+    expect(r.code).toBe(0);
+    const s = marked("doc-new")[0]!;
+    expect(s).not.toContain("documentproperties");
+    expect(s).toContain("transparent: false }));");
+    expect(r.stdout).toContain("transparent: false");
+    expect(r.stdout).not.toContain("keeps alpha");
+  });
+
+  it("--transparent with --units mm still defaults to 300 dpi", async () => {
+    server.onScript("affinity-axi:doc-new", JSON.stringify({ ...reply, dpi: 300, transparent: true }));
+    const r = await runCommand(cmds["doc new"], ["--width", "210", "--height", "297", "--units", "mm", "--transparent"]);
+    expect(r.code).toBe(0);
+    const s = marked("doc-new")[0]!;
+    expect(s).toContain("o.dpi = 300;");
+    expect(s).toContain("p.isTransparent = true");
+  });
+
   it("defaults to 300 dpi for print units", async () => {
     server.onScript("affinity-axi:doc-new", JSON.stringify({ ...reply, dpi: 300 }));
     const r = await runCommand(cmds["doc new"], ["--width", "210", "--height", "297", "--units", "mm"]);

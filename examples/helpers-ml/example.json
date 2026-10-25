@@ -1,0 +1,23 @@
+{
+  "id": "helpers-ml",
+  "feature": "helpers:ml",
+  "title": "Helpers: ML cut-outs, depth and colourise",
+  "summary": "Cut a product out of its photo and fit it in its box, make a depth map that keeps the photo, blur a background by depth, and colourise an old greyscale photo",
+  "commands": [
+    "$BIN run $OUT/script.js --with-helpers --args '{\"uuid\":\"$DOC\"}'",
+    "$BIN render $DOC --out $OUT/render.jpg"
+  ],
+  "script": "script.js",
+  "output": [
+    "status: ok",
+    "ms: <n>",
+    "output[1]:"
+  ],
+  "images": [
+    "render.jpg"
+  ],
+  "needs": [
+    "affinity",
+    "document"
+  ]
+}

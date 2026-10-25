@@ -35,7 +35,7 @@ export function refusalMessage(hit: AiHit): string {
 
 /** Suggestion for a refusal; `cmd` is the command line to re-run with the flag. */
 export function refusalSuggestion(cmd: string): string {
-  return `generative AI is opt-in per run: re-run with --allow-generative (${cmd}), which logs provenance; or remove the call. ML features (removeBackground, selectSubject) need no flag`;
+  return `generative AI is opt-in per run: re-run with --allow-generative (${cmd}), which logs provenance; or remove the call. ML features (removeBackground, selectSubject, detectDepth, colourise) need no flag`;
 }
 
 /** Returns every occurrence with its 1-based line, sorted by line (then column). */

@@ -32,8 +32,17 @@ const FIND_DOC = "const doc = Document.all.find((d) => String(d.sessionUuid) ===
 // The console.log calls inside these script strings are required output: the
 // only channel back from Affinity.
 
-/** Creates a document. Logs {"uuid","title","dirty","units","width","height","dpi"} (sizes in px). */
-export function DOC_NEW(width: number, height: number, units: string, dpi: number): string {
+/**
+ * Creates a document. Logs {"uuid","title","dirty","units","width","height","dpi","transparent"} (sizes in px).
+ * transparent sets the background transparent so a PNG export keeps alpha.
+ */
+export function DOC_NEW(width: number, height: number, units: string, dpi: number, transparent: boolean): string {
+  const props = transparent
+    ? [
+        "const { DocumentProperties } = require('/documentproperties.js');",
+        "const p = DocumentProperties.create(); p.isTransparent = true; doc.setDocumentProperties(p);",
+      ]
+    : [];
   return [
     "/* affinity-axi:doc-new */",
     DOC_REQUIRE,
@@ -43,7 +52,8 @@ export function DOC_NEW(width: number, height: number, units: string, dpi: numbe
     "o.units = UnitType[unitName];",
     `o.width = ${width}; o.height = ${height}; o.dpi = ${dpi};`,
     "const doc = Document.createFromOptions(o);",
-    "console.log(JSON.stringify({ uuid: String(doc.sessionUuid), title: String(doc.title), dirty: !!doc.isDirty, units: String(doc.units), width: doc.widthPixels, height: doc.heightPixels, dpi: doc.dpi }));",
+    ...props,
+    `console.log(JSON.stringify({ uuid: String(doc.sessionUuid), title: String(doc.title), dirty: !!doc.isDirty, units: String(doc.units), width: doc.widthPixels, height: doc.heightPixels, dpi: doc.dpi, transparent: ${transparent} }));`,
   ].join("\n");
 }
 
@@ -133,9 +143,14 @@ function makeNew(connect: ConnectFn): CommandModule {
         { name: "height", type: "string", description: "document height in --units (required)" },
         { name: "units", type: "string", default: "px", values: ["px", "mm", "pt"], description: "size units" },
         { name: "dpi", type: "string", description: "resolution (default 72 for px, 300 for mm/pt)" },
+        { name: "transparent", type: "boolean", description: "transparent background, so PNG exports keep alpha (cut-outs, stickers, logos)" },
         URL_FLAG,
       ],
-      examples: ["affinity-axi doc new --width 1920 --height 1080", "affinity-axi doc new --width 210 --height 297 --units mm"],
+      examples: [
+        "affinity-axi doc new --width 1920 --height 1080",
+        "affinity-axi doc new --width 210 --height 297 --units mm",
+        "affinity-axi doc new --width 800 --height 600 --transparent   # PNG export keeps alpha",
+      ],
     },
     async run(parsed: Parsed): Promise<number> {
       const units = String(parsed.flags["units"] ?? "px");
@@ -149,10 +164,11 @@ function makeNew(connect: ConnectFn): CommandModule {
       const height = positiveFlag(parsed, "height", { example: "800" })!;
       const dpi = positiveFlag(parsed, "dpi", { fallback: units === "px" ? 72 : 300, example: "72" });
 
+      const transparent = parsed.flags["transparent"] === true;
       const client = await connect({ url: urlFlag(parsed) });
-      let info: { uuid: string; title: string; dirty: boolean; units: string; width: number; height: number; dpi: number };
+      let info: { uuid: string; title: string; dirty: boolean; units: string; width: number; height: number; dpi: number; transparent: boolean };
       try {
-        info = await runDocScript(client, DOC_NEW(width, height, unitType, dpi), "creating the document");
+        info = await runDocScript(client, DOC_NEW(width, height, unitType, dpi, transparent), "creating the document");
       } finally {
         client.close();
       }
@@ -164,10 +180,12 @@ function makeNew(connect: ConnectFn): CommandModule {
             ["size", `${Math.round(info.width)}x${Math.round(info.height)} px @ ${info.dpi} dpi`],
             ["units", info.units],
             ["dirty", info.dirty],
+            ["transparent", info.transparent === true],
           ]),
           helpBlock([
             `${BIN} run <script.js> --args '{"uuid":"${uuid8}"}'   # draw into it`,
             `${BIN} render ${uuid8}`,
+            ...(info.transparent === true ? [`${BIN} export ${uuid8} PNG <path-under-Desktop>.png   # keeps alpha`] : []),
             `${BIN} doc save ${uuid8} <path-under-Desktop>.af   # needed before it can be closed`,
           ]),
         ].join("\n"),
@@ -187,7 +205,7 @@ function makeSave(connect: ConnectFn): CommandModule {
         FORCE_FLAG,
         URL_FLAG,
       ],
-      examples: ["affinity-axi doc save current ~/Desktop/logo.af", "affinity-axi doc save 70E876CB out/work.af   # relative to the current directory"],
+      examples: ["affinity-axi doc save 70E876CB ~/Desktop/logo.af", "affinity-axi doc save 70E876CB out/work.af   # relative to the current directory"],
     },
     async run(parsed: Parsed): Promise<number> {
       const [ref, rawPath] = parsed.positionals as [string, string];

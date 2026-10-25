@@ -31,9 +31,9 @@ export function make(connect: ConnectFn): CommandModule {
         { name: "url", type: "string", description: "Affinity MCP URL (AFFINITY_MCP_URL wins; default http://[::1]:6767)" },
       ],
       examples: [
-        "affinity-axi render current",
+        "affinity-axi render 70E876CB",
         "affinity-axi render 70E876CB --spread 1",
-        "affinity-axi render current --selection --out /tmp/sel.jpg",
+        "affinity-axi render 70E876CB --selection --out /tmp/sel.jpg",
       ],
     },
     async run(parsed: Parsed): Promise<number> {

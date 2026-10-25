@@ -456,6 +456,19 @@ describe("fill execution", () => {
     expect(m.history.find((h) => h.kind === "fill")?.scriptSha256).toBe(want);
   });
 
+  it("ML options: cutout reaches the apply script, a CSV cell requests none, a bad option is exit 2 with zero connections", async () => {
+    stub();
+    const { template, out } = setup();
+    write(desktop, "photo.png", "png");
+    const run = (name: string, body: string) => runCommand(fill, [template, "--data", write(desktop, name, body), "--key", "slug", "--out-dir", out]);
+    const bad = await run("b.json", JSON.stringify([{ slug: "a", photo: { image: "photo.png", cutout: "magic" } }]));
+    expect([bad.code, server.sessionsOpened(), bad.stdout.includes("cutout must be true, false, 'background' or 'subject'")]).toEqual([2, 0, true]);
+    expect((await run("ml.json", JSON.stringify([{ slug: "a", photo: { image: "photo.png", cutout: true } }]))).code).toBe(0);
+    expect(markers()).toEqual(["fill-open", "fill-apply", "doc-save", "doc-close"]);
+    await run("p.csv", "slug,photo\nb,photo.png\n"); const [ml, csv] = scripts().filter((s) => s.includes("fill-apply"));
+    expect([ml!.includes('"cutout":"background"'), csv!.includes('"cutout"')]).toEqual([true, false]);
+  });
+
   it("reads CSV data", async () => {
     stub();
     const { template, out } = setup();
