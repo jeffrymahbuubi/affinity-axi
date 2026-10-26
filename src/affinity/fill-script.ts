@@ -265,16 +265,21 @@ export function extFor(preset: string): string | undefined {
 }
 
 /**
- * Loads the template unless the user already has it open. Logs
- * {"status":"loaded"|"already-open","uuid"}. Never reloads an open document.
+ * Loads the template unless the user already has it open, or has the target .af open.
+ * Logs {"status":"loaded"|"already-open"|"target-open","uuid"}. Never reloads an open
+ * document; with `target-open` nothing is loaded (saving over an open file would fail
+ * with OPEN_IN_APP after the template was filled), and the uuid is the open target's.
  */
-export function FILL_OPEN(path: string): string {
+export function FILL_OPEN(templatePath: string, targetPath: string): string {
   return [
     "/* affinity-axi:fill-open */",
     "const { Document } = require('/document.js');",
-    `const target = ${JSON.stringify(path)};`,
+    `const target = ${JSON.stringify(templatePath)};`,
+    `const targetAf = ${JSON.stringify(targetPath)};`,
+    "const targetOpen = Document.all.find((d) => String(d.path || '') === targetAf);",
     "const open = Document.all.find((d) => String(d.path || '') === target);",
-    "if (open) { console.log(JSON.stringify({ status: 'already-open', uuid: String(open.sessionUuid) })); }",
+    "if (targetOpen) { console.log(JSON.stringify({ status: 'target-open', uuid: String(targetOpen.sessionUuid) })); }",
+    "else if (open) { console.log(JSON.stringify({ status: 'already-open', uuid: String(open.sessionUuid) })); }",
     "else {",
     "  const doc = Document.load(target);",
     "  console.log(JSON.stringify({ status: 'loaded', uuid: String(doc.sessionUuid) }));",

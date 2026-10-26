@@ -56,6 +56,8 @@ export interface Inventory {
   /** Full tree in document order. */
   nodes: InventoryNode[];
   counts: { nodes: number; named: number; text: number; images: number };
+  /** Fonts used by text runs in scope that are not installed (absent from FontFamily.all); only set when there are some. */
+  missingFonts?: { font: string; nodes: string[] }[];
 }
 
 /** <file>.af.axi.json, stored beside the .af. */

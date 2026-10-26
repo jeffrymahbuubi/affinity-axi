@@ -42,6 +42,7 @@ import { deriveKeys, loadRecords, type DataRecord } from "./batch-data.js";
 import { BRAND_FLAG, injectBrand, loadBrand, resolveBrandRef, type BrandKit } from "../affinity/brand.js";
 import type { BrandRef } from "../affinity/manifest-types.js";
 import { finalizeFile, metadataNote, type MetaOutcome } from "../affinity/metadata.js";
+import { leftOpenHelp, saveFailNote, targetOpenNote } from "./fill-parts.js";
 
 const BIN = "affinity-axi";
 const DEFAULT_TIMEOUT_MS = 60000;
@@ -66,9 +67,11 @@ class FatalRecord extends Error {
   }
 }
 
-const oneLine = (s: string): string => {
+const FATAL_NOTE_LIMIT = 500; // a fatal note carries the instruction for the document left open, so it gets more room
+
+const oneLine = (s: string, limit = NOTE_LIMIT): string => {
   const t = s.replace(/\s+/g, " ").trim();
-  return t.length > NOTE_LIMIT ? t.slice(0, NOTE_LIMIT - 3) + "..." : t;
+  return t.length > limit ? t.slice(0, limit - 3) + "..." : t;
 };
 
 interface Ctx {
@@ -90,12 +93,15 @@ interface Ctx {
   refused: Array<{ key: string; path: string }>; // targets checkOverwrite refused, for the help block
 }
 
-/** Runs a script that must succeed; any failure or unreadable reply is fatal (state is unknown). */
-async function step<T>(c: Ctx, script: string, what: string): Promise<T> {
+/**
+ * Runs a script that must succeed; any failure or unreadable reply is fatal (state is unknown).
+ * Pass the uuid of the document the record has loaded, so a failure reports it as left open.
+ */
+async function step<T>(c: Ctx, script: string, what: string, uuid?: string): Promise<T> {
   try {
     return await callJson<T>(c.client, script, what, { timeoutMs: c.timeoutMs });
   } catch (err) {
-    throw new FatalRecord(err instanceof Error ? err.message : String(err));
+    throw new FatalRecord(err instanceof Error ? err.message : String(err), uuid);
   }
 }
 
@@ -104,7 +110,7 @@ async function step<T>(c: Ctx, script: string, what: string): Promise<T> {
  * `context` (the reason this record failed) leads the fatal message so the real error is not lost.
  */
 async function closeDoc(c: Ctx, uuid: string, context?: string): Promise<"closed" | "missing"> {
-  const r = await step<{ status: string }>(c, DOC_CLOSE(uuid), "closing the document");
+  const r = await step<{ status: string }>(c, DOC_CLOSE(uuid), "closing the document", uuid);
   if (r.status === "closed") return "closed";
   if (r.status === "missing") return "missing";
   const why = r.status === "dirty" ? "has unsaved changes" : "is still open after close";
@@ -131,7 +137,7 @@ async function exportDoc(c: Ctx, uuid: string, key: string): Promise<{ files: st
     const path = join(c.outDir, `${key}.${c.ext}`);
     targets.push({ path, script: EXPORT(uuid, preset, path) });
   } else {
-    const listed = await step<{ artboards: Array<{ index: number; name: string }> }>(c, LIST_ARTBOARDS(uuid, 0), "listing artboards");
+    const listed = await step<{ artboards: Array<{ index: number; name: string }> }>(c, LIST_ARTBOARDS(uuid, 0), "listing artboards", uuid);
     if (listed.artboards.length === 0) throw new AxiError("the template has no artboards on spread 0", "export without --all-artboards");
     const safe = uniqueSafeNames(listed.artboards.map((b) => b.name));
     listed.artboards.forEach((b, i) => {
@@ -186,7 +192,8 @@ async function runOne(c: Ctx, rec: DataRecord, key: string, edits: Edit[]): Prom
     return row("failed", `${verdict.message} (--force to replace)`);
   }
 
-  const opened = await step<{ status: string; uuid?: string }>(c, FILL_OPEN(c.template), "opening the template");
+  const opened = await step<{ status: string; uuid?: string }>(c, FILL_OPEN(c.template, afPath), "opening the template");
+  if (opened.status === "target-open") return row("failed", targetOpenNote(key)); // nothing was loaded; the open document is the user's
   uuid = opened.uuid?.toUpperCase();
   if (opened.status === "already-open") {
     return row("failed", "the template is already open in Affinity; close it in Affinity, or doc save and doc close it first (fill never reloads an open document)");
@@ -200,7 +207,7 @@ async function runOne(c: Ctx, rec: DataRecord, key: string, edits: Edit[]): Prom
     const rel = `_failed/${key}-${id.slice(0, 8)}.af`;
     const scratch = join(c.outDir, "_failed", `${key}-${id.slice(0, 8)}.af`);
     mkdirSync(dirname(scratch), { recursive: true });
-    const saved = await step<{ status: string; dirty?: boolean }>(c, DOC_SAVE(id, scratch), "saving a copy of the failed document");
+    const saved = await step<{ status: string; dirty?: boolean }>(c, DOC_SAVE(id, scratch), "saving a copy of the failed document", id);
     if (saved.status === "missing") {
       log("exception", false);
       return row("failed", `${base} (document vanished)`);
@@ -265,7 +272,14 @@ async function runOne(c: Ctx, rec: DataRecord, key: string, edits: Edit[]): Prom
   // Per-slot remarks from the script (text shrunk to fit, overflow): they follow "saved <file>" and the unknown-slot note.
   notes.push(...(reply.notes ?? []));
 
-  const saved = await step<{ status: string; dirty?: boolean }>(c, DOC_SAVE(uuid, afPath), "saving the document");
+  let saved: { status: string; dirty?: boolean };
+  try {
+    saved = await step<{ status: string; dirty?: boolean }>(c, DOC_SAVE(uuid, afPath), `saving ${basename(afPath)}`, uuid);
+  } catch (err) {
+    // The open document is the filled template, not the record's file: say so, so it is not saved over the template.
+    if (err instanceof FatalRecord) throw new FatalRecord(saveFailNote(err.message, key, c.template, uuid, c.outDir), uuid);
+    throw err;
+  }
   if (saved.status === "missing") return row("failed", "document not found to save");
   if (saved.dirty === true) throw new FatalRecord(`${afPath} is still dirty after save; left open`, uuid);
   if (!existsSync(afPath)) throw new FatalRecord(`save reported success but ${afPath} was not written; left open`, uuid);
@@ -404,12 +418,13 @@ export function make(connect: ConnectFn): CommandModule {
             continue;
           }
           let r: Row;
+          const started = Date.now();
           try {
             r = await runOne(ctx, records[i]!, key, plans[i]!);
           } catch (err) {
             if (!(err instanceof FatalRecord)) throw err;
             if (err.uuid) ctx.leftOpen.push(err.uuid);
-            r = { key, status: "failed", doc: err.uuid ? err.uuid.slice(0, 8) : "", ms: 0, note: oneLine(err.message) };
+            r = { key, status: "failed", doc: err.uuid ? err.uuid.slice(0, 8) : "", ms: Date.now() - started, note: oneLine(err.message, FATAL_NOTE_LIMIT) };
             stopped = `not run: stopped after a fatal error at '${key}'`;
           }
           rows.push(r);
@@ -434,6 +449,8 @@ export function make(connect: ConnectFn): CommandModule {
           `${BIN} doc open ${ctx.refused[0]!.path}   # work on the existing file instead`,
         );
       }
+      const left = rows.find((r) => r.doc !== "" && ctx.leftOpen.some((u) => u.slice(0, 8) === r.doc));
+      if (left) helps.push(leftOpenHelp(left.doc, left.key, outDir));
       if (ctx.failedCopies > 0) helps.push(`rm -r ${join(outDir, "_failed")}   # template copies saved only so failed documents could be closed`);
       if (helps.length > 0) out.push(helpBlock(helps));
       print(out.join("\n"));

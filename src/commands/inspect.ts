@@ -31,6 +31,14 @@ function row(n: InventoryNode): Record<string, unknown> {
   return { path: n.path, type: n.type, name: n.name, box: n.box.join(" "), text: n.text, font: n.font, fill: n.fill };
 }
 
+/** One warning line per font that is used but not installed. */
+function missingFontLines(inv: Inventory): string[] {
+  return (inv.missingFonts ?? []).map((m) => {
+    const n = m.nodes.length;
+    return `warning: font ${m.font} is not installed; Affinity substitutes it (${n} node${n === 1 ? "" : "s"}: ${m.nodes.join(", ")})`;
+  });
+}
+
 export function make(connect: ConnectFn): CommandModule {
   return {
     spec: {
@@ -139,6 +147,7 @@ export function make(connect: ConnectFn): CommandModule {
             ["size", `${doc.width}x${doc.height} px @ ${doc.dpi} dpi`],
           ]),
           emitList("nodes", shown.map(row), FIELDS),
+          ...missingFontLines(inv),
           `note: ${note}`,
           helpBlock([
             `${BIN} run <script.js> --with-helpers --args '{"uuid":"${uuid8}"}'`,

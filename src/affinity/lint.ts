@@ -14,7 +14,7 @@ export type Severity = "error" | "warning";
 
 export interface Finding {
   severity: Severity;
-  check: "contrast" | "safe-zone" | "min-font" | "slot" | "off-kit" | "off-board";
+  check: "contrast" | "safe-zone" | "min-font" | "slot" | "off-kit" | "off-board" | "font-missing";
   /** The element name, or `<path> "<text>"` / `<path>` when it has none. */
   node: string;
   /** Index path in the inventory, e.g. "0/0/2". */
@@ -237,6 +237,15 @@ export function lintInventory(inv: Inventory, opts: LintOptions): { findings: Fi
     if (opts.kit && n.fill && SOLID.test(n.fill) && !kitHex.includes(n.fill.toUpperCase())) {
       add("warning", "off-kit", n, `${n.fill.toUpperCase()} not in kit ${opts.kit.name} (${Object.keys(opts.kit.colours).join(", ")})`);
     }
+  }
+
+  // Fonts that are not installed: Affinity substitutes them, but the glyph attributes (and `inspect`) still
+  // name the original. One warning per font, on the first text node in scope.
+  for (const m of inv.missingFonts ?? []) {
+    const inScopeNodes = m.nodes.filter((p) => nodes.some((n) => n.path === p));
+    const first = inScopeNodes[0] === undefined ? undefined : nodes.find((n) => n.path === inScopeNodes[0]);
+    if (!first) continue;
+    add("warning", "font-missing", first, `${m.font} not installed; Affinity substitutes it in renders and exports (${inScopeNodes.length} text node${inScopeNodes.length === 1 ? "" : "s"})`);
   }
 
   const findings = all.sort((a, b) => (a.severity === b.severity ? byPath(a, b) : a.severity === "error" ? -1 : 1));

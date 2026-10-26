@@ -321,6 +321,11 @@ export function make(connect: ConnectFn): CommandModule {
       ];
       if (skipped.length > 0) parts.push(`skipped[${skipped.length}]: ${skipped.join("; ")}`);
       for (const n of notes) parts.push(`note: ${n}`);
+      if (!/^https?:\/\//.test(opts.href) && written.some((w) => w.file === "og.png" || w.file === "x-card.png")) {
+        parts.push(
+          "warning: --href is not an absolute URL, so og:image and twitter:image are relative; Meta and X previews need absolute URLs (pass --href https://your-site/)",
+        );
+      }
       const card = jobs.find((j) => j.role === "og");
       const help = [`open ${join(opts.outDir, "head.html")}`];
       if (written.some((w) => w.alt)) help.push("edit the alt text in webassets.json and head.html before publishing");
