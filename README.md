@@ -4,7 +4,7 @@ An AXI (Agent eXperience Interface) CLI that drives Affinity by Canva through it
 
 **What this is.** A command-line tool for producing designs in Affinity from scripts: social posts, carousels, website launch files (favicons, OG and X cards), ad sizes under a file budget, print PDFs. You write a short JavaScript file against Affinity's scripting SDK (or use the tested `axi*` helpers and ready-made templates), and the CLI runs it, renders, exports and keeps a manifest of how each file was made. A brand kit keeps colours and fonts per project.
 
-**Status:** 0.3.2, macOS, tested against Affinity 3.3.1; installed locally with `npm link` (not published to npm).
+**Status:** 0.3.3, macOS, tested against Affinity 3.3.1; installed locally with `npm link` (not published to npm).
 
 **Requirements:** macOS, Affinity by Canva 3.3 or later with its MCP server enabled, Node.js 20 or later.
 

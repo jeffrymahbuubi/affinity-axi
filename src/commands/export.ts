@@ -158,7 +158,7 @@ export function makeExport(connect: ConnectFn): CommandModule {
         else targets = [{ name: "", path: template, area: null }];
 
         const plain = plan.mode === "whole" && !size;
-        const full: MetaSpec = { ...spec, ai: aiSpecFor(doc.uuid) };
+        const full: MetaSpec = { ...spec, ai: aiSpecFor(doc.uuid, doc.path) };
         const finish = (path: string): void => void finished.set(path, finalizeFile(path, full));
         const pageMode = plan.mode === "whole" || plan.mode === "spread" ? plan.mode : null;
         // Runs one export script; on a multi-page document Affinity writes <stem>_<k><ext> instead of the path.
@@ -217,7 +217,7 @@ export function makeExport(connect: ConnectFn): CommandModule {
       }
 
       if (pages !== null) {
-        const tags = tagExports(doc.uuid, pages, spec, pages.map((p) => finished.get(p)!));
+        const tags = tagExports(doc.uuid, pages, spec, pages.map((p) => finished.get(p)!), doc.path);
         const rows = pageRows(pages);
         recordExports(doc, plan, preset, rows, tags.some(([k]) => k === "provenance"));
         print(pagesReport(doc.uuid, preset, rows, tags));
@@ -225,7 +225,7 @@ export function makeExport(connect: ConnectFn): CommandModule {
       }
 
       // The files are final (stripped, credited, labelled); the sidecars and the note come next, then measure what is on disk.
-      const tags = tagExports(doc.uuid, targets.map((t) => t.path), spec, targets.map((t) => finished.get(t.path)!));
+      const tags = tagExports(doc.uuid, targets.map((t) => t.path), spec, targets.map((t) => finished.get(t.path)!), doc.path);
       const written: Written[] = targets.map((t, i) => {
         const buf = readBytes(t.path);
         const dim = imageSize(buf);

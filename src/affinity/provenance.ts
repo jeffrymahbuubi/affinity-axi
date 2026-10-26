@@ -2,14 +2,16 @@
 //
 // Every `run --allow-generative` whose script really references a generative
 // identifier appends one JSON line to <cwd>/.affinity-axi/provenance.jsonl.
-// `export` reads the log: a document whose session UUID appears in any record
+// `export` reads the logs found walking up from the cwd and from the saved
+// document's folder (a sibling folder or a subfolder of the project still finds
+// the project's log): a document whose session UUID appears in any record
 // is ai-generated, and gets a `<file>.provenance.json` sidecar for disclosure
 // labels (Meta AI disclosure and similar). The log is best-effort evidence,
 // not tamper-proof: it lives next to the project, in plain text.
 
 import { createHash } from "node:crypto";
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import type { AiHit } from "../mcp/types.js";
 
 export interface ProvenanceRecord {
@@ -67,15 +69,51 @@ export function readProvenance(cwd: string = process.cwd()): ProvenanceRecord[] 
   return records;
 }
 
-/** Records that touched this document session UUID (case-insensitive). */
-export function recordsFor(uuid: string, cwd: string = process.cwd()): ProvenanceRecord[] {
+export interface LookupOpts {
+  /** Saved path of the document: its folder (and parents) are searched too. */
+  docPath?: string;
+}
+
+/** `dir` and every parent up to the filesystem root. */
+function ancestors(dir: string): string[] {
+  const out: string[] = [];
+  let cur = resolve(dir);
+  for (;;) {
+    out.push(cur);
+    const up = dirname(cur);
+    if (up === cur) return out;
+    cur = up;
+  }
+}
+
+/** Every folder whose provenance log applies: the cwd and the document's folder, each with its parents. */
+function lookupDirs(cwd: string, opts?: LookupOpts): string[] {
+  const roots = [cwd];
+  const doc = opts?.docPath;
+  if (typeof doc === "string" && doc.trim() !== "") roots.push(dirname(resolve(cwd, doc)));
+  return [...new Set(roots.flatMap(ancestors))];
+}
+
+/** Records that touched this document session UUID (case-insensitive), from every log found walking up; duplicates (same time, script and documents) count once. */
+export function recordsFor(uuid: string, cwd: string = process.cwd(), opts?: LookupOpts): ProvenanceRecord[] {
   const want = uuid.toUpperCase();
-  return readProvenance(cwd).filter((r) => r.documents.some((d) => d.toUpperCase() === want));
+  const seen = new Set<string>();
+  const found: ProvenanceRecord[] = [];
+  for (const dir of lookupDirs(cwd, opts)) {
+    for (const r of readProvenance(dir)) {
+      if (!r.documents.some((d) => d.toUpperCase() === want)) continue;
+      const key = JSON.stringify([r.time, r.script, r.documents]);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      found.push(r);
+    }
+  }
+  return found;
 }
 
 /** True when a logged generative run touched this document session UUID. */
-export function isAiGenerated(uuid: string, cwd: string = process.cwd()): boolean {
-  return recordsFor(uuid, cwd).length > 0;
+export function isAiGenerated(uuid: string, cwd: string = process.cwd(), opts?: LookupOpts): boolean {
+  return recordsFor(uuid, cwd, opts).length > 0;
 }
 
 /** Writes `<exported>.provenance.json` and returns its path. */

@@ -30,6 +30,8 @@ export interface MetaOutcome {
   embedded: MetaTag[];
   skipped: MetaTag[];
   error?: string;
+  /** Set (true) only for a JPEG with four components, i.e. a CMYK JPEG. */
+  cmyk?: true;
 }
 
 export const CREATOR_FLAG = { name: "creator", type: "string" as const, description: "credit to embed as XMP dc:Creator (default: the brand kit's credit.creator); needs exiftool" };
@@ -115,6 +117,33 @@ export function stripJpegSegments(buf: Buffer): { buf: Buffer; removed: number }
   return removed === 0 ? { buf, removed } : { buf: Buffer.concat(keep), removed };
 }
 
+/** Component count from the first SOF segment of a JPEG (4 = CMYK), or null when none is found before SOS. */
+export function jpegComponents(buf: Buffer): number | null {
+  if (buf.length < 4 || buf[0] !== 0xff || buf[1] !== 0xd8) return null;
+  let pos = 2;
+  while (pos + 4 <= buf.length) {
+    if (buf[pos] !== 0xff) return null;
+    const m = buf[pos + 1]!;
+    if (m === 0xff) {
+      pos++;
+      continue;
+    }
+    if (m === 0xda || m === 0xd9) return null;
+    if (m === 0x00 || m === 0x01 || (m >= 0xd0 && m <= 0xd8)) {
+      pos += 2;
+      continue;
+    }
+    const len = buf.readUInt16BE(pos + 2);
+    if (len < 2) return null;
+    const sof = m >= 0xc0 && m <= 0xcf && m !== 0xc4 && m !== 0xc8 && m !== 0xcc;
+    if (sof) return pos + 10 <= buf.length ? buf[pos + 9]! : null;
+    pos += 2 + len;
+  }
+  return null;
+}
+
+const CMYK_NOTE = "JPEG is CMYK (the document is CMYK); web and social platforms expect RGB: export PNG, or export from an RGB copy";
+
 /** True when the bytes hold an XMP packet. */
 export function hasXmp(buf: Buffer): boolean {
   return buf.includes("<x:xmpmeta") || buf.includes("http://ns.adobe.com/xap/1.0/");
@@ -141,6 +170,7 @@ export function finalizeFile(path: string, spec: MetaSpec): MetaOutcome {
   const kind = imageKind(buf);
   if (kind === null) return fail(asked.length > 0 ? UNSUPPORTED : "");
   out.kind = kind;
+  if (kind === "jpeg" && jpegComponents(buf) === 4) out.cmyk = true;
   let clear = false; // run exiftool with -XMP:all= (after a PNG or JPEG strip, for idempotence, but only when tags are asked; WebP only with an XMP packet; TIFF always)
   if (spec.keep) out.stripped = "kept";
   else if (kind === "jpeg") {
@@ -215,6 +245,7 @@ export function metadataNote(outcomes: MetaOutcome[]): string | null {
   if (outcomes.some((o) => o.stripped === "kept")) parts.push("Affinity XMP kept");
   const stuck = outcomes.find((o) => o.kind !== null && o.skipped.length === 0 && o.error !== undefined);
   if (stuck) parts.push(stuck.error === NOT_FOUND ? `${stuck.kind === "tiff" ? "TIFF metadata" : "XMP"} not stripped (exiftool not found)` : `strip skipped (${reasonOf(stuck)})`);
+  if (outcomes.some((o) => o.cmyk === true)) parts.push(CMYK_NOTE);
   return parts.length > 0 ? parts.join(", ") : null;
 }
 
@@ -235,17 +266,17 @@ export function creditFor(parsed: Parsed, kit: BrandKit | undefined): Credit | u
 }
 
 /** The AI label for a document with logged generative runs, else undefined. */
-export function aiSpecFor(docUuid: string): MetaSpec["ai"] {
-  const records = recordsFor(docUuid);
+export function aiSpecFor(docUuid: string, docPath?: string): MetaSpec["ai"] {
+  const records = recordsFor(docUuid, process.cwd(), { docPath });
   if (records.length === 0) return undefined;
   const sourceType = sourceTypeFor(records);
   return { sourceType, description: describeAi(sourceType) };
 }
 
 /** After an export: AI document -> sidecars plus the note; any document -> the credit/keep note. `done` = finalizeFile outcomes already made with aiSpecFor in the spec (one per path); else files are finalized here. */
-export function tagExports(docUuid: string, paths: string[], spec: Omit<MetaSpec, "ai">, done?: MetaOutcome[]): Array<[string, string]> {
-  const records = recordsFor(docUuid);
-  const outcomes = done ?? paths.map((p) => finalizeFile(p, { ...spec, ai: aiSpecFor(docUuid) }));
+export function tagExports(docUuid: string, paths: string[], spec: Omit<MetaSpec, "ai">, done?: MetaOutcome[], docPath?: string): Array<[string, string]> {
+  const records = recordsFor(docUuid, process.cwd(), { docPath });
+  const outcomes = done ?? paths.map((p) => finalizeFile(p, { ...spec, ai: aiSpecFor(docUuid, docPath) }));
   const note = metadataNote(outcomes);
   if (records.length === 0) return note === null ? [] : [["metadata", note]];
   const kv: Array<[string, string]> = [["provenance", "ai-generated"]];

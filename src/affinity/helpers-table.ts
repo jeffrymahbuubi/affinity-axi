@@ -12,12 +12,13 @@
 // right and first-line indent (so the first line lines up with the rest) plus
 // space above and below. When the formatted table is wider than w (a cell too
 // narrow for its longest word spills past its column), the padding steps down
-// by 2 px until the table fits or reaches 0.
+// by 2 px until the table fits or reaches 0. When the finished table is taller
+// than h by more than 1 px, a warning is logged (rows are squeezed).
 
 import type { HelperInfo } from "./helpers-core.js";
 
 export const TABLE_INDEX: readonly HelperInfo[] = [
-  { name: "axiTable", signature: "axiTable(doc, {x,y,w,h,rows,font,size,colour,header,align,padding,name})", summary: "native table at x,y of size w,h from rows (array of equal-length arrays; numbers are stringified, at most 400 cells); equal columns; the first row is the header unless header:false, and header:{font,size,colour} restyles it; align l|c|r|j; padding (px, default 12, 0 = none) is the gap between columns: left, right and first-line indent in every cell plus half of it above and below, and it steps down by 2 px while the content would push the table past w; name sets the node's userDescription; returns the node, no cell fills or column widths" },
+  { name: "axiTable", signature: "axiTable(doc, {x,y,w,h,rows,font,size,colour,header,align,padding,name})", summary: "native table at x,y of size w,h from rows (array of equal-length arrays; numbers are stringified, at most 400 cells); equal columns; the first row is the header unless header:false, and header:{font,size,colour} restyles it; align l|c|r|j; padding (px, default 12, 0 = none) is the gap between columns: left, right and first-line indent in every cell plus half of it above and below, and it steps down by 2 px while the content would push the table past w; name sets the node's userDescription; logs a warning when the finished table is more than 1 px taller than h (rows get squeezed and may overlap); returns the node, no cell fills or column widths" },
 ];
 
 /** Internal building blocks, not in the index. */
@@ -143,6 +144,14 @@ function axiTable(doc, o) {
     const hend = rows.length > 1 ? starts[cols] - 1 : table.story.length;
     style(head.font, head.size, head.colour, axiCellRange(doc, table, 0, hend));
   }
+  // Rows are squeezed when the content needs more height than h: say so (the run's
+  // output), never throw. A failed box read is ignored.
+  try {
+    const tall = axiNodeBox(table).h;
+    if (tall > o.h + 1) {
+      console.log('axiTable: the table is ' + Math.round(tall) + ' px tall, ' + Math.round(tall - o.h) + ' px more than h ' + o.h + '; rows are squeezed and may overlap: give more height, fewer rows or a smaller size');
+    }
+  } catch (e) { /* no box to measure */ }
   return axiName(table, o.name);
 }
 `;

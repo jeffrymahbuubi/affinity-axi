@@ -152,6 +152,50 @@ async function altStubs(client: AffinityClient, doc: DocInfo, boards: string[], 
   return alts;
 }
 
+const TOUCH_FILE = "apple-touch-icon.png";
+
+/**
+ * The area-export script with the document's transparency off for the export only
+ * (the DocumentProperties calls of axiTransparent(doc, false)); it is switched back
+ * on right after, also when the export throws. Only used for a document whose first
+ * apple-touch export carried alpha, which means its background was transparent.
+ */
+export function TOUCH_OPAQUE_EXPORT(base: string): string {
+  const lines = base.split("\n");
+  const at = lines.findIndex((l) => l.startsWith("doc.export("));
+  if (at < 0) throw new AxiError("internal: export script has no export call", "report this");
+  const exportCall = lines[at]!;
+  lines.splice(
+    at,
+    1,
+    "const { DocumentProperties } = require('/documentproperties.js');",
+    "const setTransparent = (on) => { const p = DocumentProperties.create(); p.isTransparent = on; doc.setDocumentProperties(p); };",
+    "/* affinity-axi:touch-opaque */",
+    "setTransparent(false);",
+    "try {",
+    `  ${exportCall}`,
+    "} finally {",
+    "  setTransparent(true);",
+    "}",
+  );
+  return lines.join("\n");
+}
+
+/** True when a PNG has an alpha channel: colour type 4 or 6 in IHDR, or a tRNS chunk. */
+export function pngHasAlpha(buf: Buffer): boolean {
+  if (buf.length < 26 || buf.readUInt32BE(0) !== 0x89504e47) return false;
+  if (buf[25] === 4 || buf[25] === 6) return true;
+  let at = 8;
+  while (at + 8 <= buf.length) {
+    const len = buf.readUInt32BE(at);
+    const type = buf.toString("latin1", at + 4, at + 8);
+    if (type === "tRNS") return true;
+    if (type === "IDAT" || type === "IEND") return false;
+    at += 12 + len;
+  }
+  return false;
+}
+
 const isRaster = (file: string): boolean => /\.(png|webp)$/i.test(file);
 
 const dimText = (d: Dim): string => `${d.width}x${d.height}`;
@@ -234,6 +278,7 @@ export function make(connect: ConnectFn): CommandModule {
       const notes: string[] = [];
       const bytesOf = new Map<string, Buffer>();
       const outcomes: MetaOutcome[] = [];
+      let touchOpaque = false;
       try {
         const presets = await callJson<string[]>(client, LIST_PRESETS, "listing export presets");
         for (const need of presetsNeeded(flags)) {
@@ -267,9 +312,19 @@ export function make(connect: ConnectFn): CommandModule {
         const alts = opts.noAlt ? new Map<string, string>() : await altStubs(client, doc, [...new Set(jobs.map((j) => j.artboard))], notes);
         for (const j of jobs) {
           const file = join(opts.outDir, j.file);
-          await runScript(client, EXPORT_AREA(doc.uuid, j.preset, file, j.area, j.size), `export of ${j.file} (artboard '${j.artboard}') failed`);
+          const script = EXPORT_AREA(doc.uuid, j.preset, file, j.area, j.size);
+          const what = `export of ${j.file} (artboard '${j.artboard}') failed`;
+          await runScript(client, script, what);
           outcomes.push(finalizeFile(file, {})); // strip Affinity's XMP; webassets embeds no credit
-          const buf = readBytes(file, `export of ${j.file}`);
+          let buf = readBytes(file, `export of ${j.file}`);
+          if (j.file === TOUCH_FILE && pngHasAlpha(buf)) {
+            // Alpha means the document background is transparent, and iOS paints that black: export again opaque.
+            await runScript(client, TOUCH_OPAQUE_EXPORT(script), what);
+            outcomes.pop();
+            outcomes.push(finalizeFile(file, {}));
+            buf = readBytes(file, `export of ${j.file}`);
+            touchOpaque = !pngHasAlpha(buf);
+          }
           bytesOf.set(j.file, buf);
           const dim = imageSize(buf);
           if (j.size && (!dim || dim.width !== j.size.width || dim.height !== j.size.height)) {
@@ -301,12 +356,16 @@ export function make(connect: ConnectFn): CommandModule {
         writeFileSync(join(opts.outDir, "favicon.ico"), ico);
         written.push({ role: "favicon", file: "favicon.ico", size: ICO_EDGES.join("+"), bytes: ico.length });
         put("webmanifest", "site.webmanifest", webManifestJson(written, opts.href, opts.theme, siteName(doc.title)));
-        notes.push("apple-touch-icon uses the artboard fill as its ground; give the mark artboard a fill");
+        notes.push(
+          touchOpaque
+            ? "apple-touch-icon is exported opaque (iOS shows transparency as black); its ground is the mark artboard fill, else the document background"
+            : "apple-touch-icon uses the artboard fill as its ground; give the mark artboard a fill",
+        );
       }
       put("head", "head.html", headHtml(written, opts.href));
       const metaNote = metadataNote(outcomes);
       if (metaNote !== null) notes.push(`metadata: ${metaNote}`);
-      const generated = recordsFor(doc.uuid).length > 0;
+      const generated = recordsFor(doc.uuid, process.cwd(), { docPath: doc.path }).length > 0;
       if (generated) notes.push("document has generative provenance; webassets writes no metadata or sidecars, use 'export' for tagged files");
       const jsonPath = join(opts.outDir, "webassets.json");
       writeFileSync(jsonPath, recordJson(doc.uuid, new Date().toISOString(), written, skipped, notes));
