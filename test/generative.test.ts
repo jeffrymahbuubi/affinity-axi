@@ -20,6 +20,7 @@ import {
 import { make as makeExport } from "../src/commands/export.js";
 import { make as makeLibrary } from "../src/commands/library.js";
 import { make as makeRun } from "../src/commands/run.js";
+import { GENERATIVE_CALLED } from "../src/commands/run-parts.js";
 import { renderGuide } from "../src/guide/content.js";
 import type { ConnectFn } from "../src/mcp/types.js";
 import { fakeConnect, runCommand } from "./fake-mcp/client.js";
@@ -121,7 +122,7 @@ describe("run --allow-generative", () => {
   });
 
   it("runs with the flag and logs a full provenance record", async () => {
-    server.onScript("generateImage", `${FIXTURE_UUID}\n`);
+    server.onScript("generateImage", `${FIXTURE_UUID}\n${GENERATIVE_CALLED}\n`);
     const file = writeScript("gen.js", GEN);
     const r = await runCommand(run(), [file, "--args", PROMPT, "--allow-generative"]);
     expect(r.code).toBe(0);
@@ -138,8 +139,8 @@ describe("run --allow-generative", () => {
     });
     expect(Date.parse(record!.time)).not.toBeNaN();
     expect(isAiGenerated(FIXTURE_UUID)).toBe(true);
-    // One document listing serves the run log; provenance needed no lookup of its own.
-    expect(scriptCalls().filter((s) => s.includes("affinity-axi:list-documents"))).toHaveLength(1);
+    // One listing before the call (left-open report) and one after it, which serves the run log and provenance.
+    expect(scriptCalls().filter((s) => s.includes("affinity-axi:list-documents"))).toHaveLength(2);
   });
 
   it("hashes the user's script, not the args or helpers wrapper", async () => {
@@ -177,7 +178,7 @@ describe("run --allow-generative", () => {
   });
 
   it("logs a NOT_ALLOWED run and points at the Canva AI Studio setting", async () => {
-    server.onScript("generateImage", `NOT_ALLOWED: Canva AI access is disabled\n`);
+    server.onScript("generateImage", `${GENERATIVE_CALLED}\nNOT_ALLOWED: Canva AI access is disabled\n`);
     const file = writeScript("gen.js", GEN);
     const r = await runCommand(run(), [file, "--args", PROMPT, "--allow-generative"]);
     expect(r.code).toBe(1);
@@ -188,7 +189,7 @@ describe("run --allow-generative", () => {
   });
 
   it("logs a script exception", async () => {
-    server.onScript("generateImage", `${FIXTURE_UUID}\nTypeError: bad\n    at main:3:5\n`);
+    server.onScript("generateImage", `${FIXTURE_UUID}\n${GENERATIVE_CALLED}\nTypeError: bad\n    at main:3:5\n`);
     const file = writeScript("gen.js", GEN);
     const r = await runCommand(run(), [file, "--args", PROMPT, "--allow-generative"]);
     expect(r.code).toBe(1);
@@ -228,7 +229,7 @@ describe("export tags AI-generated documents", () => {
     server.onScript("affinity-axi:list-presets", JSON.stringify(FIXTURE_PRESETS));
     server.onScript("affinity-axi:app-info", JSON.stringify({ ...FIXTURE_APP, desktop }));
     server.onScript("affinity-axi:list-documents", JSON.stringify({ current: FIXTURE_UUID, documents: FIXTURE_DOCS }));
-    server.onScript("affinity-axi:export", () => (writeFileSync(target, "png"), "{}"));
+    server.onScript("affinity-axi:export", (script) => (writeFileSync(JSON.parse(/const outPath = (.*);/.exec(script)![1]!) as string, "png"), "{}"));
   }
 
   it("prints provenance and writes a sidecar with the matching records", async () => {
@@ -247,7 +248,7 @@ describe("export tags AI-generated documents", () => {
   });
 
   it("an end-to-end generative run followed by an export tags the file", async () => {
-    server.onScript("generateImage", `${FIXTURE_UUID}\n`);
+    server.onScript("generateImage", `${FIXTURE_UUID}\n${GENERATIVE_CALLED}\n`);
     const file = writeScript("gen.js", GEN);
     await runCommand(run(), [file, "--args", PROMPT, "--allow-generative"]);
     const target = join(desktop, "bg.png");

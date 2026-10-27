@@ -30,9 +30,10 @@ describe("guard: scanForBlocking", () => {
 });
 
 describe("guard: scanForAi", () => {
-  it("lists exactly the six generative identifiers", () => {
+  it("lists exactly the seven generative identifiers", () => {
     expect([...AI_IDENTIFIERS].sort()).toEqual(
       [
+        "axiGenerativePatch",
         "createGenerateImage",
         "createGenerateImageCommand",
         "createGenerativeEditImage",

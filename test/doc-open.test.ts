@@ -347,7 +347,7 @@ describe("partial manifest (hand-truncated)", () => {
     expect(m.notes.map((n) => n.text)).toEqual(["first note"]);
     expect(m.history).toEqual([]);
     expect(m.exports).toEqual([]);
-    expect(m.ai).toEqual({ generated: false, records: 0 });
+    expect(m.ai).toEqual({ generated: false, records: 0, uuids: [] });
     expect(m.madeBy).toBeNull();
   });
 

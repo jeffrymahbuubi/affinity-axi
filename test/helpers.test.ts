@@ -129,7 +129,12 @@ describe("run --with-helpers", () => {
   let work: string;
   const origUrl = process.env["AFFINITY_MCP_URL"];
   const run = makeRun(fakeConnect());
-  const sent = () => server.calls.filter((c) => c.name === "execute_script").map((c) => String(c.args["script"]));
+  // `run` lists documents before and after the user's script; only the script itself is of interest here.
+  const sent = () =>
+    server.calls
+      .filter((c) => c.name === "execute_script")
+      .map((c) => String(c.args["script"]))
+      .filter((s) => !s.startsWith("/* affinity-axi:list-documents */"));
 
   beforeEach(async () => {
     server = await startFakeServer();

@@ -26,7 +26,7 @@ const IMAGE_TYPES = "png, jpg, jpeg, webp, heic, heif, tif or tiff";
 const FILE_EXT = /\.[a-z0-9]{2,5}$/i;
 const HEX = /^#[0-9a-fA-F]{6}$/;
 const FITS = ["contain", "cover", "stretch"];
-const OBJECT_KEYS = ["text", "fill", "colour", "image", "fit", "box", "hidden", "cutout", "colourise", "align", "padding"];
+const OBJECT_KEYS = ["text", "fill", "colour", "image", "fit", "box", "hidden", "cutout", "colourise", "align", "padding", "focus"];
 const CUTOUTS = ["background", "subject"];
 const ALIGNS = ["none", "centre", "fit"];
 
@@ -58,6 +58,8 @@ export interface Edit {
   align?: "centre" | "fit";
   /** Margin in px kept free by align "fit". */
   padding?: number;
+  /** Where a "cover" picture is centred when it overflows its frame: x,y in 0..1 (needs image). */
+  focus?: { x: number; y: number };
   box?: Box;
   hidden?: boolean;
   /** Degrees clockwise that make the picture upright (from its EXIF orientation); absent when none. */
@@ -170,6 +172,17 @@ function explicit(key: string, ref: string, o: Record<string, unknown>, dataDir:
     if (e.image === undefined) throw bad(key, "fit needs an image", `use {"image": "photo.png", "fit": "cover"}`);
     if (typeof o["fit"] !== "string" || !FITS.includes(o["fit"])) throw bad(key, `invalid fit '${String(o["fit"])}'`, `fit is one of ${FITS.join(", ")}`);
     e.fit = o["fit"];
+  }
+  if (o["focus"] !== undefined) {
+    const f = o["focus"];
+    const inRange = (n: unknown): n is number => typeof n === "number" && Number.isFinite(n) && n >= 0 && n <= 1;
+    const fo = f !== null && typeof f === "object" && !Array.isArray(f) ? (f as Record<string, unknown>) : undefined;
+    if (fo === undefined || Object.keys(fo).some((k) => k !== "x" && k !== "y") || !inRange(fo["x"]) || !inRange(fo["y"])) {
+      throw bad(key, "focus must be {x, y} between 0 and 1", `e.g. {"image": "photo.jpg", "focus": {"x": 0.5, "y": 0.35}}`);
+    }
+    if (e.image === undefined) throw bad(key, "focus needs an image", `use {"image": "photo.jpg", "focus": {"x": 0.5, "y": 0.35}}`);
+    if (e.fit !== undefined && e.fit !== "cover") throw bad(key, `focus needs fit "cover" (got '${e.fit}')`, `drop fit or use {"fit": "cover", "focus": {"x": 0.5, "y": 0.35}}`);
+    e.focus = { x: fo["x"], y: fo["y"] };
   }
   if (o["cutout"] !== undefined) {
     const c = o["cutout"];
@@ -330,7 +343,7 @@ export function FILL_APPLY(docUuid: string, edits: Edit[], ignoreUnknown: boolea
     "  }",
     "  if (e.text !== undefined) { if (isText) { ops.push(['text', e.text]); } else { problem = problem || 'text'; } }",
     "  if (e.fill !== undefined) { if (!isPic) { ops.push(['fill', e.fill]); } else { problem = problem || 'a colour'; } }",
-    "  if (e.image !== undefined) { if (isPic) { ops.push(['image', e.image, e.fit || '', !!e.colourise, e.cutout || '', e.align || '', e.padding || 0]); ops[ops.length - 1].push(e.rotate || 0, !!e.mirror); } else { problem = problem || 'an image'; } }",
+    "  if (e.image !== undefined) { if (isPic) { ops.push(['image', e.image, e.fit || '', !!e.colourise, e.cutout || '', e.align || '', e.padding || 0]); ops[ops.length - 1].push(e.rotate || 0, !!e.mirror); ops[ops.length - 1].push(e.focus || null); } else { problem = problem || 'an image'; } }",
     "  if (e.box !== undefined) { ops.push(['box', e.box]); }",
     "  if (e.hidden !== undefined) { ops.push(['hidden', e.hidden]); }",
     "  if (problem) { out.mismatch.push({ key: key, node: kind, got: problem }); return; }",
@@ -408,6 +421,7 @@ export function FILL_APPLY(docUuid: string, edits: Edit[], ignoreUnknown: boolea
     "          if (op[2]) { io.fit = op[2]; }",
     "          if (op[7]) { io.rotate = op[7]; }",
     "          if (op[8]) { io.mirror = true; }",
+    "          if (op[9]) { io.focus = op[9]; }",
     "          const n = axiReplaceImage(doc, axiFind(doc, p.ref), op[1], io);",
     "          if (op[3]) { axiColourise(doc, n); }",
     "          if (op[4]) { axiCutout(doc, n, { method: op[4], transparent: false, align: op[5] || 'none', padding: op[6] || 0 }); }",

@@ -203,7 +203,9 @@ describe("export command: multi-page documents", () => {
     const r = await runCommand(exportCmd, ["current", "PNG", join(desktop, "sel.png"), "--selection"]);
     expect(r.code).not.toBe(0);
     expect(r.stdout).toContain("was not written");
-    expect(files()).toEqual(["sel_1.png", "sel_2.png"]);
-    expect(read("sel_1.png").includes("iTXt")).toBe(true);
+    const left = files();
+    expect(left).toHaveLength(2);
+    expect(left.every((n) => /^sel\.axi-tmp-[0-9a-f]{6}_[12]\.png$/.test(n))).toBe(true);
+    expect(read(left[0]!).includes("iTXt")).toBe(true);
   });
 });

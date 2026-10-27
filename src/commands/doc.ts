@@ -269,7 +269,7 @@ function makeSave(connect: ConnectFn): CommandModule {
       if (status === "unchanged") pairs.push(["note", "already saved and clean; nothing to do"]);
       if (status !== "unchanged" || force || fresh.state === "none") {
         try {
-          recordSave(path, doc.uuid, inventory, process.cwd(), { forced });
+          recordSave(path, doc.uuid, inventory, process.cwd(), { forced, ...(doc.path ? { fromPath: doc.path } : {}) });
           pairs.push(["manifest", `${basename(path)}.axi.json${forced ? " (forced)" : ""}`]);
         } catch (err) {
           pairs.push(["manifest", `not updated (${err instanceof Error ? err.message : String(err)})`]);

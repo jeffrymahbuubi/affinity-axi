@@ -29,7 +29,7 @@ export const ML_INDEX: readonly HelperInfo[] = [
   { name: "axiRemoveBackground", signature: "axiRemoveBackground(doc, node?, {allowEmpty})", summary: "ML background removal on node (or the selection; image nodes are rasterised first), in place; returns the resulting node; throws 'nothing was removed (no subject found)' when the clear-pixel share did not grow (a texture, a flat photo), unless {allowEmpty: true} keeps the photo as it is" },
   { name: "axiSelectSubject", signature: "axiSelectSubject(doc, node?, {allowEmpty})", summary: "ML subject selection on node (or the selection); the result is the document's pixel selection, not the node, which is returned unchanged; throws 'axiSelectSubject: no subject found' when nothing was selected (allowEmpty: true returns null instead); clear it with axiDeselect" },
   { name: "axiDeselect", signature: "axiDeselect(doc)", summary: "clear the document's pixel selection (what axiSelectSubject sets); returns doc" },
-  { name: "axiCutout", signature: "axiCutout(doc, node?, {method,transparent,align,padding,box})", summary: "cut the subject out of a photo, in place: method 'background' (default, ML background removal) or 'subject' (select subject, delete the rest, clear the selection); align 'none' (default, the subject stays where it was in the photo), 'centre' (centre the cut-out in its target box) or 'fit' (also scale it uniformly to fit the box minus padding px, up or down); the target box is box {x,y,w,h} if given, else the picture frame the layer sits in, else where the photo was before the cut; unless transparent:false it also makes the document background transparent so a PNG export keeps alpha; returns the pixel node; a cut that removes nothing throws (method background: 'nothing was removed'; subject: 'no subject found'), allowEmpty: true leaves the photo as it is and still makes the background transparent" },
+  { name: "axiCutout", signature: "axiCutout(doc, node?, {method,transparent,align,padding,box,artboard})", summary: "cut the subject out of a photo, in place: method 'background' (default, ML background removal) or 'subject' (select subject, delete the rest, clear the selection); align 'none' (default, the subject stays where it was in the photo), 'centre' (centre the cut-out in its target box) or 'fit' (also scale it uniformly to fit the box minus padding px, up or down); the target box is box {x,y,w,h} if given, else the picture frame the layer sits in, else where the photo was before the cut; unless transparent:false it also makes the document background transparent so a PNG export keeps alpha; artboard {name, padding = 0} adds an artboard named name around the cut-out (its content box grown by padding px, clamped to the document) so export --artboard <name> gives a tight PNG; when the document has no artboard yet the layer is first moved by (-x,-y), because the first artboard must sit at 0,0; with artboard the return value is {node, artboard: {name,x,y,w,h}} instead of the bare node; otherwise returns the pixel node; a cut that removes nothing throws (method background: 'nothing was removed'; subject: 'no subject found'), allowEmpty: true leaves the photo as it is and still makes the background transparent" },
   { name: "axiContentBox", signature: "axiContentBox(doc, node)", summary: "the visible content box {x,y,w,h} of a layer in document px (its box through its transform); after a cut-out this is the subject, not the original photo" },
   { name: "axiAlignIn", signature: "axiAlignIn(doc, node, box?, {align,padding})", summary: "move a pixel layer so its content box is centred in box {x,y,w,h} (default: the picture frame it sits in; throws when there is none); align 'centre' (default) or 'fit' (also scale uniformly to fit box minus padding px, up or down) or 'none' (does nothing); padding px, 0 or more; returns the node" },
   { name: "axiDetectDepth", signature: "axiDetectDepth(doc, node?, {inPlace,visible})", summary: "ML depth map (near = white) on node (or the selection); keeps the photo: runs on a copy named '<name>-depth' that is hidden unless visible:true, and returns that copy; inPlace:true overwrites the layer with the map and returns it (old behaviour)" },
@@ -156,6 +156,11 @@ function axiDeselect(doc) {
 // the layer's box measured before the ML call. o.padding (px) applies to 'fit'.
 // Unless o.transparent === false the document background is made transparent
 // (axiTransparent), so a PNG export keeps the alpha. Returns the pixel node.
+// o.artboard {name, padding = 0}: after the cut, adds an artboard (axiArtboard) over
+// the cut-out's content box grown by padding px and clamped to the document, so
+// export --artboard <name> is a tight PNG. The first artboard must sit at 0,0, so
+// when the document has none the layer is first moved by (-x,-y). With o.artboard
+// the return value is {node, artboard: {name,x,y,w,h}}.
 function axiCutout(doc, node, o) {
   const opts = o || {};
   const method = opts.method === undefined ? 'background' : opts.method;
@@ -164,6 +169,15 @@ function axiCutout(doc, node, o) {
   if (align !== 'none' && align !== 'centre' && align !== 'fit') { throw new Error('axiCutout: align must be none, centre or fit, got ' + align); }
   const padding = opts.padding === undefined ? 0 : opts.padding;
   if (typeof padding !== 'number' || !isFinite(padding) || padding < 0) { throw new Error('axiCutout: padding must be a finite number of 0 or more'); }
+  let ab = null;
+  if (opts.artboard !== undefined) {
+    const a = opts.artboard;
+    if (!a || typeof a !== 'object' || typeof a.name !== 'string' || a.name === '') { throw new Error('axiCutout: artboard needs a name, artboard: {name, padding}'); }
+    const ap = a.padding === undefined ? 0 : a.padding;
+    if (typeof ap !== 'number' || !isFinite(ap) || ap < 0) { throw new Error('axiCutout: artboard.padding must be a finite number of 0 or more'); }
+    if (doc.artboards && doc.artboards.some(function (x) { return x.description === a.name; })) { throw new Error('axiCutout: an artboard named ' + a.name + ' already exists'); }
+    ab = { name: a.name, padding: ap };
+  }
   let start = node;
   let before;
   if (align !== 'none') {
@@ -188,7 +202,27 @@ function axiCutout(doc, node, o) {
     axiAlignIn(doc, n, opts.box || (framed ? undefined : before), { align: align, padding: padding });
   }
   if (opts.transparent !== false) { axiTransparent(doc, true); }
-  return doc.selection.nodes.first;
+  if (!ab) { return doc.selection.nodes.first; }
+  const out = doc.selection.nodes.first;
+  const c = axiContentBox(doc, out);
+  const x0 = Math.max(0, c.x - ab.padding);
+  const y0 = Math.max(0, c.y - ab.padding);
+  let x1 = c.x + c.w + ab.padding;
+  let y1 = c.y + c.h + ab.padding;
+  if (typeof doc.widthPixels === 'number' && isFinite(doc.widthPixels)) { x1 = Math.min(doc.widthPixels, x1); }
+  if (typeof doc.heightPixels === 'number' && isFinite(doc.heightPixels)) { y1 = Math.min(doc.heightPixels, y1); }
+  if (!(x1 - x0 > 0 && y1 - y0 > 0)) { throw new Error('axiCutout: artboard: the cut-out has no visible content inside the document'); }
+  const box = { name: ab.name, x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
+  if (doc.artboards.length === 0 && (box.x !== 0 || box.y !== 0)) {
+    const { Transform } = require('/geometry.js');
+    doc.selection = out;
+    doc.applyTransform(Transform.createTranslate(-box.x, -box.y));
+    box.x = 0;
+    box.y = 0;
+  }
+  axiArtboard(doc, box);
+  doc.selection = out;
+  return { node: out, artboard: box };
 }
 
 // The visible content box {x,y,w,h} of a layer in document px: its box through its

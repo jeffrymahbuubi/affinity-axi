@@ -4,7 +4,7 @@ An AXI (Agent eXperience Interface) CLI that drives Affinity by Canva through it
 
 **What this is.** A command-line tool for producing designs in Affinity from scripts: social posts, carousels, website launch files (favicons, OG and X cards), ad sizes under a file budget, print PDFs. You write a short JavaScript file against Affinity's scripting SDK (or use the tested `axi*` helpers and ready-made templates), and the CLI runs it, renders, exports and keeps a manifest of how each file was made. A brand kit keeps colours and fonts per project.
 
-**Status:** 0.3.3, macOS, tested against Affinity 3.3.1; installed locally with `npm link` (not published to npm).
+**Status:** 0.4.0, macOS, tested against Affinity 3.3.1; installed locally with `npm link` (not published to npm).
 
 **Requirements:** macOS, Affinity by Canva 3.3 or later with its MCP server enabled, Node.js 20 or later.
 
@@ -67,7 +67,7 @@ affinity-axi                               # home view: connection, open documen
 
 | Command | Does |
 |---|---|
-| `run <file.js>` | Run a script; prints status and truncated output (`--args`, `--timeout`, `--full`, `--with-helpers`, `--allow-generative`) |
+| `run <file.js>` | Run a script; prints status and truncated output (`--args` or `--args-file`, `--timeout`, `--full`, `--with-helpers`, `--allow-generative`) |
 | `helpers` | List the `axi*` SDK helpers that `--with-helpers` appends (font lookup, text, measure, rect, ellipse, hex, image placement, ML cut-outs (background or subject, re-centred or fitted to their frame), depth maps that keep the photo, depth-driven background blur, colourise, QR codes, outlines and boolean ops, tables, multi-size variants, carousels, charts (incl. grouped, stacked and line), seals and arc text, pattern tiles, print documents and proof sheets, brand tokens) |
 | `doc new` / `doc save` / `doc close` | Create a document (`--transparent` for cut-outs, so a PNG export keeps alpha); save it under Desktop (a `.af` that was hand-edited or not saved by affinity-axi is refused without `--force`); close it only when clean (the SDK cannot discard) |
 | `fonts` | Installed fonts with exact postscript names (`--grep`, `--family`) |

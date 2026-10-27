@@ -1,6 +1,6 @@
 // recordsFor walks up from the cwd and from the saved document's folder, and counts a record once.
 
-import { mkdirSync, mkdtempSync, realpathSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -72,5 +72,73 @@ describe("recordsFor lookup", () => {
     const other = dir("other");
     expect(recordsFor(UUID, other, { docPath: "" })).toEqual([]);
     expect(recordsFor(UUID, other, {})).toEqual([]);
+  });
+});
+
+describe("recordsFor lookup by saved path and manifest uuids", () => {
+  const NEW = "AAAA0000-0000-4000-8000-000000000001";
+  const OLD = "01D01D01-D01D-4D01-8D01-D01D01D01D01";
+  const withPaths = (script: string, paths: string[], documents = [UUID]): ProvenanceRecord => ({ ...rec(script, "2026-11-11T10:00:00.000Z", documents), paths });
+
+  it("matches a foreign uuid by saved path, case-insensitively", () => {
+    const proj = dir("proj");
+    const doc = join(proj, "p.af");
+    appendProvenance(withPaths("gen.js", [doc]), proj);
+    expect(recordsFor(NEW, proj, { docPath: join(proj, "P.AF") }).map((r) => r.script)).toEqual(["gen.js"]);
+    expect(isAiGenerated(NEW, proj, { docPath: doc })).toBe(true);
+  });
+
+  it("matches through a symlinked path (realpath)", () => {
+    const proj = dir("proj");
+    const real = join(proj, "p.af");
+    writeFileSync(real, "x");
+    const link = join(proj, "link.af");
+    symlinkSync(real, link);
+    appendProvenance(withPaths("gen.js", [real]), proj);
+    expect(recordsFor(NEW, proj, { docPath: link })).toHaveLength(1);
+  });
+
+  it("without docPath only the uuid matches; a different path does not match", () => {
+    const proj = dir("proj");
+    appendProvenance(withPaths("gen.js", [join(proj, "p.af")]), proj);
+    expect(recordsFor(NEW, proj)).toEqual([]);
+    expect(recordsFor(NEW, proj, { docPath: join(proj, "q.af") })).toEqual([]);
+    expect(recordsFor(UUID, proj)).toHaveLength(1);
+  });
+
+  it("keeps ignoring called: false, also when the path matches", () => {
+    const proj = dir("proj");
+    const doc = join(proj, "p.af");
+    appendProvenance({ ...withPaths("gen.js", [doc]), called: false }, proj);
+    expect(recordsFor(NEW, proj, { docPath: doc })).toEqual([]);
+  });
+
+  it("a manifest beside docPath with ai.uuids makes a record for that uuid match", () => {
+    const proj = dir("proj");
+    const doc = join(proj, "q.af");
+    appendProvenance(rec("gen.js", "2026-11-11T10:00:00.000Z", [OLD]), proj);
+    expect(recordsFor(NEW, proj, { docPath: doc })).toEqual([]);
+    writeFileSync(`${doc}.axi.json`, JSON.stringify({ ai: { generated: true, records: 1, uuids: [OLD.toLowerCase()] } }));
+    expect(recordsFor(NEW, proj, { docPath: doc }).map((r) => r.script)).toEqual(["gen.js"]);
+  });
+
+  it("ignores a missing, old-shape or malformed manifest", () => {
+    const proj = dir("proj");
+    const doc = join(proj, "q.af");
+    appendProvenance(rec("gen.js", "2026-11-11T10:00:00.000Z", [OLD]), proj);
+    writeFileSync(`${doc}.axi.json`, JSON.stringify({ ai: { generated: true, records: 1 } }));
+    expect(recordsFor(NEW, proj, { docPath: doc })).toEqual([]);
+    writeFileSync(`${doc}.axi.json`, "{not json");
+    expect(recordsFor(NEW, proj, { docPath: doc })).toEqual([]);
+    writeFileSync(`${doc}.axi.json`, JSON.stringify({ ai: { uuids: "OLD" } }));
+    expect(recordsFor(NEW, proj, { docPath: doc })).toEqual([]);
+  });
+
+  it("counts a record matched by uuid, path and manifest once", () => {
+    const proj = dir("proj");
+    const doc = join(proj, "p.af");
+    appendProvenance(withPaths("gen.js", [doc], [UUID, OLD]), proj);
+    writeFileSync(`${doc}.axi.json`, JSON.stringify({ ai: { uuids: [OLD] } }));
+    expect(recordsFor(UUID, proj, { docPath: doc })).toHaveLength(1);
   });
 });

@@ -10,9 +10,10 @@
 // not tamper-proof: it lives next to the project, in plain text.
 
 import { createHash } from "node:crypto";
-import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import type { AiHit } from "../mcp/types.js";
+import { readAiUuids } from "./manifest-ai.js";
 
 export interface ProvenanceRecord {
   /** ISO 8601 time the run finished. */
@@ -26,6 +27,19 @@ export interface ProvenanceRecord {
   outcome: string;
   /** Document session UUIDs seen in the script output (uppercase). */
   documents: string[];
+  /**
+   * Saved path of every document in `documents` at the end of the run (unsaved
+   * documents contribute nothing). A reopened document gets a new session UUID,
+   * so lookups also match by path. Absent in old records.
+   */
+  paths?: string[];
+  /**
+   * Whether the run's call-shim saw a generative API run: true, false (the
+   * identifier was in the script but the call never ran) or "unknown" (no
+   * confirmation possible: timeout, error, shim unavailable). Absent in old
+   * records, which count as generated.
+   */
+  called?: boolean | "unknown";
 }
 
 const UUID_RE = /\b[0-9A-Fa-f]{8}(?:-[0-9A-Fa-f]{4}){3}-[0-9A-Fa-f]{12}\b/g;
@@ -94,14 +108,37 @@ function lookupDirs(cwd: string, opts?: LookupOpts): string[] {
   return [...new Set(roots.flatMap(ancestors))];
 }
 
-/** Records that touched this document session UUID (case-insensitive), from every log found walking up; duplicates (same time, script and documents) count once. */
+/** Realpath (when the file exists) of a path, lowercased, for case-insensitive comparison. */
+function pathKey(p: string, cwd: string): string {
+  const abs = resolve(cwd, p);
+  try {
+    return realpathSync(abs).toLowerCase();
+  } catch {
+    return abs.toLowerCase();
+  }
+}
+
+/**
+ * Records that touched this document, from every log found walking up: a record
+ * matches when its `documents` has the session UUID (case-insensitive), or the
+ * saved `docPath` equals one of its `paths` (realpath, case-insensitive), or the
+ * manifest beside `docPath` lists (`ai.uuids`) a UUID its `documents` has.
+ * Duplicates (same time, script and documents) count once. Records with
+ * `called: false` (the call never ran) are ignored.
+ */
 export function recordsFor(uuid: string, cwd: string = process.cwd(), opts?: LookupOpts): ProvenanceRecord[] {
-  const want = uuid.toUpperCase();
+  const want = new Set([uuid.toUpperCase()]);
+  const doc = typeof opts?.docPath === "string" ? opts.docPath : "";
+  const docKey = doc.trim() !== "" ? pathKey(doc, cwd) : undefined;
+  if (docKey !== undefined) for (const u of readAiUuids(resolve(cwd, doc))) want.add(u);
   const seen = new Set<string>();
   const found: ProvenanceRecord[] = [];
   for (const dir of lookupDirs(cwd, opts)) {
     for (const r of readProvenance(dir)) {
-      if (!r.documents.some((d) => d.toUpperCase() === want)) continue;
+      if (r.called === false) continue;
+      const byUuid = r.documents.some((d) => want.has(String(d).toUpperCase()));
+      const byPath = docKey !== undefined && Array.isArray(r.paths) && r.paths.some((p) => typeof p === "string" && p !== "" && pathKey(p, cwd) === docKey);
+      if (!byUuid && !byPath) continue;
       const key = JSON.stringify([r.time, r.script, r.documents]);
       if (seen.has(key)) continue;
       seen.add(key);
@@ -111,7 +148,7 @@ export function recordsFor(uuid: string, cwd: string = process.cwd(), opts?: Loo
   return found;
 }
 
-/** True when a logged generative run touched this document session UUID. */
+/** True when a logged generative run that really called the API (or could not say) touched this document session UUID. */
 export function isAiGenerated(uuid: string, cwd: string = process.cwd(), opts?: LookupOpts): boolean {
   return recordsFor(uuid, cwd, opts).length > 0;
 }

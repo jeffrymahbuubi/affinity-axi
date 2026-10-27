@@ -14,8 +14,8 @@ import type { HelperInfo } from "./helpers-core.js";
 export const IMAGE_INDEX: readonly HelperInfo[] = [
   { name: "axiImage", signature: "axiImage(doc, {path,x,y,w,h,fit,radius,frame,focus,raster,name,rotate,mirror})", summary: "place an image file (under Desktop) as a pixel layer; rotate 0|90|180|270 (degrees clockwise) and mirror:true (horizontal flip, applied first) turn the picture before the fit, for a file whose EXIF orientation Affinity ignores; fit contain (default, inside the box, top-left) | cover (fills w x h, clipped to a picture frame, centred on focus {x,y} 0-1) | stretch; radius px (or frame:true) clips to a rounded picture frame; raster:false keeps an image node; name sets the image node's userDescription (its frame gets name-frame); returns the image node (its parent is the frame)" },
   { name: "axiReplaceImage", signature: "axiReplaceImage(doc, node, path, {fit,raster,name,rotate,mirror})", summary: "swap the picture in node (image, pixel layer or its frame) for another file, same slot: createReplaceBitmap when the pixel size matches, else re-placed with fit cover (default) into the old box and frame, keeping the old node's name unless name is given; rotate/mirror as axiImage (the picture is then always re-placed, never swapped in place); returns the new node" },
-  { name: "axiGrade", signature: "axiGrade(doc, node, spec|look)", summary: "non-destructive adjustment stack on an image or pixel layer from a JSON spec; keys whiteBalance{temp,tint} exposure levels{black,white,gamma,outBlack,outWhite} curves brightnessContrast{brightness,contrast} shadowsHighlights{shadows,highlights} vibrance saturation hsl{hue,saturation,luminosity} splitToning{shadowsHue,shadowsSat,highlightsHue,highlightsSat,balance}; spec may be a look name" },
-  { name: "axiLook", signature: "axiLook(name)", summary: "grade spec preset: 'warm-soft' (warm, lifted blacks, gentle colour) or 'neutral' (light tone correction only, for Google Business Profile where heavy filters are disallowed)" },
+  { name: "axiGrade", signature: "axiGrade(doc, node, spec|look, {replace})", summary: "non-destructive adjustment stack on an image or pixel layer from a JSON spec; keys whiteBalance{temp,tint} exposure levels{black,white,gamma,outBlack,outWhite} curves brightnessContrast{brightness,contrast} shadowsHighlights{shadows,highlights} vibrance saturation hsl{hue,saturation,luminosity} selectiveColour{reds|yellows|greens|cyans|blues|magentas|whites|neutrals|blacks: {c,m,y,k} each -1..1, relative} splitToning{shadowsHue,shadowsSat,highlightsHue,highlightsSat,balance}, then live filters denoise, clarity, sharpen, vignette (each true for the defaults or a params object, see axiFilter); spec may be a look name; {replace: true} first deletes the target's existing adjustment and filter children so a re-grade leaves one stack (default false appends)" },
+  { name: "axiLook", signature: "axiLook(name, overrides?)", summary: "grade spec preset: 'warm-soft' (warm, lifted blacks, gentle colour), 'neutral' (light tone correction only, for Google Business Profile where heavy filters are disallowed) or 'airy' (bright, soft shadows, light warm highlights, for interiors); overrides is shallow-merged over the preset by top-level key, e.g. axiLook('airy', {exposure: 0.45, brightnessContrast: {contrast: 0.1}}); returns a fresh object" },
 ];
 
 /** Internal building blocks, not in the index. */
@@ -23,8 +23,10 @@ export const IMAGE_INTERNAL: readonly string[] = ["axiPlace", "axiOrientCheck", 
 
 export const IMAGE_SOURCE: string = String.raw`
 // Internal: load path and add it as an image node. target (a frame or other
-// parent node) makes it a child, in front; null adds it to the current insertion
-// point. box {x,y,w,h} and fit place it: contain (default, top-left aligned),
+// parent node) makes it a child, in front. With null the parent is the artboard
+// that holds the selection (the selection itself, or the nearest artboard above
+// it, so axiOn picks the board); with no such artboard the image goes in with
+// addNode (a plain document). box {x,y,w,h} and fit place it: contain (default, top-left aligned),
 // cover or stretch. focus {x,y} (0-1) positions the overflow of cover. o.mirror
 // (horizontal flip, first) and o.rotate (0, 90, 180, 270 degrees clockwise on screen,
 // y down) turn the placed node about its centre before the fit is measured.
@@ -35,12 +37,22 @@ function axiPlace(doc, o, box, target) {
   const { Transform } = require('/geometry.js');
   const { AddChildNodesCommandBuilder, InsertionMode, NodeChildType } = require('/commands.js');
   const fit = o.fit || 'contain';
-  if (!target) { axiSurface(doc); }
+  let parent = target;
+  if (!parent) {
+    axiSurface(doc);
+    let n = doc.selection.nodes.first;
+    while (n && !parent) {
+      let isAb = false;
+      try { isAb = !!n.isArtboardEnabled; } catch (e) { isAb = false; }
+      if (isAb) { parent = n; }
+      n = n.parent;
+    }
+  }
   const def = ImageNodeDefinition.create(RasterFormat.RGBA8);
   def.bitmap = Bitmap.loadFromFile(o.path, RasterFormat.RGBA8);
-  if (target) {
+  if (parent) {
     const b = AddChildNodesCommandBuilder.create();
-    b.setInsertionTarget(target);
+    b.setInsertionTarget(parent);
     b.setInsertionMode(InsertionMode.Inside_AtFront);
     b.addNode(def);
     doc.executeCommand(b.createCommand(true, NodeChildType.Main));
@@ -170,8 +182,9 @@ function axiReplaceImage(doc, node, path, o) {
 }
 
 // Grade presets as axiGrade specs. neutral is a light tone correction only;
-// use it for Google Business Profile, which disallows heavy filters.
-function axiLook(name) {
+// use it for Google Business Profile, which disallows heavy filters. airy is the
+// bright interior look; overrides (optional object) replace whole top-level keys.
+function axiLook(name, overrides) {
   const looks = {
     'warm-soft': {
       whiteBalance: { temp: 0.18, tint: 0.02 },
@@ -183,17 +196,34 @@ function axiLook(name) {
       levels: { black: 0.02, white: 0.98 },
       vibrance: 0.05,
     },
+    airy: {
+      exposure: 0.3,
+      curves: [[0, 0.04], [0.25, 0.30], [0.5, 0.57], [0.75, 0.81], [1, 0.985]],
+      shadowsHighlights: { shadows: 0.4, highlights: -0.15 },
+      whiteBalance: { temp: 0.05, tint: 0.03 },
+      splitToning: { highlightsHue: 30, highlightsSat: 0.12, shadowsHue: 340, shadowsSat: 0.06, balance: 0.5 },
+      vibrance: 0.12,
+      saturation: -0.03,
+      clarity: { strength: 0.1 },
+    },
   };
   if (!looks[name]) { throw new Error('axiLook: unknown look ' + name + '; known: ' + Object.keys(looks).join(', ')); }
-  return JSON.parse(JSON.stringify(looks[name]));
+  const out = JSON.parse(JSON.stringify(looks[name]));
+  if (overrides !== undefined && overrides !== null) {
+    if (typeof overrides !== 'object' || Array.isArray(overrides)) { throw new Error('axiLook: overrides must be an object of grade spec keys'); }
+    Object.keys(overrides).forEach(function (k) { out[k] = JSON.parse(JSON.stringify(overrides[k])); });
+  }
+  return out;
 }
 
 // Validate a grade spec into an ordered list of steps [kind, params]. Throws on
 // unknown keys or out-of-range values, so mistakes surface before anything is added.
 function axiGradeSteps(spec) {
-  const known = ['whiteBalance', 'exposure', 'levels', 'curves', 'brightnessContrast', 'shadowsHighlights', 'vibrance', 'saturation', 'hsl', 'splitToning'];
+  const filters = ['denoise', 'clarity', 'sharpen', 'vignette'];
+  const known = ['whiteBalance', 'exposure', 'levels', 'curves', 'brightnessContrast', 'shadowsHighlights', 'vibrance', 'saturation', 'hsl', 'selectiveColour', 'splitToning'].concat(filters);
   Object.keys(spec).forEach(function (k) {
     if (known.indexOf(k) < 0) { throw new Error('axiGrade: unknown key ' + k + '; known: ' + known.join(', ')); }
+    if (filters.indexOf(k) >= 0 && spec[k] !== false) { axiFilterParams(k, spec[k]); }
   });
   const num = function (what, v, lo, hi) {
     if (typeof v !== 'number' || !isFinite(v) || v < lo || v > hi) { throw new Error('axiGrade: ' + what + ' must be a number in ' + lo + '..' + hi + ', got ' + v); }
@@ -239,6 +269,26 @@ function axiGradeSteps(spec) {
     const h = spec.hsl;
     steps.push(['hsl', { hueShift: opt(h, 'hue', 'hsl', -180, 180, 0) * Math.PI / 180, saturationShift: opt(h, 'saturation', 'hsl', -1, 1, 0), luminosityShift: opt(h, 'luminosity', 'hsl', -1, 1, 0) }]);
   }
+  if (spec.selectiveColour) {
+    const sc = spec.selectiveColour;
+    const ranges = ['reds', 'yellows', 'greens', 'cyans', 'blues', 'magentas', 'whites', 'neutrals', 'blacks'];
+    if (typeof sc !== 'object' || Array.isArray(sc)) { throw new Error('axiGrade: selectiveColour must be an object keyed by ' + ranges.join(', ')); }
+    const weights = [];
+    Object.keys(sc).forEach(function (r) {
+      const at = ranges.indexOf(r);
+      if (at < 0) { throw new Error('axiGrade: selectiveColour: unknown range ' + r + '; known: ' + ranges.join(', ')); }
+      const v = sc[r];
+      if (!v || typeof v !== 'object' || Array.isArray(v)) { throw new Error('axiGrade: selectiveColour.' + r + ' must be {c,m,y,k}'); }
+      Object.keys(v).forEach(function (c) { if ('cmyk'.indexOf(c) < 0 || c.length !== 1) { throw new Error('axiGrade: selectiveColour.' + r + ': unknown channel ' + c + '; known: c, m, y, k'); } });
+      const cy = opt(v, 'c', 'selectiveColour.' + r, -1, 1, 0);
+      const m = opt(v, 'm', 'selectiveColour.' + r, -1, 1, 0);
+      const y = opt(v, 'y', 'selectiveColour.' + r, -1, 1, 0);
+      const k = opt(v, 'k', 'selectiveColour.' + r, -1, 1, 0);
+      weights.push([at, { cyanWeight: cy,magentaWeight: m, yellowWeight: y, blackWeight: k }]);
+    });
+    weights.sort(function (a, b) { return a[0] - b[0]; });
+    steps.push(['selectiveColour', { weights: weights }]);
+  }
   if (spec.splitToning) {
     const t = spec.splitToning;
     steps.push(['splitToning', { shadowsHue: rad(t, 'shadowsHue', 'splitToning'), shadowsSaturation: opt(t, 'shadowsSat', 'splitToning', 0, 1, 0), highlightsHue: rad(t, 'highlightsHue', 'splitToning'), highlightsSaturation: opt(t, 'highlightsSat', 'splitToning', 0, 1, 0), balance: opt(t, 'balance', 'splitToning', 0, 1, 0.5) }]);
@@ -266,14 +316,31 @@ function axiGradeTarget(doc, node) {
 //   shadowsHighlights: {shadows, highlights} -2..2
 //   vibrance, saturation: -1..1 (one Vibrance layer)
 //   hsl: {hue (degrees -180..180), saturation, luminosity (-1..1)} master shift
+//   selectiveColour: {reds|yellows|greens|cyans|blues|magentas|whites|neutrals|blacks: {c,m,y,k}},
+//     each channel -1..1 (0 = no change), relative mode; one SelectiveColour layer (the range
+//     order is the adjustment's own, indexes 0..8)
 //   splitToning: {shadowsHue, highlightsHue (degrees 0..360), shadowsSat, highlightsSat, balance (0..1)}
-// spec may also be an axiLook name. Returns the graded node.
-function axiGrade(doc, node, spec) {
-  const steps = axiGradeSteps(typeof spec === 'string' ? axiLook(spec) : spec || {});
+//   denoise, clarity, sharpen, vignette: each true (defaults) or a params object, added
+//     as live filters after the adjustments in that order (ranges: see axiFilter)
+// spec may also be an axiLook name. o.replace true first deletes every adjustment and
+// filter child of the target, so a re-grade leaves one stack (default: append).
+// Returns the graded node.
+function axiGrade(doc, node, spec, o) {
+  const full = typeof spec === 'string' ? axiLook(spec) : spec || {};
+  const steps = axiGradeSteps(full);
   const target = axiGradeTarget(doc, node);
   const N = require('/nodes.js');
   const { Spline } = require('/geometry.js');
-  const { AddChildNodesCommandBuilder, InsertionMode, NodeChildType } = require('/commands.js');
+  const { AddChildNodesCommandBuilder, InsertionMode, NodeChildType, DocumentCommand } = require('/commands.js');
+  if (o && o.replace === true) {
+    const { Selection } = require('/selections.js');
+    const old = [];
+    for (const c of target.children) {
+      const tag = String(c[Symbol.toStringTag]);
+      if (/AdjustmentRasterNode$/.test(tag) || /FilterRasterNode$/.test(tag)) { old.push(c); }
+    }
+    old.forEach(function (c) { doc.executeCommand(DocumentCommand.createDeleteSelection(Selection.create(doc, c), false)); });
+  }
   const cs = doc.colourProfile.colourSpace;
   const make = function (kind, p) {
     let params;
@@ -290,6 +357,12 @@ function axiGrade(doc, node, spec) {
     if (kind === 'shadowsHighlights') { params = N.ShadowsHighlightsAdjustmentParameters.create(); params.shadows = p.shadows; params.highlights = p.highlights; return N.ShadowsHighlightsAdjustmentRasterNodeDefinition.create(params); }
     if (kind === 'vibrance') { params = N.VibranceAdjustmentParameters.create(); params.vibrance = p.vibrance; params.saturation = p.saturation; return N.VibranceAdjustmentRasterNodeDefinition.create(params); }
     if (kind === 'hsl') { params = N.HSLShiftAdjustmentParameters.create(); params.masterParameters = p; return N.HSLShiftAdjustmentRasterNodeDefinition.create(params); }
+    if (kind === 'selectiveColour') {
+      params = N.SelectiveColourAdjustmentParameters.create();
+      params.isRelative = true;
+      p.weights.forEach(function (w) { params.setWeights(w[0], w[1]); });
+      return N.SelectiveColourAdjustmentRasterNodeDefinition.create(params);
+    }
     params = N.SplitToningAdjustmentParameters.create();
     Object.keys(p).forEach(function (k) { params[k] = p[k]; });
     return N.SplitToningAdjustmentRasterNodeDefinition.create(params);
@@ -300,6 +373,9 @@ function axiGrade(doc, node, spec) {
     b.setInsertionMode(InsertionMode.Inside_AtFront);
     b.addNode(make(s[0], s[1]));
     doc.executeCommand(b.createCommand(false, NodeChildType.Main));
+  });
+  ['denoise', 'clarity', 'sharpen', 'vignette'].forEach(function (k) {
+    if (full[k] !== undefined && full[k] !== false) { axiFilter(doc, target, k, full[k]); }
   });
   doc.selection = target;
   return target;

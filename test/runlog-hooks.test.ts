@@ -237,7 +237,7 @@ describe("exports in export", () => {
     server.onScript("affinity-axi:list-presets", JSON.stringify(FIXTURE_PRESETS));
     stubApp();
     stubDocs(docs, FIXTURE_UUID);
-    server.onScript("affinity-axi:export", () => (writeFileSync(target, "png bytes"), "{}"));
+    server.onScript("affinity-axi:export", (script) => (writeFileSync(JSON.parse(/const outPath = (.*);/.exec(script)![1]!) as string, "png bytes"), "{}"));
   }
 
   it("appends exports[1] for a saved document with a manifest and keeps stdout unchanged", async () => {

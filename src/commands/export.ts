@@ -21,7 +21,7 @@ import {
   scaledDim,
   type Attempt,
 } from "../affinity/export-budget.js";
-import { pageRows, pagesReport, recoverPages } from "../affinity/export-pages.js";
+import { pageRows, pagesReport } from "../affinity/export-pages.js";
 import { requireUnderDesktop, requireVisible, userPath } from "../affinity/paths.js";
 import { aiSpecFor, COPYRIGHT_FLAG, creditFor, CREATOR_FLAG, finalizeFile, KEEP_FLAG, tagExports, type MetaOutcome, type MetaSpec } from "../affinity/metadata.js";
 import { APP_INFO, EXPORT, LIST_DOCUMENTS, LIST_PRESETS } from "../affinity/scripts.js";
@@ -30,7 +30,7 @@ import { helpBlock } from "../output/suggest.js";
 import { emitList, print } from "../output/toon.js";
 import type { ConnectFn, DocInfo } from "../mcp/types.js";
 import { callJson } from "./run.js";
-import { altStubs, artboardTargets, BIN, planArea, readBytes, recordExports, report, runScript, type Target, type Written } from "./export-parts.js";
+import { afterTimeout, altStubs, artboardTargets, BIN, EXPORT_TIMEOUT_MS, parseExportTimeout, planArea, readBytes, recordExports, report, runScript, settleExport, tempNameFor, type Target, type Written } from "./export-parts.js";
 
 const SIZE_EXTS = [".png", ".jpg", ".jpeg", ".webp"];
 
@@ -88,6 +88,7 @@ export function makeExport(connect: ConnectFn): CommandModule {
         { name: "square", type: "string", description: "fit the longer side to <px> keeping the aspect ratio, e.g. 512" },
         { ...MAX_KB_FLAG },
         { ...MIN_SCALE_FLAG },
+        { name: "timeout", type: "string", default: String(EXPORT_TIMEOUT_MS), description: "export timeout in milliseconds; the export goes to a temp file next to the path and is renamed when done; on a timeout the target is untouched" },
         { ...NO_ALT_FLAG },
         BRAND_FLAG,
         CREATOR_FLAG,
@@ -109,6 +110,7 @@ export function makeExport(connect: ConnectFn): CommandModule {
       const plan = planArea(parsed, rawPath);
       const size = parseSizeFlags(parsed);
       const budget = budgetFor(parsed);
+      const timeoutMs = parseExportTimeout(parsed);
       const wantAlt = parsed.flags["no-alt"] !== true;
       const brandPath = resolveBrandRef(typeof parsed.flags["brand"] === "string" ? parsed.flags["brand"] : undefined, process.env, process.cwd());
       const keep = parsed.flags["keep-metadata"] === true;
@@ -161,15 +163,21 @@ export function makeExport(connect: ConnectFn): CommandModule {
         const full: MetaSpec = { ...spec, ai: aiSpecFor(doc.uuid, doc.path) };
         const finish = (path: string): void => void finished.set(path, finalizeFile(path, full));
         const pageMode = plan.mode === "whole" || plan.mode === "spread" ? plan.mode : null;
-        // Runs one export script; on a multi-page document Affinity writes <stem>_<k><ext> instead of the path.
-        const exportTo = async (script: string, path: string, what: string): Promise<string[] | null> => {
+        // Runs one export script into a sibling temp file, then renames it onto `path`; a timeout never touches `path`.
+        // On a multi-page document Affinity writes <tmpstem>_<k><ext>; those pages are renamed to <stem>_<k><ext>.
+        const exportTo = async (build: (out: string) => string, path: string, what: string): Promise<string[] | null> => {
+          const tmp = tempNameFor(path);
           const started = Date.now();
-          await runScript(client, script, what);
-          return pageMode === null ? null : recoverPages(path, pageMode, started);
+          try {
+            await runScript(client, build(tmp), what, { timeoutMs });
+          } catch (err) {
+            throw afterTimeout(err, path, tmp, pageMode, started, timeoutMs);
+          }
+          return settleExport(tmp, path, pageMode, started);
         };
         for (const t of targets) {
           const what = t.name === "" ? "export failed" : `export of artboard '${t.name}' failed`;
-          pages = await exportTo(plain ? EXPORT(doc.uuid, preset, t.path) : EXPORT_AREA(doc.uuid, preset, t.path, t.area, null), t.path, what);
+          pages = await exportTo((out) => (plain ? EXPORT(doc.uuid, preset, out) : EXPORT_AREA(doc.uuid, preset, out, t.area, null)), t.path, what);
           if (pages !== null) {
             pages.forEach(finish); // clean every page file before anything can fail
             if (size || budget) {
@@ -191,7 +199,7 @@ export function makeExport(connect: ConnectFn): CommandModule {
           }
           const want = size ? targetSize(natural, size) : natural;
           if (want.width !== natural.width || want.height !== natural.height) {
-            await exportTo(EXPORT_AREA(doc.uuid, preset, t.path, t.area, want), t.path, what);
+            await exportTo((out) => EXPORT_AREA(doc.uuid, preset, out, t.area, want), t.path, what);
           }
           if (!budget) {
             finish(t.path);
@@ -202,7 +210,7 @@ export function makeExport(connect: ConnectFn): CommandModule {
           const fitted = await fitBudget(steps, budget.bytes, async (s) => {
             if (s !== steps[0]) {
               const dim = s.scale === 1 && !size ? null : scaledDim(want, s.scale);
-              await exportTo(EXPORT_AREA(doc.uuid, s.preset, t.path, t.area, dim), t.path, what);
+              await exportTo((out) => EXPORT_AREA(doc.uuid, s.preset, out, t.area, dim), t.path, what);
             }
             finish(t.path); // the metadata pass first, so the verdict measures the final file
             const buf = readBytes(t.path);

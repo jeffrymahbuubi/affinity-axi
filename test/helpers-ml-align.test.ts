@@ -155,7 +155,7 @@ describe("axiCutout align", () => {
 describe("index summaries", () => {
   it("name the align values and the box order", () => {
     const by = Object.fromEntries(ML_INDEX.map((h) => [h.name, h]));
-    expect(by["axiCutout"]!.signature).toBe("axiCutout(doc, node?, {method,transparent,align,padding,box})");
+    expect(by["axiCutout"]!.signature).toBe("axiCutout(doc, node?, {method,transparent,align,padding,box,artboard})");
     for (const w of ["none", "centre", "fit", "padding", "box", "picture frame"]) expect(by["axiCutout"]!.summary).toContain(w);
     expect(by["axiContentBox"]!.signature).toBe("axiContentBox(doc, node)");
     expect(by["axiAlignIn"]!.signature).toBe("axiAlignIn(doc, node, box?, {align,padding})");

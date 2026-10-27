@@ -2,11 +2,14 @@
 // report, script running and manifest recording. Moved out of export.ts so
 // that file stays under the line cap; behaviour is unchanged.
 
-import { readFileSync } from "node:fs";
+import { randomBytes } from "node:crypto";
+import { existsSync, readFileSync, renameSync, rmSync } from "node:fs";
+import { basename, dirname, extname, join } from "node:path";
 import type { Parsed } from "../cli/args.js";
 import { altFor, ALT_TEXT_CHARS, type AltArea } from "../affinity/alt-text.js";
 import { LIST_ARTBOARDS, uniqueSafeNames, type AreaSpec } from "../affinity/export-area.js";
 import { formatChange, type Attempt } from "../affinity/export-budget.js";
+import { pageFilesFor, recoverPages } from "../affinity/export-pages.js";
 import { INSPECT } from "../affinity/inspect-script.js";
 import { readManifest, writeManifest } from "../affinity/manifest.js";
 import type { Inventory } from "../affinity/manifest-types.js";
@@ -14,6 +17,7 @@ import { classify, resultText } from "../affinity/result.js";
 import { AxiError, UsageError } from "../output/errors.js";
 import { helpBlock } from "../output/suggest.js";
 import { emitKV, emitList } from "../output/toon.js";
+import { TransportError } from "../mcp/client.js";
 import type { AffinityClient, DocInfo, ToolResult } from "../mcp/types.js";
 import { callJson } from "./run.js";
 
@@ -134,8 +138,77 @@ export function failure(result: ToolResult, what: string): AxiError {
   return new AxiError(`${what}: ${first}`, `check the path is writable and the preset suits this document; list presets with '${BIN} presets'`);
 }
 
-export async function runScript(client: AffinityClient, script: string, what: string): Promise<string> {
-  const result = await client.callTool("execute_script", { script });
+export const EXPORT_TIMEOUT_MS = 30000;
+
+/** Parses `--timeout` (positive integer ms); a usage error otherwise. */
+export function parseExportTimeout(parsed: Parsed): number {
+  const raw = parsed.flags["timeout"];
+  const text = typeof raw === "string" ? raw : String(EXPORT_TIMEOUT_MS);
+  const ms = Number(text);
+  if (!/^\d+$/.test(text.trim()) || !Number.isInteger(ms) || ms <= 0) {
+    throw new UsageError(`invalid --timeout '${text}'`, "use a positive number of milliseconds, e.g. --timeout 60000");
+  }
+  return ms;
+}
+
+/** The sibling name an export writes to first: `<dir>/<stem>.axi-tmp-<rand6><ext>` (visible, same extension so the preset applies). */
+export function tempNameFor(path: string): string {
+  const ext = extname(path);
+  return join(dirname(path), `${basename(path, ext)}.axi-tmp-${randomBytes(3).toString("hex")}${ext}`);
+}
+
+/**
+ * After an export call timed out: removes whatever exists under the temp name `tmp` now (and, in page mode,
+ * every temp page file written since `startedMs`); returns the error to throw. The target `path` is never
+ * touched: Affinity ignores the cancel and may still write `tmp` later. Any other error comes back unchanged.
+ */
+export function afterTimeout(err: unknown, path: string, tmp: string, pageMode: "whole" | "spread" | null, startedMs: number, timeoutMs: number): unknown {
+  if (!(err instanceof TransportError) || !/timed out/.test(err.message)) return err;
+  const files = [tmp, ...(pageMode === null ? [] : pageFilesFor(tmp, startedMs))];
+  for (const f of files) {
+    try {
+      if (existsSync(f)) rmSync(f, { force: true });
+    } catch {
+      // a file that cannot be removed is left; the message still names the temp path
+    }
+  }
+  return new AxiError(
+    `timeout: export of ${path} cancelled after ${timeoutMs} ms; Affinity may still write ${tmp} later, delete it when it appears`,
+    "heavy live filters stall exports; bake them first (axiBake) or raise --timeout",
+  );
+}
+
+function moveOnto(from: string, to: string): string {
+  try {
+    renameSync(from, to); // replaces an older file
+  } catch {
+    throw new AxiError(`cannot move the finished export ${from} to ${to}`, "check the folder is writable and retry");
+  }
+  return to;
+}
+
+/**
+ * After a successful export script that wrote to `tmp`: renames the file (or, in page mode, every page file
+ * `<tmpstem>_<k><ext>`) to its final name. Returns the final page files of a multi-page export, else null
+ * (the single file is now at `path`).
+ */
+export function settleExport(tmp: string, path: string, pageMode: "whole" | "spread" | null, startedMs: number): string[] | null {
+  const pages = pageMode === null ? null : recoverPages(tmp, pageMode, startedMs);
+  if (pages === null) {
+    if (!existsSync(tmp)) throw new AxiError(`export reported success but ${path} was not written`, "check the folder exists and retry");
+    moveOnto(tmp, path);
+    return null;
+  }
+  const ext = extname(path);
+  const stem = basename(path, ext);
+  return pages.map((p) => {
+    const k = /_(\d+)$/.exec(basename(p, ext))?.[1] ?? "1";
+    return moveOnto(p, join(dirname(path), `${stem}_${k}${ext}`));
+  });
+}
+
+export async function runScript(client: AffinityClient, script: string, what: string, opts?: { timeoutMs?: number }): Promise<string> {
+  const result = await client.callTool("execute_script", { script }, opts);
   if (classify(result).kind !== "ok") throw failure(result, what);
   return resultText(result);
 }

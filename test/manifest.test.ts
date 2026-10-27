@@ -93,7 +93,7 @@ describe("manifest read/write", () => {
     expect(m.madeBy).toBeNull();
     expect(m.inventory).toBeNull();
     expect(m.af).toEqual({ sha256: "", bytes: 0, savedAt: "", tool: "" });
-    expect(m.ai).toEqual({ generated: false, records: 0 });
+    expect(m.ai).toEqual({ generated: false, records: 0, uuids: [] });
     expect(m.futureKey).toBe(7);
     expect(freshness(af)).toEqual({ state: "none" });
   });
@@ -107,7 +107,7 @@ describe("manifest read/write", () => {
     const m = readManifest(af) as Manifest;
     expect(m.file).toBe("a.af");
     expect(m.af).toMatchObject({ sha256: "", bytes: 3, savedAt: "", tool: "", extra: "kept" });
-    expect(m.ai).toEqual({ generated: false, records: 2 });
+    expect(m.ai).toEqual({ generated: false, records: 2, uuids: [] });
     expect(m.history).toEqual([]);
     expect(m.notes).toEqual([]);
     expect(m.madeBy).toBeNull();
@@ -232,7 +232,39 @@ describe("recordSave", () => {
       JSON.stringify({ time: "t", script: "s", sha256: "x", identifiers: [], args: null, outcome: "ok", documents: [UUID] }) + "\n",
     );
     const af = writeAf("a.af");
-    expect(recordSave(af, UUID, null, root).ai).toEqual({ generated: true, records: 1 });
+    expect(recordSave(af, UUID, null, root).ai).toEqual({ generated: true, records: 1, uuids: [UUID] });
+  });
+
+  it("keeps every session uuid with AI records in ai.uuids across saves, uppercase and deduped", () => {
+    mkdirSync(join(root, ".affinity-axi"), { recursive: true });
+    const rec = (documents: string[]) =>
+      JSON.stringify({ time: "t", script: "s", sha256: "x", identifiers: [], args: null, outcome: "ok", documents }) + "\n";
+    writeFileSync(join(root, ".affinity-axi", "provenance.jsonl"), rec([UUID]) + rec([OTHER.toLowerCase()]));
+    const af = writeAf("a.af");
+    expect(recordSave(af, UUID.toLowerCase(), null, root).ai).toEqual({ generated: true, records: 1, uuids: [UUID] });
+    const second = recordSave(af, OTHER, null, root).ai;
+    // the second save also matches the first record through ai.uuids (U13a), so both records count
+    expect(second).toEqual({ generated: true, records: 2, uuids: [UUID, OTHER] });
+    expect(recordSave(af, UUID, null, root).ai.uuids).toEqual([UUID, OTHER]);
+    expect(readManifest(af)?.ai.uuids).toEqual([UUID, OTHER]);
+  });
+
+  it("does not add a uuid without AI records, and keeps the previous list", () => {
+    const af = writeAf("a.af");
+    expect(recordSave(af, UUID, null, root).ai).toEqual({ generated: false, records: 0, uuids: [] });
+    const m = readManifest(af) as Manifest;
+    writeManifest(af, { ...m, ai: { generated: true, records: 1, uuids: [OTHER] } });
+    expect(recordSave(af, UUID, null, root).ai).toEqual({ generated: true, records: 1, uuids: [OTHER] });
+  });
+
+  it("normalises a missing, non-list or mixed ai.uuids to a clean list", () => {
+    const af = writeAf("a.af");
+    writeFileSync(manifestPath(af), JSON.stringify({ ai: { generated: true, records: 1 } }));
+    expect(readManifest(af)?.ai).toEqual({ generated: true, records: 1, uuids: [] });
+    writeFileSync(manifestPath(af), JSON.stringify({ ai: { uuids: "nope" } }));
+    expect(readManifest(af)?.ai.uuids).toEqual([]);
+    writeFileSync(manifestPath(af), JSON.stringify({ ai: { uuids: [OTHER.toLowerCase(), 7, "", OTHER, null] } }));
+    expect(readManifest(af)?.ai.uuids).toEqual([OTHER]);
   });
 });
 

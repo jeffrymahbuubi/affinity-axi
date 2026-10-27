@@ -7,13 +7,14 @@ import { BRAND_FLAG, injectBrand, loadBrand, resolveBrandRef } from "../affinity
 import { refusalMessage, refusalSuggestion, scanForAi, scanForBlocking } from "../affinity/guard.js";
 import { withHelpers } from "../affinity/helpers.js";
 import { appendProvenance, extractUuids, sha256 } from "../affinity/provenance.js";
+import { openedDocs, provenanceLabel, scanMarkers, withGenerativeShim, type Called } from "./run-parts.js";
 import { appendRun } from "../affinity/runlog.js";
 import type { BrandRef, RunRecord } from "../affinity/manifest-types.js";
 import { classify, resultText } from "../affinity/result.js";
 import { LIST_DOCUMENTS, injectArgs } from "../affinity/scripts.js";
 import { AxiError, UsageError } from "../output/errors.js";
 import { helpBlock } from "../output/suggest.js";
-import { emitBlock, emitKV, print } from "../output/toon.js";
+import { emitBlock, emitKV, emitList, print } from "../output/toon.js";
 import { truncate, truncationNote } from "../output/truncate.js";
 import { TransportError } from "../mcp/client.js";
 import type { AffinityClient, ConnectFn } from "../mcp/types.js";
@@ -52,7 +53,7 @@ export async function callJson<T>(
 
 export interface DocListing {
   current: string | null;
-  documents: Array<{ uuid: string; path: string; dirty: boolean }>;
+  documents: Array<{ uuid: string; path: string; dirty: boolean; title?: string }>;
 }
 
 /** The open documents and the current one, or null when they cannot be read (best effort). */
@@ -60,10 +61,15 @@ export async function listDocs(client: AffinityClient): Promise<DocListing | nul
   try {
     const r = await client.callTool("execute_script", { script: LIST_DOCUMENTS });
     const lines = resultText(r).split("\n").filter((l) => l.trim() !== "");
-    const v = JSON.parse(lines[lines.length - 1] ?? "") as { current: string | null; documents?: Array<{ uuid: string; path?: string; dirty?: boolean }> };
+    const v = JSON.parse(lines[lines.length - 1] ?? "") as { current: string | null; documents?: Array<{ uuid: string; path?: string; dirty?: boolean; title?: string }> };
     return {
       current: v.current ?? null,
-      documents: (v.documents ?? []).map((d) => ({ uuid: String(d.uuid), path: d.path ?? "", dirty: d.dirty === true })),
+      documents: (v.documents ?? []).map((d) => ({
+        uuid: String(d.uuid),
+        path: d.path ?? "",
+        dirty: d.dirty === true,
+        ...(typeof d.title === "string" ? { title: d.title } : {}),
+      })),
     };
   } catch {
     return null;
@@ -115,6 +121,10 @@ interface GenerativeRun {
   outcome: string;
   text: string;
   current?: string | undefined;
+  /** Saved paths of the touched documents (unsaved ones are left out). */
+  paths?: string[] | undefined;
+  /** Whether the shim saw the generative API run. */
+  called: Called;
 }
 
 /** Appends the provenance record; returns the text `run` prints after "provenance: ". */
@@ -130,8 +140,10 @@ function logGenerative(g: GenerativeRun): string {
       args: g.argsJson === undefined ? null : (JSON.parse(g.argsJson) as unknown),
       outcome: g.outcome,
       documents,
+      paths: [...new Set((g.paths ?? []).filter((p) => p !== ""))],
+      called: g.called,
     });
-    return "logged (ai-generated)";
+    return provenanceLabel(g.called);
   } catch (err) {
     return `NOT LOGGED (${err instanceof Error ? err.message : String(err)}); record this run by hand`;
   }
@@ -149,6 +161,7 @@ export function make(connect: ConnectFn): CommandModule {
       args: [{ name: "file", required: true, description: "path to the .js script" }],
       flags: [
         { name: "args", type: "string", description: "JSON injected as `const ARGS = <json>;` on line 1" },
+        { name: "args-file", type: "string", description: "path to a JSON file injected like --args (read by the CLI)" },
         { name: "timeout", type: "string", default: String(DEFAULT_TIMEOUT_MS), description: "script timeout in milliseconds" },
         { name: "full", type: "boolean", description: "print the whole output instead of 1500 characters" },
         { name: "with-helpers", type: "boolean", description: "append the axi* SDK helpers after the script (see: affinity-axi helpers)" },
@@ -195,6 +208,10 @@ export function make(connect: ConnectFn): CommandModule {
 
       let argsJson: string | undefined;
       const rawArgs = parsed.flags["args"];
+      const argsFile = parsed.flags["args-file"];
+      if (typeof rawArgs === "string" && typeof argsFile === "string") {
+        throw new UsageError("--args and --args-file cannot be combined", "use one of --args or --args-file");
+      }
       if (typeof rawArgs === "string") {
         try {
           // Re-stringify so the injected text is guaranteed single-line.
@@ -202,8 +219,20 @@ export function make(connect: ConnectFn): CommandModule {
         } catch {
           throw new UsageError("--args is not valid JSON", `example: --args '{"size":512}'`);
         }
-        source = injectArgs(source, argsJson);
+      } else if (typeof argsFile === "string") {
+        let text: string;
+        try {
+          text = readFileSync(argsFile, "utf8");
+        } catch {
+          throw new UsageError(`cannot read args file '${argsFile}'`, "pass a readable JSON file: --args-file <path.json>");
+        }
+        try {
+          argsJson = JSON.stringify(JSON.parse(text));
+        } catch {
+          throw new UsageError(`args file '${argsFile}' is not valid JSON`, "the file must hold one JSON value");
+        }
       }
+      if (argsJson !== undefined) source = injectArgs(source, argsJson);
       // The kit is validated before any connection and injected on line 1 too, so user line numbers hold.
       let brand: BrandRef | undefined;
       const brandPath = resolveBrandRef(typeof parsed.flags["brand"] === "string" ? parsed.flags["brand"] : undefined, process.env, process.cwd());
@@ -212,6 +241,8 @@ export function make(connect: ConnectFn): CommandModule {
         source = injectBrand(source, loaded.kit);
         brand = loaded.ref;
       }
+      // The call shim confirms the generative API really ran; one line, so user line numbers hold.
+      if (generative) source = withGenerativeShim(source);
       // After the guard scan (user source only) and args: appended, so user line numbers hold.
       if (parsed.flags["with-helpers"] === true) source = withHelpers(source);
 
@@ -234,14 +265,18 @@ export function make(connect: ConnectFn): CommandModule {
           documents: runDocuments(output, listing, argsJson),
           ...(brand ? { brand } : {}),
         });
+      let called: Called = false;
+      let opened: DocListing["documents"] = [];
       try {
+        // Before the call, so a failed run can name the documents it left open.
+        const before = await listDocs(client);
         try {
           const result = await client.callTool("execute_script", { script: source }, { timeoutMs });
           outcome = classify(result);
           text = resultText(result);
         } catch (err) {
-          // The call may have reached Canva AI before failing: log it anyway.
-          if (generative) logGenerative({ file, source: userSource, hits, argsJson, outcome: "error", text: "" });
+          // The call may have reached Canva AI before failing: log it anyway; no output means no confirmation.
+          if (generative) logGenerative({ file, source: userSource, hits, argsJson, outcome: "error", text: "", called: "unknown" });
           ms = Date.now() - started;
           const timedOut = err instanceof TransportError && /timed out/.test(err.message);
           logged(timedOut ? "timeout" : "error", "", null);
@@ -251,10 +286,14 @@ export function make(connect: ConnectFn): CommandModule {
         // One listing serves provenance (current document) and the run log (saved paths).
         const listing = await listDocs(client);
         if (generative) {
+          const scanned = scanMarkers(text);
+          text = scanned.text;
+          called = scanned.called;
           // A script that names no document (output or --args) still touched the current one.
           const current = namedUuids(text, argsJson).length === 0 ? (listing?.current ?? undefined) : undefined;
-          provenance = logGenerative({ file, source: userSource, hits, argsJson, outcome: outcome.kind, text, current });
+          provenance = logGenerative({ file, source: userSource, hits, argsJson, outcome: outcome.kind, text, current, called, paths: runDocuments(text, listing, argsJson).map((d) => d.path) });
         }
+        if (outcome.kind !== "ok") opened = openedDocs(before, listing);
         logged(outcome.kind, text, listing);
       } finally {
         client.close();
@@ -289,6 +328,11 @@ export function make(connect: ConnectFn): CommandModule {
         helps.push(`${BIN} run ${file}${extra} --full`);
       } else {
         out.push(block);
+      }
+
+      if (opened.length > 0) {
+        out.push(emitList("leftOpen", opened.map((d) => ({ uuid: d.uuid, title: d.title ?? "", dirty: d.dirty })), ["uuid", "title", "dirty"]));
+        for (const d of opened) if (d.dirty) helps.push(`${BIN} doc save ${d.uuid.slice(0, 8).toUpperCase()} <path-under-Desktop>.af`);
       }
 
       if (outcome.kind === "ok") {

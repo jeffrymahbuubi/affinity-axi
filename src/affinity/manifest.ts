@@ -10,7 +10,8 @@
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync, renameSync, statSync, writeFileSync } from "node:fs";
 import { dirname, relative, resolve } from "node:path";
-import { recordsFor } from "./provenance.js";
+import { readAiUuids } from "./manifest-ai.js";
+import { recordsFor, type ProvenanceRecord } from "./provenance.js";
 import type { BrandRef, Freshness, Inventory, Manifest } from "./manifest-types.js";
 import { runsSince } from "./runlog.js";
 
@@ -44,6 +45,8 @@ export function sha256File(path: string): string {
 const isObj = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
 const arr = <T>(v: unknown): T[] => (Array.isArray(v) ? (v as T[]) : []);
 const str = (v: unknown): string => (typeof v === "string" ? v : "");
+/** Uppercase, deduplicated strings of a hand-editable list; anything else reads as []. */
+const uuidList = (v: unknown): string[] => [...new Set(arr<unknown>(v).filter((x): x is string => typeof x === "string" && x !== "").map((x) => x.toUpperCase()))];
 const num = (v: unknown): number => (typeof v === "number" && Number.isFinite(v) ? v : 0);
 
 /**
@@ -62,7 +65,7 @@ function normaliseManifest(raw: Record<string, unknown>, afPath: string): Manife
     madeBy: isObj(raw["madeBy"]) ? (raw["madeBy"] as unknown as Manifest["madeBy"]) : null,
     history: arr(raw["history"]),
     exports: arr(raw["exports"]),
-    ai: { ...ai, generated: ai["generated"] === true, records: num(ai["records"]) },
+    ai: { ...ai, generated: ai["generated"] === true, records: num(ai["records"]), uuids: uuidList(ai["uuids"]) },
     inventory: isObj(raw["inventory"]) ? (raw["inventory"] as unknown as Inventory) : null,
     notes: arr(raw["notes"]),
   };
@@ -105,6 +108,40 @@ export function freshness(afPath: string): { state: Freshness; savedAt?: string 
   }
 }
 
+/**
+ * AI records for a document being saved: matched by its session uuid, the target
+ * path and, when it was opened from another file (`fromPath`), that source path
+ * and the uuids its manifest lists. `uuids` are the session uuids to remember in
+ * `ai.uuids` so a later reopen of the target still finds the records: the current
+ * one plus the records' own documents (only the ones this document is known by,
+ * when the record touched several). Empty when nothing matched.
+ */
+function aiEvidence(uuid: string, af: string, cwd: string, fromPath?: string): { count: number; uuids: string[] } {
+  const cur = uuid.toUpperCase();
+  const known = new Set([cur, ...readAiUuids(af)]);
+  const lookups = [recordsFor(uuid, cwd, { docPath: af })];
+  if (typeof fromPath === "string" && fromPath.trim() !== "" && resolve(cwd, fromPath) !== resolve(cwd, af)) {
+    for (const u of readAiUuids(resolve(cwd, fromPath))) known.add(u);
+    lookups.push(recordsFor(uuid, cwd, { docPath: fromPath }));
+  }
+  const seen = new Set<string>();
+  const found: ProvenanceRecord[] = [];
+  for (const r of lookups.flat()) {
+    const key = JSON.stringify([r.time, r.script, r.documents]);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    found.push(r);
+  }
+  if (found.length === 0) return { count: 0, uuids: [] };
+  const out = new Set([cur]);
+  for (const r of found) {
+    const docs = r.documents.map((d) => String(d).toUpperCase());
+    const own = docs.filter((d) => known.has(d));
+    for (const d of own.length > 0 ? own : docs) out.add(d);
+  }
+  return { count: found.length, uuids: [...out] };
+}
+
 function emptyManifest(file: string): Manifest {
   return {
     schema: "affinity-axi/manifest/1",
@@ -113,7 +150,7 @@ function emptyManifest(file: string): Manifest {
     madeBy: null,
     history: [],
     exports: [],
-    ai: { generated: false, records: 0 },
+    ai: { generated: false, records: 0, uuids: [] },
     inventory: null,
     notes: [],
   };
@@ -135,7 +172,7 @@ function rebaseBrand(b: BrandRef, runCwd: string, af: string): BrandRef {
  * this session UUID since the previous save into `history`, appends the save
  * entry (`forced: true` for a --force save over a stale file), sets `madeBy`
  * from the first folded run when none is recorded (plus the first brand kit any folded run used), refreshes `ai` from the
- * provenance log and stores `inventory` (null clears it: a stale snapshot is
+ * provenance log (matching by session UUID, by this file's path or by `opts.fromPath`, the file the document was opened from, and keeping every UUID seen in `ai.uuids`) and stores `inventory` (null clears it: a stale snapshot is
  * worse than none). Exports, notes and unknown keys are preserved.
  */
 export function recordSave(
@@ -143,7 +180,7 @@ export function recordSave(
   uuid: string,
   inventory: Inventory | null,
   cwd: string = process.cwd(),
-  opts: { forced?: boolean } = {},
+  opts: { forced?: boolean; fromPath?: string } = {},
 ): Manifest {
   const af = afOf(afPath);
   const now = new Date().toISOString();
@@ -176,9 +213,10 @@ export function recordSave(
     madeBy = { script, scriptSha256: first.scriptSha256, args: first.args, flags: first.flags, ...(kit ? { brand: kit } : {}) };
   }
 
-  const aiRecords = recordsFor(uuid, cwd).length;
-  const prevAi = base.ai ?? { generated: false, records: 0 };
-  const ai = { generated: prevAi.generated || aiRecords > 0, records: Math.max(prevAi.records, aiRecords) };
+  const { count: aiRecords, uuids: aiUuids } = aiEvidence(uuid, af, cwd, opts.fromPath);
+  const prevAi = base.ai ?? { generated: false, records: 0, uuids: [] };
+  const uuids = [...new Set([...(prevAi.uuids ?? []), ...aiUuids])];
+  const ai = { ...prevAi, generated: prevAi.generated || aiRecords > 0, records: Math.max(prevAi.records, aiRecords), uuids };
 
   const manifest: Manifest = {
     ...base,

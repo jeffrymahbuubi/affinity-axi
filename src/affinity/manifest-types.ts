@@ -84,8 +84,8 @@ export interface Manifest {
   }>;
   /** alt: the image's alt text; requested/attempts: an export --max-kb budget and the presets tried. */
   exports: Array<{ time: string; path: string; preset: string; area: string; size: string; bytes: number; aiGenerated: boolean; alt?: string; requested?: string; attempts?: number }>;
-  /** From provenance.jsonl. */
-  ai: { generated: boolean; records: number };
+  /** From provenance.jsonl. uuids: every session UUID (uppercase) that had AI records at a save of this file, so a reopened document (new UUID) still finds its records. */
+  ai: { generated: boolean; records: number; uuids: string[] };
   inventory: Inventory | null;
   notes: Array<{ time: string; text: string }>;
 }

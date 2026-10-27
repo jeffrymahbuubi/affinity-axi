@@ -152,7 +152,7 @@ describe("export", () => {
     stubDocs();
     const target = join(desktop, "logo.png");
     server.onScript("affinity-axi:export", (script) => {
-      writeFileSync(target, "p".repeat(1842));
+      writeFileSync(argOf(script, "outPath") as string, "p".repeat(1842));
       return JSON.stringify({ exported: target, echo: script.length > 0 });
     });
     const r = await runCommand(exportCmd, ["current", "PNG", target]);
@@ -163,7 +163,8 @@ describe("export", () => {
     expect(r.stdout).toContain("bytes: 1842");
     const sent = scriptCalls().find((s) => s.includes("affinity-axi:export"))!;
     expect(sent).toContain(JSON.stringify(FIXTURE_UUID));
-    expect(sent).toContain(JSON.stringify(target));
+    const sentOut = String(argOf(sent, "outPath"));
+    expect(sentOut.startsWith(join(desktop, "logo.axi-tmp-")) && sentOut.endsWith(".png") && sentOut.length === target.length + 15).toBe(true);
   });
 
   it("resolves a relative path against the current directory", async () => {
@@ -172,7 +173,7 @@ describe("export", () => {
     stubDocs();
     process.chdir(desktop);
     const target = join(process.cwd(), "rel.png");
-    server.onScript("affinity-axi:export", () => (writeFileSync(target, "abc"), "{}"));
+    server.onScript("affinity-axi:export", (script) => (writeFileSync(argOf(script, "outPath") as string, "abc"), "{}"));
     const r = await runCommand(exportCmd, [FIXTURE_UUID_2.slice(0, 8), "PNG", "rel.png"]);
     expect(r.code).toBe(0);
     expect(r.stdout).toContain(`export: ${target}`);

@@ -62,7 +62,12 @@ function stubPresets(names: string[] = FIXTURE_PRESETS): void {
   server.onScript("affinity-axi:list-presets", JSON.stringify(names));
 }
 
-const scriptCalls = () => server.calls.filter((c) => c.name === "execute_script").map((c) => String(c.args["script"]));
+// `run` lists documents before and after the user's script; only the script itself is of interest here.
+const scriptCalls = () =>
+  server.calls
+    .filter((c) => c.name === "execute_script")
+    .map((c) => String(c.args["script"]))
+    .filter((s) => !s.startsWith("/* affinity-axi:list-documents */"));
 
 async function captureDispatch(reg: Registry, argv: string[]): Promise<{ code: number; stdout: string }> {
   const chunks: string[] = [];
@@ -161,8 +166,8 @@ describe("run", () => {
     expect(r.stdout).toContain("affinity-axi export 70E876CB PNG <path-under-Desktop>");
     expect(r.stdout).not.toContain("truncated");
     // the script body went to the server verbatim, after the preamble read
-    // then one document listing for the run log (saved paths)
-    expect(server.calls.map((c) => c.name)).toEqual(["read_sdk_documentation_topic", "execute_script", "execute_script"]);
+    // with one document listing before the call (left-open report) and one after it (saved paths)
+    expect(server.calls.map((c) => c.name)).toEqual(["read_sdk_documentation_topic", "execute_script", "execute_script", "execute_script"]);
     expect(scriptCalls()[0]).toBe("// SMOKE\nconsole.log('x');\n");
   });
 

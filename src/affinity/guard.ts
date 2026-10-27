@@ -20,12 +20,16 @@ export const AI_IDENTIFIERS: readonly string[] = [
   "createGenerativeEditImage",
   "createGenerateImageCommand",
   "createGenerativeEditImageCommand",
+  // The safe wrapper (helpers-patch.ts) calls the generative edit, so it is generative too.
+  "axiGenerativePatch",
 ];
 
+// A helper's own `function axi...(` declaration is a definition, not a call: the
+// helper block (HELPERS_SOURCE) must stay free of hits, so declarations are skipped.
 const PATTERNS: Array<{ identifier: string; re: RegExp }> = AI_IDENTIFIERS.map((identifier) => ({
   identifier,
   // JS identifier characters are [A-Za-z0-9_$]; \b would treat `$` as a boundary.
-  re: new RegExp(`(?<![\\w$])${identifier}(?![\\w$])`, "g"),
+  re: new RegExp(`${identifier.startsWith("axi") ? "(?<!function\\s+)" : ""}(?<![\\w$])${identifier}(?![\\w$])`, "g"),
 }));
 
 /** The one-line refusal reason shared by `run` and `library save`. */
