@@ -1,14 +1,18 @@
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { make, setupHook } from "../src/commands/setup.js";
+import { hookCommand, make, setupHook } from "../src/commands/setup.js";
 import { dispatch, type Registry } from "../src/cli/router.js";
 import { renderHelp } from "../src/cli/help.js";
+import { slash } from "./helpers/paths.js";
 import { fakeConnect, runCommand } from "./fake-mcp/client.js";
 
 const BIN_A = "/opt/a/bin/affinity-axi.js";
 const BIN_B = "/opt/b/bin/affinity-axi.js";
+// What the tool prints for each bin: bare path on POSIX, `node "<bin with />"` on Windows.
+const CMD_A = process.platform === "win32" ? `node "${resolve(BIN_A).replaceAll("\\", "/")}" --brief` : `${BIN_A} --brief`;
+const CMD_B = process.platform === "win32" ? `node "${resolve(BIN_B).replaceAll("\\", "/")}" --brief` : `${BIN_B} --brief`;
 
 let dir: string;
 let savedArgv1: string | undefined;
@@ -33,7 +37,7 @@ describe("setup hook without --file", () => {
     const r = await setup();
     expect(r.code).toBe(0);
     expect(r.stdout).toContain("hook: session-start");
-    expect(r.stdout).toContain(`command: ${BIN_A} --brief`);
+    expect(r.stdout).toContain(`command: ${CMD_A}`);
     expect(r.stdout).toContain("note: add this command to your agent's session-start hook");
     expect(r.stdout).not.toContain("file:");
   });
@@ -67,10 +71,10 @@ describe("setup hook --file", () => {
     const r = await setupFile();
     expect(r.code).toBe(0);
     expect(r.stdout).toContain("hook: installed");
-    expect(r.stdout).toContain(`file: ${target()}`);
-    expect(r.stdout).toContain(`command: ${BIN_A} --brief`);
+    expect(r.stdout).toContain(`file: ${slash(target())}`);
+    expect(r.stdout).toContain(`command: ${CMD_A}`);
     expect(readTarget()).toEqual({
-      hooks: { SessionStart: [{ hooks: [{ type: "command", command: `${BIN_A} --brief` }] }] },
+      hooks: { SessionStart: [{ hooks: [{ type: "command", command: CMD_A }] }] },
     });
   });
 
@@ -98,7 +102,7 @@ describe("setup hook --file", () => {
     expect(r.stdout).toContain("hook: repaired bin path");
     const groups = readTarget().hooks.SessionStart;
     expect(groups).toHaveLength(1);
-    expect(groups[0].hooks).toEqual([{ type: "command", command: `${BIN_B} --brief` }]);
+    expect(groups[0].hooks).toEqual([{ type: "command", command: CMD_B }]);
   });
 
   it("preserves unrelated keys and hooks when installing", async () => {
@@ -116,7 +120,7 @@ describe("setup hook --file", () => {
     expect(after.hooks.PreToolUse).toEqual(existing.hooks.PreToolUse);
     expect(after.hooks.SessionStart[0]).toEqual(existing.hooks.SessionStart[0]);
     expect(after.hooks.SessionStart).toHaveLength(2);
-    expect(after.hooks.SessionStart[1].hooks[0].command).toBe(`${BIN_A} --brief`);
+    expect(after.hooks.SessionStart[1].hooks[0].command).toBe(CMD_A);
   });
 
   it("keeps an unrelated file byte for byte when only checking or removing an absent entry", async () => {
@@ -135,7 +139,7 @@ describe("setup hook --file", () => {
       matcher: "startup",
       hooks: [
         { type: "command", command: "echo hello" },
-        { type: "command", command: `${BIN_A} --brief` },
+        { type: "command", command: CMD_A },
       ],
     };
     writeFileSync(target(), JSON.stringify({ hooks: { SessionStart: [group] } }));
@@ -151,6 +155,27 @@ describe("setup hook --file", () => {
     );
     const r = await setupFile();
     expect(r.stdout).toContain("hook: repaired bin path");
+  });
+
+  it("recognises the bare Windows form `D:\\x\\bin\\affinity-axi.js --brief` and repairs it", async () => {
+    writeFileSync(
+      target(),
+      JSON.stringify({ hooks: { SessionStart: [{ hooks: [{ type: "command", command: "D:\\x\\bin\\affinity-axi.js --brief" }] }] } }),
+    );
+    let r = await setupFile("--check");
+    expect(r.stdout).toContain("hook: stale bin path");
+    r = await setupFile();
+    expect(r.stdout).toContain("hook: repaired bin path");
+    expect(readTarget().hooks.SessionStart[0].hooks).toEqual([{ type: "command", command: CMD_A }]);
+  });
+
+  it("detects the quoted `node \"<bin>\" --brief` form as one of ours", async () => {
+    const command = 'node "C:/Program Files/x/bin/affinity-axi.js" --brief';
+    writeFileSync(target(), JSON.stringify({ hooks: { SessionStart: [{ hooks: [{ type: "command", command }] }] } }));
+    const r = await setupFile("--check");
+    expect(r.stdout).toContain("hook: stale bin path");
+    await setupFile("--remove");
+    expect(readTarget()).toEqual({});
   });
 
   it("--check writes nothing and reports each state", async () => {
@@ -197,7 +222,7 @@ describe("setup hook --file", () => {
     expect(r.stdout).toContain("hook: installed");
     const after = readTarget();
     expect(after.hooks).toEqual(existing.hooks);
-    expect(after.events.onStart).toEqual([{ hooks: [{ type: "command", command: `${BIN_A} --brief` }] }]);
+    expect(after.events.onStart).toEqual([{ hooks: [{ type: "command", command: CMD_A }] }]);
 
     r = await setupFile("--key", "events.onStart", "--check");
     expect(r.stdout).toContain("hook: installed");
@@ -214,7 +239,7 @@ describe("setup hook --file", () => {
     const r = await setupFile();
     expect(r.code).toBe(1);
     expect(r.stdout).toContain("error:");
-    expect(r.stdout).toContain(target());
+    expect(r.stdout).toContain(slash(target()));
     expect(r.stdout).toContain("suggestion:");
     expect(readFileSync(target(), "utf8")).toBe("{ not json");
   });
@@ -237,6 +262,20 @@ describe("setup hook --file", () => {
     const r = await setupFile("--key", "hooks..x");
     expect(r.code).toBe(2);
     expect(r.stdout).toContain("invalid --key");
+  });
+});
+
+describe("hookCommand", () => {
+  it("quotes the bin and runs it through node on win32, with forward slashes", () => {
+    expect(hookCommand("C:\\Program Files\\x\\bin\\affinity-axi.js", "win32")).toBe(
+      'node "C:/Program Files/x/bin/affinity-axi.js" --brief',
+    );
+    expect(hookCommand("D:\\x\\bin\\affinity-axi.js", "win32")).toBe('node "D:/x/bin/affinity-axi.js" --brief');
+  });
+
+  it("keeps the bare bin path elsewhere, quoted only when it has whitespace", () => {
+    expect(hookCommand("/opt/a/bin/affinity-axi.js", "linux")).toBe("/opt/a/bin/affinity-axi.js --brief");
+    expect(hookCommand("/opt/a b/bin/affinity-axi.js", "darwin")).toBe('"/opt/a b/bin/affinity-axi.js" --brief');
   });
 });
 

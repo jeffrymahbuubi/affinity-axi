@@ -22,7 +22,7 @@ import {
   type Attempt,
 } from "../affinity/export-budget.js";
 import { pageRows, pagesReport } from "../affinity/export-pages.js";
-import { requireUnderDesktop, requireVisible, userPath } from "../affinity/paths.js";
+import { requireUnderDesktop, requireVisible, shown, userPath } from "../affinity/paths.js";
 import { aiSpecFor, COPYRIGHT_FLAG, creditFor, CREATOR_FLAG, finalizeFile, KEEP_FLAG, tagExports, type MetaOutcome, type MetaSpec } from "../affinity/metadata.js";
 import { APP_INFO, EXPORT, LIST_DOCUMENTS, LIST_PRESETS } from "../affinity/scripts.js";
 import { AxiError, UsageError } from "../output/errors.js";
@@ -182,7 +182,7 @@ export function makeExport(connect: ConnectFn): CommandModule {
             pages.forEach(finish); // clean every page file before anything can fail
             if (size || budget) {
               throw new UsageError(
-                `size flags and --max-kb cannot be used with a multi-page export (Affinity wrote ${pages.length} page files: ${pages.join(", ")})`,
+                `size flags and --max-kb cannot be used with a multi-page export (Affinity wrote ${pages.length} page files: ${pages.map((p) => shown(p)).join(", ")})`,
                 "export one page with --spread <n> (0-based), or drop the size flags and --max-kb",
               );
             }
@@ -195,7 +195,7 @@ export function makeExport(connect: ConnectFn): CommandModule {
           // The SDK takes an absolute pixel size, so export at natural size first and read it back.
           const natural = imageSize(readBytes(t.path));
           if (!natural) {
-            throw new AxiError(`cannot read the pixel size of ${t.path}`, "size and budget flags support PNG, JPEG and WebP presets only");
+            throw new AxiError(`cannot read the pixel size of ${shown(t.path)}`, "size and budget flags support PNG, JPEG and WebP presets only");
           }
           const want = size ? targetSize(natural, size) : natural;
           if (want.width !== natural.width || want.height !== natural.height) {

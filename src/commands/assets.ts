@@ -9,7 +9,7 @@ import { UsageError } from "../output/errors.js";
 import { helpBlock } from "../output/suggest.js";
 import { emitList, print } from "../output/toon.js";
 import type { ConnectFn } from "../mcp/types.js";
-import { expandHome } from "../affinity/paths.js";
+import { expandHome, shown } from "../affinity/paths.js";
 
 const BIN = "affinity-axi";
 const MAX_ROWS = 30;
@@ -36,20 +36,20 @@ export function make(_connect?: ConnectFn): Record<"assets", CommandModule> {
         try {
           rows = scanManifests(root, 6);
         } catch (err) {
-          throw new UsageError(`cannot scan ${root}: ${err instanceof Error ? err.message : String(err)}`, "pass an existing directory with --dir");
+          throw new UsageError(`cannot scan ${shown(root)}: ${err instanceof Error ? err.message : String(err)}`, "pass an existing directory with --dir");
         }
         if (rows.length === 0) {
-          print([`assets: none under ${root}`, helpBlock([`${BIN} doc new --width 1080 --height 1080   # then run, doc save to create one`, `${BIN} assets --dir <other-dir>`])].join("\n"));
+          print([`assets: none under ${shown(root)}`, helpBlock([`${BIN} doc new --width 1080 --height 1080   # then run, doc save to create one`, `${BIN} assets --dir <other-dir>`])].join("\n"));
           return 0;
         }
-        const shown = rows.slice(0, MAX_ROWS).map((r) => ({
-          file: relative(process.cwd(), resolve(root, r.file)) || r.file,
+        const listed = rows.slice(0, MAX_ROWS).map((r) => ({
+          file: shown(relative(process.cwd(), resolve(root, r.file)) || r.file),
           madeBy: r.madeBy,
           saved: shortTime(r.savedAt),
           fresh: r.fresh,
         }));
-        const first = shown[0]!.file;
-        const lines = [emitList("assets", shown, ["file", "madeBy", "saved", "fresh"], { total: rows.length })];
+        const first = listed[0]!.file;
+        const lines = [emitList("assets", listed, ["file", "madeBy", "saved", "fresh"], { total: rows.length })];
         if (rows.length > MAX_ROWS) lines.push(`note: ${MAX_ROWS} of ${rows.length} shown; narrow with --dir`);
         lines.push(helpBlock([`${BIN} doc open ${first}`, `${BIN} doc info ${first}   # offline`]));
         print(lines.join("\n"));

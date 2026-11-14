@@ -3,6 +3,7 @@
 // directory differ on every run and every machine.
 
 import { homedir } from "node:os";
+import { toPosix } from "../affinity/paths.js";
 
 export interface NormaliseOptions {
   /** Home directory to collapse to "~" (default: the current user's). */
@@ -62,7 +63,10 @@ export function normalise(text: string, opts: NormaliseOptions = {}): string {
   let out = text;
 
   const home = opts.home ?? homedir();
-  if (home.length > 1) out = out.replace(new RegExp(`${escapeRe(home)}(?![\\w-])`, "g"), "~");
+  // The CLI prints paths with "/", but a script may print the native form inside JSON, so collapse both.
+  for (const h of new Set([home, toPosix(home)])) {
+    if (h.length > 1) out = out.replace(new RegExp(`${escapeRe(h)}(?![\\w-])`, "g"), "~");
+  }
 
   // Short ids are the first 8 characters of a UUID printed in the same text,
   // plus the ones the CLI puts in render paths and in its own next-step lines.

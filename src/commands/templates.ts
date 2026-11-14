@@ -14,7 +14,7 @@ import { BRAND_FLAG, injectBrand, loadBrand, resolveBrandRef, type BrandKit } fr
 import { withHelpers } from "../affinity/helpers.js";
 import { recordSave, writeManifest } from "../affinity/manifest.js";
 import { checkOverwrite, FORCE_FLAG } from "../affinity/overwrite.js";
-import { requireUnderDesktop, requireVisible, userPath } from "../affinity/paths.js";
+import { requireUnderDesktop, requireVisible, shown, userPath } from "../affinity/paths.js";
 import { classify, resultText } from "../affinity/result.js";
 import { APP_INFO, injectArgs } from "../affinity/scripts.js";
 import { AxiError, UsageError } from "../output/errors.js";
@@ -102,7 +102,7 @@ export function parseTemplateArgs(t: Template, raw: string | undefined): Templat
       if (!t.slots.includes("photo")) throw new UsageError(`template ${t.name} has no photo slot`, `photo applies to: ${TEMPLATES.filter((x) => x.slots.includes("photo")).map((x) => x.name).join(", ")}`);
       if (typeof val !== "string" || !IMAGE_EXT.test(val)) throw new UsageError("photo must be the path of a .png, .jpg, .jpeg, .webp, .heic, .heif, .tif or .tiff file", `example: --args '{"photo":"~/Desktop/photo.png"}'`);
       const p = userPath(val);
-      if (!existsSync(p)) throw new UsageError(`photo not found: ${p}`, "paths are relative to the current directory");
+      if (!existsSync(p)) throw new UsageError(`photo not found: ${shown(p)}`, "paths are relative to the current directory");
       requireVisible(p, "photo");
       out.photo = p;
     } else if (k === "rows") {
@@ -184,7 +184,7 @@ function makeNew(connect: ConnectFn): CommandModule {
       const rawOut = parsed.flags["out"];
       if (typeof rawOut !== "string") throw new UsageError("--out is required (the .af to save)", USAGE);
       const out = userPath(rawOut);
-      if (!out.toLowerCase().endsWith(".af")) throw new UsageError(`--out must end in .af: ${out}`, USAGE);
+      if (!out.toLowerCase().endsWith(".af")) throw new UsageError(`--out must end in .af: ${shown(out)}`, USAGE);
       requireVisible(out, "--out");
       const timeoutMs = positiveFlag(parsed, "timeout", { integer: true, fallback: DEFAULT_TIMEOUT_MS, example: "60000" });
       const userArgs = parseTemplateArgs(t, typeof parsed.flags["args"] === "string" ? parsed.flags["args"] : undefined);
@@ -195,7 +195,7 @@ function makeNew(connect: ConnectFn): CommandModule {
       requireKitTypes(t, brand.kit);
 
       // A hand-edited file, or one affinity-axi never saved, is not overwritten without --force.
-      const verdict = checkOverwrite(out, { force: parsed.flags["force"] === true, cmd: `${BIN} templates new ${name} --out ${rawOut}` });
+      const verdict = checkOverwrite(out, { force: parsed.flags["force"] === true, cmd: `${BIN} templates new ${name} --out ${shown(rawOut)}` });
       if (!verdict.ok) throw new AxiError(verdict.message, verdict.suggestion);
 
       const client = await connect({ url: typeof parsed.flags["url"] === "string" ? parsed.flags["url"] : undefined });
@@ -251,7 +251,7 @@ function makeNew(connect: ConnectFn): CommandModule {
         const saved = await callJson<{ status: string; dirty?: boolean }>(client, DOC_SAVE(uuid, out), "saving the document");
         if (saved.status === "missing") throw new AxiError(`document ${uuid} vanished before it was saved`, "check Affinity");
         if (saved.dirty !== false || !existsSync(out)) {
-          throw new AxiError(saved.dirty !== false ? `${out} is still dirty after save; left open (${uuid})` : `save reported success but ${out} was not written; left open (${uuid})`, "check Affinity; do not close it blindly");
+          throw new AxiError(saved.dirty !== false ? `${shown(out)} is still dirty after save; left open (${uuid})` : `save reported success but ${shown(out)} was not written; left open (${uuid})`, "check Affinity; do not close it blindly");
         }
         logRun({ cmd: "templates", script: `templates/${name}`, source: t.source, args: userArgs, flags: [], outcome: "ok", ms: Date.now() - started, documents: [{ uuid, path: out }], brand: brand.ref });
         try {
@@ -275,10 +275,10 @@ function makeNew(connect: ConnectFn): CommandModule {
       const pairs: Array<[string, unknown]> = [
         ["template", name],
         ["doc", uuid],
-        ["saved", out],
+        ["saved", shown(out)],
         [`slots[${slots.length}]`, slots.join(", ")],
       ];
-      print([emitKV(pairs), helpBlock([`${BIN} fill ${rawOut} --data <records.json> --out-dir <dir> --export PNG`, `${BIN} doc open ${rawOut}`])].join("\n"));
+      print([emitKV(pairs), helpBlock([`${BIN} fill ${shown(rawOut)} --data <records.json> --out-dir <dir> --export PNG`, `${BIN} doc open ${shown(rawOut)}`])].join("\n"));
       return 0;
     },
   };

@@ -11,6 +11,7 @@ import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import { join, relative } from "node:path";
+import { shown, toPosix } from "../affinity/paths.js";
 import { normalise } from "./normalise.js";
 import type { Example } from "./types.js";
 
@@ -200,8 +201,13 @@ function endDemoDoc(o: RunOptions, uuid8: string): RunFailure | undefined {
 /** Makes the working and output folders relative; the CLI may print them absolute or with a leading ~. */
 function pathsToRelative(text: string, o: RunOptions, id: string): string {
   let out = text;
-  const home = homedir();
-  const forms = (p: string): string[] => (home.length > 1 && p.startsWith(home + "/") ? [p, "~" + p.slice(home.length)] : [p]);
+  // The CLI prints "/" between segments on every OS (toPosix), but a script can print the native form.
+  const home = toPosix(homedir());
+  const forms = (p: string): string[] => {
+    const q = toPosix(p);
+    const printed = home.length > 1 && q.startsWith(home + "/") ? [q, "~" + q.slice(home.length)] : [q];
+    return [...new Set([p, ...printed])];
+  };
   for (const f of forms(o.outDir)) if (f.length > 1) out = out.split(f).join(`examples/${id}`);
   for (const f of forms(o.cwd)) if (f.length > 1) out = out.split(f + "/").join("").split(f).join(".");
   return out;
@@ -316,7 +322,7 @@ export function renderCommandSh(ex: Example): string {
 
 /** Output lines of an output.txt without the `$ command` headers and blank lines. */
 function bodyLines(text: string): string[] {
-  return text.split("\n").filter((l) => l.trim() !== "" && !l.startsWith("$ "));
+  return text.split(/\r?\n/).filter((l) => l.trim() !== "" && !l.startsWith("$ "));
 }
 
 /** examples/README.md: one section per example with a thumbnail and its first output lines. */
@@ -393,7 +399,7 @@ export function checkGallery(examples: readonly Example[], galleryDir: string): 
       continue;
     }
     report.checked.push(ex.id);
-    const lines = readFileSync(outputPath, "utf8").split("\n");
+    const lines = readFileSync(outputPath, "utf8").split(/\r?\n/);
     let at = 0;
     for (const sample of ex.output) {
       const found = lines.indexOf(sample, at);
@@ -409,7 +415,7 @@ export function checkGallery(examples: readonly Example[], galleryDir: string): 
   for (const img of walkImages(galleryDir)) {
     const bytes = statSync(img).size;
     if (bytes > IMAGE_BUDGET_BYTES) {
-      report.warnings.push(`${relative(galleryDir, img)} is ${Math.round(bytes / 1024)} KB (budget ${IMAGE_BUDGET_BYTES / 1024} KB)`);
+      report.warnings.push(`${shown(relative(galleryDir, img))} is ${Math.round(bytes / 1024)} KB (budget ${IMAGE_BUDGET_BYTES / 1024} KB)`);
     }
   }
   return report;

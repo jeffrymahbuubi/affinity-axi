@@ -11,6 +11,7 @@ import type { ConnectFn } from "../src/mcp/types.js";
 import { fakeConnect, runCommand } from "./fake-mcp/client.js";
 import { FIXTURE_APP, FIXTURE_DOCS, FIXTURE_PRESETS, FIXTURE_UUID, TINY_JPEG_B64 } from "./fake-mcp/fixtures.js";
 import { startFakeServer, type FakeServer } from "./fake-mcp/server.js";
+import { slash } from "./helpers/paths.js";
 
 let server: FakeServer;
 let root: string;
@@ -90,9 +91,9 @@ describe("export --timeout", () => {
     server.onScript("affinity-axi:export", (script) => (sent.push(outOf(script)), writeFileSync(outOf(script), "fresh file"), "{}"));
     const r = await runCommand(makeExportModule(fakeConnect()).export, ["current", "PNG", target, "--no-alt"]);
     expect(r.code).toBe(0);
-    expect(r.stdout).toContain(`export: ${target}`);
+    expect(r.stdout).toContain(`export: ${slash(target)}`);
     expect(sent).toHaveLength(1);
-    expect(sent[0]).toMatch(/\/swap\.axi-tmp-[0-9a-f]{6}\.png$/);
+    expect(sent[0]).toMatch(/[\\/]swap\.axi-tmp-[0-9a-f]{6}\.png$/);
     expect(readFileSync(target, "utf8")).toBe("fresh file");
     expect(names(desktop)).toEqual(["swap.png"]);
   });
@@ -102,8 +103,8 @@ describe("export --timeout", () => {
     server.onScript("affinity-axi:export", (script) => ([1, 2].forEach((k) => writeFileSync(pageOfTemp(outOf(script), k), `page ${k}`)), "{}"));
     const r = await runCommand(makeExportModule(fakeConnect()).export, ["current", "PNG", target, "--no-alt"]);
     expect(r.code).toBe(0);
-    expect(r.stdout).toContain(join(desktop, "doc_1.png"));
-    expect(r.stdout).toContain(join(desktop, "doc_2.png"));
+    expect(r.stdout).toContain(slash(join(desktop, "doc_1.png")));
+    expect(r.stdout).toContain(slash(join(desktop, "doc_2.png")));
     expect(names(desktop)).toEqual(["doc_1.png", "doc_2.png"]);
   });
 
@@ -114,8 +115,8 @@ describe("export --timeout", () => {
     const { connect } = spyConnect({ stallFrom: 1, onStall: (script) => ((tmp = outOf(script)), writeFileSync(tmp, "half")) });
     const r = await runCommand(makeExportModule(connect).export, ["current", "PNG", target, "--timeout", "5"]);
     expect(r.code).toBe(1);
-    expect(tmp).toMatch(/\/slow\.axi-tmp-[0-9a-f]{6}\.png$/);
-    expect(r.stdout).toContain(`timeout: export of ${target} cancelled after 5 ms; Affinity may still write ${tmp} later, delete it when it appears`);
+    expect(tmp).toMatch(/[\\/]slow\.axi-tmp-[0-9a-f]{6}\.png$/);
+    expect(r.stdout).toContain(`timeout: export of ${slash(target)} cancelled after 5 ms; Affinity may still write ${slash(tmp)} later, delete it when it appears`);
     expect(r.stdout).toContain("heavy live filters stall exports; bake them first (axiBake) or raise --timeout");
     expect(readFileSync(target, "utf8")).toBe("precious");
     expect(existsSync(tmp)).toBe(false);
@@ -139,7 +140,7 @@ describe("export --timeout", () => {
     const { connect } = spyConnect({ stallFrom: 1, onStall: (script) => [1, 2].forEach((k) => writeFileSync(pageOfTemp(outOf(script), k), "page")) });
     const r = await runCommand(makeExportModule(connect).export, ["current", "PNG", target, "--timeout", "9"]);
     expect(r.code).toBe(1);
-    expect(r.stdout).toContain(`timeout: export of ${target} cancelled after 9 ms`);
+    expect(r.stdout).toContain(`timeout: export of ${slash(target)} cancelled after 9 ms`);
     expect(names(desktop)).toEqual(["doc.png", "other_1.png"]);
     expect(readFileSync(target, "utf8")).toBe("precious");
   });
@@ -153,7 +154,7 @@ describe("export --timeout", () => {
     const { connect, seen } = spyConnect({ stallFrom: 2, onStall: (script) => ((stalled = outOf(script)), writeFileSync(stalled, "half")) });
     const r = await runCommand(makeExportModule(connect).export, ["current", "JPEG (High quality)", target, "--max-kb", "1", "--timeout", "11", "--no-alt"]);
     expect(r.code).toBe(1);
-    expect(r.stdout).toContain(`timeout: export of ${target} cancelled after 11 ms; Affinity may still write ${stalled} later`);
+    expect(r.stdout).toContain(`timeout: export of ${slash(target)} cancelled after 11 ms; Affinity may still write ${slash(stalled)} later`);
     expect(seen).toEqual([11, 11]);
     expect(sent[0]).not.toBe(stalled);
     expect(existsSync(stalled)).toBe(false);

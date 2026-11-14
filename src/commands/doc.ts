@@ -22,7 +22,7 @@ import type { Inventory } from "../affinity/manifest-types.js";
 import { INSPECT } from "../affinity/inspect-script.js";
 import { freshness, recordSave } from "../affinity/manifest.js";
 import { FORCE_FLAG, checkOverwrite } from "../affinity/overwrite.js";
-import { requireUnderDesktop, requireVisible, userPath } from "../affinity/paths.js";
+import { requireUnderDesktop, requireVisible, shown, userPath } from "../affinity/paths.js";
 
 export const BIN = "affinity-axi";
 const DOC_REQUIRE = "const { Document, NewDocumentOptions } = require('/document.js');";
@@ -211,7 +211,7 @@ function makeSave(connect: ConnectFn): CommandModule {
       const [ref, rawPath] = parsed.positionals as [string, string];
       const path = userPath(rawPath);
       if (!path.toLowerCase().endsWith(".af")) {
-        throw new UsageError(`save path must end in .af: ${path}`, `example: ${BIN} doc save ${ref} ~/Desktop/work.af`);
+        throw new UsageError(`save path must end in .af: ${shown(path)}`, `example: ${BIN} doc save ${ref} ~/Desktop/work.af`);
       }
       requireVisible(path, "save path");
 
@@ -219,7 +219,7 @@ function makeSave(connect: ConnectFn): CommandModule {
       // The document's own path is not known yet, so only the stale verdict
       // is final here; the unmanaged verdict is re-checked after resolveDoc.
       const force = parsed.flags["force"] === true;
-      const cmd = `${BIN} doc save ${ref} ${path}`;
+      const cmd = `${BIN} doc save ${ref} ${shown(path)}`;
       const fresh = freshness(path);
       const early = checkOverwrite(path, { force, cmd });
       if (!early.ok && early.reason === "stale") {
@@ -257,11 +257,11 @@ function makeSave(connect: ConnectFn): CommandModule {
       try {
         bytes = statSync(path).size;
       } catch {
-        throw new AxiError(`save reported success but ${path} was not written`, "check the folder exists and retry");
+        throw new AxiError(`save reported success but ${shown(path)} was not written`, "check the folder exists and retry");
       }
       const uuid8 = doc.uuid.slice(0, 8);
       const pairs: Array<[string, unknown]> = [
-        ["saved", savedPath],
+        ["saved", shown(savedPath)],
         ["doc", doc.uuid],
         ["bytes", bytes],
         ["dirty", dirty],

@@ -15,7 +15,7 @@ import { resolveDocRef } from "../affinity/docref.js";
 import { EXPORT_AREA, LIST_ARTBOARDS, type AreaSpec } from "../affinity/export-area.js";
 import { readManifest, writeManifest } from "../affinity/manifest.js";
 import { externalPdfInfo, preflightPdf, type PreflightRow } from "../affinity/preflight.js";
-import { requireUnderDesktop, requireVisible, userPath } from "../affinity/paths.js";
+import { requireUnderDesktop, requireVisible, shown, userPath } from "../affinity/paths.js";
 import { classify, resultText } from "../affinity/result.js";
 import { APP_INFO, LIST_DOCUMENTS, LIST_PRESETS } from "../affinity/scripts.js";
 import { AxiError, UsageError } from "../output/errors.js";
@@ -116,7 +116,7 @@ export function make(connect: ConnectFn): CommandModule {
       const ref = parsed.positionals[0]!;
       const rawOut = parsed.flags["out"];
       if (typeof rawOut !== "string" || rawOut.trim() === "") throw new UsageError("--out is required", USAGE);
-      if (!rawOut.toLowerCase().endsWith(".pdf")) throw new UsageError(`--out must be a .pdf path, got '${rawOut}'`, USAGE);
+      if (!rawOut.toLowerCase().endsWith(".pdf")) throw new UsageError(`--out must be a .pdf path, got '${shown(rawOut)}'`, USAGE);
       const out = userPath(rawOut);
       requireVisible(out, "output path");
       const preset = String(parsed.flags["preset"] ?? DEFAULT_PRESET);
@@ -164,7 +164,7 @@ export function make(connect: ConnectFn): CommandModule {
       try {
         bytes = readFileSync(out);
       } catch {
-        throw new AxiError(`export reported success but ${out} was not written`, "check the folder exists and retry");
+        throw new AxiError(`export reported success but ${shown(out)} was not written`, "check the folder exists and retry");
       }
       recordExport(doc, preset, out, bytes.length, area);
 
@@ -185,7 +185,7 @@ export function make(connect: ConnectFn): CommandModule {
       const kv: Array<[string, string | number]> = [
         ["doc", doc.uuid],
         ["preset", preset],
-        ["file", out],
+        ["file", shown(out)],
         ["bytes", bytes.length],
       ];
       if (cmyk) kv.push(["format", format ?? "unknown"]);

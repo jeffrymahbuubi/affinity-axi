@@ -4,6 +4,7 @@ import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { slash } from "./helpers/paths.js";
 import { FORCE_FLAG, checkOverwrite } from "../src/affinity/overwrite.js";
 import { manifestPath, sha256File, writeManifest } from "../src/affinity/manifest.js";
 import type { Manifest } from "../src/affinity/manifest-types.js";
@@ -66,7 +67,7 @@ describe("checkOverwrite", () => {
       ok: false,
       reason: "stale",
       message: `promo.af was changed outside affinity-axi after ${SAVED_AT}; refusing to overwrite`,
-      suggestion: `${CMD} --force to overwrite anyway; or affinity-axi doc open ${t} to work on that file`,
+      suggestion: `${CMD} --force to overwrite anyway; or affinity-axi doc open ${slash(t)} to work on that file`,
     });
   });
 
@@ -99,7 +100,7 @@ describe("checkOverwrite", () => {
       ok: false,
       reason: "unmanaged",
       message: "hand.af exists and was not saved by affinity-axi (no manifest); refusing to overwrite",
-      suggestion: `pick another path, or ${CMD} --force to replace it; affinity-axi doc open ${t} opens the existing file instead`,
+      suggestion: `pick another path, or ${CMD} --force to replace it; affinity-axi doc open ${slash(t)} opens the existing file instead`,
     });
   });
 
@@ -116,7 +117,7 @@ describe("checkOverwrite", () => {
   it("the own path matches through a symlinked parent folder", () => {
     const t = seed("hand.af", "BYTES", "none");
     const link = join(dir, "link");
-    symlinkSync(dir, link);
+    symlinkSync(dir, link, "junction");
     expect(checkOverwrite(t, { force: false, ownPath: join(link, "hand.af"), cmd: CMD })).toEqual({ ok: true, forced: false });
   });
 

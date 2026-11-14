@@ -13,9 +13,30 @@ export const SOURCE_COMPOSITE = `${IPTC_BASE}compositeSynthetic`;
 
 const TIMEOUT_MS = 30_000;
 
+/**
+ * The command that runs exiftool: plain `exiftool` from PATH, unless AFFINITY_AXI_EXIFTOOL_CMD holds a JSON
+ * array of non-empty strings (the command, then the arguments that go before exiftool's own). A test seam.
+ */
+export function exiftoolCommand(env: NodeJS.ProcessEnv = process.env): { cmd: string; pre: string[] } {
+  const raw = env["AFFINITY_AXI_EXIFTOOL_CMD"];
+  if (raw !== undefined && raw !== "") {
+    try {
+      const v: unknown = JSON.parse(raw);
+      if (Array.isArray(v) && v.length > 0 && v.every((x) => typeof x === "string" && x !== "")) {
+        const [cmd, ...pre] = v as string[];
+        return { cmd: cmd as string, pre };
+      }
+    } catch {
+      // malformed: fall back to PATH
+    }
+  }
+  return { cmd: "exiftool", pre: [] };
+}
+
 /** True when `exiftool -ver` runs and exits 0. */
 export function exiftoolAvailable(): boolean {
-  const r = spawnSync("exiftool", ["-ver"], { encoding: "utf8", timeout: TIMEOUT_MS });
+  const c = exiftoolCommand();
+  const r = spawnSync(c.cmd, [...c.pre, "-ver"], { encoding: "utf8", timeout: TIMEOUT_MS });
   return !r.error && r.status === 0;
 }
 
@@ -47,7 +68,8 @@ export interface EmbedResult {
  */
 export function writeXmp(file: string, tags: Array<[string, string]>, opts: { clearXmp?: boolean } = {}): EmbedResult {
   const args = ["-overwrite_original", ...(opts.clearXmp ? ["-XMP:all="] : []), ...tags.map(([k, v]) => `-${k}=${v}`), file];
-  const r = spawnSync("exiftool", args, { encoding: "utf8", timeout: TIMEOUT_MS });
+  const c = exiftoolCommand();
+  const r = spawnSync(c.cmd, [...c.pre, ...args], { encoding: "utf8", timeout: TIMEOUT_MS });
   if (r.error) return { ok: false, error: r.error.message };
   if (r.status !== 0) {
     const first = `${r.stderr}${r.stdout}`.split("\n").find((l) => l.trim() !== "") ?? `exit ${r.status}`;

@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import type { CommandModule } from "../cli/router.js";
 import type { Parsed } from "../cli/args.js";
 import { BRAND_FLAG, injectBrand, loadBrand, resolveBrandRef } from "../affinity/brand.js";
+import { shown } from "../affinity/paths.js";
 import { refusalMessage, refusalSuggestion, scanForAi, scanForBlocking } from "../affinity/guard.js";
 import { withHelpers } from "../affinity/helpers.js";
 import { appendProvenance, extractUuids, sha256 } from "../affinity/provenance.js";
@@ -182,13 +183,13 @@ export function make(connect: ConnectFn): CommandModule {
       try {
         source = readFileSync(file, "utf8");
       } catch {
-        throw new UsageError(`cannot read script file '${file}'`, `usage: ${BIN} run <file.js>`);
+        throw new UsageError(`cannot read script file '${shown(file)}'`, `usage: ${BIN} run <file.js>`);
       }
 
       const hits = scanForAi(source);
       const generative = hits.length > 0;
       if (generative && parsed.flags["allow-generative"] !== true) {
-        throw new AxiError(refusalMessage(hits[0]!), refusalSuggestion(`${BIN} run ${file} --allow-generative`));
+        throw new AxiError(refusalMessage(hits[0]!), refusalSuggestion(`${BIN} run ${shown(file)} --allow-generative`));
       }
       const userSource = source;
 
@@ -224,12 +225,12 @@ export function make(connect: ConnectFn): CommandModule {
         try {
           text = readFileSync(argsFile, "utf8");
         } catch {
-          throw new UsageError(`cannot read args file '${argsFile}'`, "pass a readable JSON file: --args-file <path.json>");
+          throw new UsageError(`cannot read args file '${shown(argsFile)}'`, "pass a readable JSON file: --args-file <path.json>");
         }
         try {
           argsJson = JSON.stringify(JSON.parse(text));
         } catch {
-          throw new UsageError(`args file '${argsFile}' is not valid JSON`, "the file must hold one JSON value");
+          throw new UsageError(`args file '${shown(argsFile)}' is not valid JSON`, "the file must hold one JSON value");
         }
       }
       if (argsJson !== undefined) source = injectArgs(source, argsJson);
@@ -301,7 +302,7 @@ export function make(connect: ConnectFn): CommandModule {
 
       const out: string[] = [
         emitKV([
-          ["script", file],
+          ["script", shown(file)],
           ["status", outcome.kind],
           ["ms", ms],
         ]),
@@ -324,8 +325,8 @@ export function make(connect: ConnectFn): CommandModule {
         const extra =
           (argsJson !== undefined ? ` --args ${shellQuote(argsJson)}` : "") +
           (timeoutMs !== DEFAULT_TIMEOUT_MS ? ` --timeout ${timeoutMs}` : "") +
-          (brand ? ` --brand ${shellQuote(brand.path)}` : "");
-        helps.push(`${BIN} run ${file}${extra} --full`);
+          (brand ? ` --brand ${shellQuote(shown(brand.path))}` : "");
+        helps.push(`${BIN} run ${shown(file)}${extra} --full`);
       } else {
         out.push(block);
       }

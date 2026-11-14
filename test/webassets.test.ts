@@ -16,6 +16,7 @@ import {
 import { make } from "../src/commands/webassets.js";
 import { fakeConnect, runCommand } from "./fake-mcp/client.js";
 import { FIXTURE_UUID } from "./fake-mcp/fixtures.js";
+import { slash } from "./helpers/paths.js";
 import { startFakeServer, type FakeServer } from "./fake-mcp/server.js";
 
 const PRESETS = ["PNG", "SVG (for export)", "WebP (High Quality)", "JPEG (High quality)"];
@@ -225,8 +226,7 @@ describe("webassets command", () => {
     expect(files).toHaveLength(17);
     expect(r.stdout).toContain("files[17]{role,file,size,bytes}:");
     expect(r.stdout).toContain(`doc: ${FIXTURE_UUID}`);
-    expect(r.stdout).toContain(`manifest: ${join(out, "webassets.json")}`);
-    expect(r.stdout).toContain(`head: ${join(out, "head.html")}`);
+    for (const [key, f] of [["manifest", "webassets.json"], ["head", "head.html"]]) expect(r.stdout).toContain(`${key}: ${slash(join(out, f))}`);
     expect(r.stdout).toContain("  favicon,favicon-16.png,16x16,33");
     expect(r.stdout).toContain("  responsive,hero@2x.png,3840x2160,33");
     expect(r.stdout).toContain("note: apple-touch-icon uses the artboard fill");

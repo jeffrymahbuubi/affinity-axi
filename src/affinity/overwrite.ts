@@ -12,7 +12,7 @@
 import { existsSync } from "node:fs";
 import { basename } from "node:path";
 import { freshness } from "./manifest.js";
-import { realish } from "./paths.js";
+import { realish, shown } from "./paths.js";
 
 export type OverwriteReason = "stale" | "unmanaged";
 
@@ -47,7 +47,7 @@ export function checkOverwrite(target: string, opts: OverwriteOptions): Overwrit
       ok: false,
       reason: "stale",
       message: `${basename(target)} was changed outside affinity-axi after ${fresh.savedAt || "the last save"}; refusing to overwrite`,
-      suggestion: `${opts.cmd} --force to overwrite anyway; or affinity-axi doc open ${target} to work on that file`,
+      suggestion: `${opts.cmd} --force to overwrite anyway; or affinity-axi doc open ${shown(target)} to work on that file`,
     };
   }
   // No manifest (or one that never recorded a hash).
@@ -57,6 +57,6 @@ export function checkOverwrite(target: string, opts: OverwriteOptions): Overwrit
     ok: false,
     reason: "unmanaged",
     message: `${basename(target)} exists and was not saved by affinity-axi (no manifest); refusing to overwrite`,
-    suggestion: `pick another path, or ${opts.cmd} --force to replace it; affinity-axi doc open ${target} opens the existing file instead`,
+    suggestion: `pick another path, or ${opts.cmd} --force to replace it; affinity-axi doc open ${shown(target)} opens the existing file instead`,
   };
 }

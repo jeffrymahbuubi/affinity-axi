@@ -9,6 +9,7 @@ import { fileURLToPath } from "node:url";
 import type { CommandModule } from "../cli/router.js";
 import type { Parsed } from "../cli/args.js";
 import type { CommandSpec } from "../cli/spec.js";
+import { shown } from "../affinity/paths.js";
 import { EXAMPLES } from "../examples/registry.js";
 import { displayCommand, inputFiles, isSideEffect, runExample, SIDE_EFFECT_IDS } from "../examples/runner.js";
 import type { Example } from "../examples/types.js";
@@ -105,7 +106,7 @@ async function runLive(ex: Example, parsed: Parsed): Promise<number> {
     env: url ? { AFFINITY_MCP_URL: url } : undefined,
   });
   print(result.output.trimEnd());
-  if (result.images.length > 0) print(emitBlock("images", result.images.map((f) => join(scratch, f))));
+  if (result.images.length > 0) print(emitBlock("images", result.images.map((f) => shown(join(scratch, f)))));
   if (result.failed) {
     const f = result.failed;
     const left = f.leftOpen ? `; demo document ${f.leftOpen} may still be open: save it with 'doc save' then 'doc close'` : "";

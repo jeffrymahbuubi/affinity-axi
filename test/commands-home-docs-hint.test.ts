@@ -11,10 +11,11 @@ import { make as makeHint } from "../src/commands/hint.js";
 import { make as makeHome, rootHelp } from "../src/commands/home.js";
 import { HOME_INFO } from "../src/affinity/scripts.js";
 import { parseToon } from "../src/output/toon.js";
-import { renderGuide } from "../src/guide/content.js";
+import { PLACEHOLDER_STATE, renderGuide, renderHome } from "../src/guide/content.js";
 import { DOC_LIST, DOC_NAMES, DOC_TOPICS, FIXTURE_APP, FIXTURE_DOCS, FIXTURE_UUID, FIXTURE_UUID_2 } from "./fake-mcp/fixtures.js";
 import { fakeConnect, runCommand } from "./fake-mcp/client.js";
 import { startFakeServer, type FakeServer } from "./fake-mcp/server.js";
+import { slash } from "./helpers/paths.js";
 
 const AI_LINE = "ai: generative opt-in (--allow-generative); ml allowed";
 
@@ -392,5 +393,14 @@ describe("agent guide content", () => {
 
   it("carries no machine-specific paths", () => {
     expect(renderGuide()).not.toContain(homedir());
+  });
+});
+
+describe("home header path", () => {
+  it("prints the bin path with / on every OS", () => {
+    const bin = join("tools", "bin", "affinity-axi.js");
+    const header = renderHome(bin, PLACEHOLDER_STATE).split("\n")[0]!;
+    expect(header).toContain(slash(bin));
+    expect(header).not.toContain("\\");
   });
 });

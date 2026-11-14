@@ -88,7 +88,7 @@ describe("recordsFor lookup by saved path and manifest uuids", () => {
     expect(isAiGenerated(NEW, proj, { docPath: doc })).toBe(true);
   });
 
-  it("matches through a symlinked path (realpath)", () => {
+  it.skipIf(process.platform === "win32")("matches through a symlinked path (file symlink; Windows needs Developer Mode)", () => {
     const proj = dir("proj");
     const real = join(proj, "p.af");
     writeFileSync(real, "x");
@@ -96,6 +96,47 @@ describe("recordsFor lookup by saved path and manifest uuids", () => {
     symlinkSync(real, link);
     appendProvenance(withPaths("gen.js", [real]), proj);
     expect(recordsFor(NEW, proj, { docPath: link })).toHaveLength(1);
+  });
+
+  it("matches through a symlinked folder (junction on Windows)", () => {
+    const proj = dir("proj");
+    writeFileSync(join(proj, "p.af"), "x");
+    const link = join(root, "projLink");
+    symlinkSync(proj, link, "junction");
+    appendProvenance(withPaths("gen.js", [join(proj, "p.af")]), proj);
+    expect(recordsFor(NEW, proj, { docPath: join(link, "p.af") })).toHaveLength(1);
+  });
+
+  it("matches through a symlinked folder when the document does not exist yet", () => {
+    const proj = dir("proj");
+    const link = join(root, "projLink");
+    symlinkSync(proj, link, "junction");
+    appendProvenance(withPaths("gen.js", [join(proj, "p.af")]), proj);
+    expect(recordsFor(NEW, proj, { docPath: join(link, "p.af") })).toHaveLength(1);
+  });
+
+  it("matches the reverse: the record holds the link path, docPath the real one, document missing", () => {
+    const proj = dir("proj");
+    const link = join(root, "projLink");
+    symlinkSync(proj, link, "junction");
+    appendProvenance(withPaths("gen.js", [join(link, "p.af")]), proj);
+    expect(recordsFor(NEW, proj, { docPath: join(proj, "p.af") })).toHaveLength(1);
+  });
+
+  it("matches through a symlinked folder when a subfolder does not exist either", () => {
+    const proj = dir("proj");
+    const link = join(root, "projLink");
+    symlinkSync(proj, link, "junction");
+    appendProvenance(withPaths("gen.js", [join(link, "art", "p.af")]), proj);
+    expect(recordsFor(NEW, proj, { docPath: join(proj, "art", "p.af") })).toHaveLength(1);
+  });
+
+  it("another name under the link does not match, document missing", () => {
+    const proj = dir("proj");
+    const link = join(root, "projLink");
+    symlinkSync(proj, link, "junction");
+    appendProvenance(withPaths("gen.js", [join(proj, "p.af")]), proj);
+    expect(recordsFor(NEW, proj, { docPath: join(link, "q.af") })).toEqual([]);
   });
 
   it("without docPath only the uuid matches; a different path does not match", () => {

@@ -7,14 +7,31 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
         with:
           node-version: 22
       - run: npm install
+      # The runner's default temp dir can be an 8.3 short path that realpathSync
+      # expands, which breaks path equality in tests. Use a folder in the checkout.
+      - name: Use a temp dir inside the checkout (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $tmp = Join-Path $env:GITHUB_WORKSPACE 'node_modules\axitmp'
+          New-Item -ItemType Directory -Force -Path $tmp | Out-Null
+          "TMP=$tmp" >> $env:GITHUB_ENV
+          "TEMP=$tmp" >> $env:GITHUB_ENV
       - run: npm run build
       - run: npx vitest run
       - run: npm run guide:check
-      - run: npx -y axi-axi validate "node bin/affinity-axi.js" --dir . --timeout 30000
+      - run: npm run examples:check
+      - name: axi-axi validate (Linux only)
+        if: runner.os == 'Linux'
+        run: npx -y axi-axi validate "node bin/affinity-axi.js" --dir . --timeout 30000

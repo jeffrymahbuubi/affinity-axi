@@ -10,6 +10,7 @@ import { make as makeHome } from "../src/commands/home.js";
 import { fakeConnect, runCommand } from "./fake-mcp/client.js";
 import { FIXTURE_APP, FIXTURE_DOCS, FIXTURE_UUID } from "./fake-mcp/fixtures.js";
 import { startFakeServer, type FakeServer } from "./fake-mcp/server.js";
+import { slash } from "./helpers/paths.js";
 
 let root: string;
 let server: FakeServer;
@@ -65,7 +66,7 @@ describe("assets", () => {
     seed(join(root, "node_modules", "pkg"), "hidden.af", "2026-10-24T13:02:11.000Z", "");
     const r = await runCommand(assets, ["--dir", root]);
     expect(r.code).toBe(0);
-    expect(r.stdout).toContain(`assets: none under ${root}`);
+    expect(r.stdout).toContain(`assets: none under ${slash(root)}`);
     expect(r.stdout).toMatch(/help\[/);
   });
 
@@ -107,7 +108,7 @@ describe("home assets line", () => {
     expect(full.code).toBe(0);
     expect(full.stdout).toContain("assets: 2 under ./");
     expect(full.stdout).toMatch(/help\[4\]:/);
-    expect(full.stdout).toContain(`doc open ${join("x", "one.af")}`);
+    expect(full.stdout).toContain("doc open x/one.af");
     expect(full.stdout.indexOf("assets:")).toBeLessThan(full.stdout.indexOf("help["));
   });
 

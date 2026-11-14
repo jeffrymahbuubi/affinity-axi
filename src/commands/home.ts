@@ -1,6 +1,7 @@
 import type { CommandModule } from "../cli/router.js";
 import { relative, resolve } from "node:path";
 import { scanManifests } from "../affinity/assets-scan.js";
+import { shown } from "../affinity/paths.js";
 import { classify, resultText } from "../affinity/result.js";
 import { HOME_INFO } from "../affinity/scripts.js";
 import { resolveUrl, version } from "../mcp/connect.js";
@@ -88,7 +89,7 @@ function assetsUnder(cwd: string): { count: number; first: string } | null {
     const rows = scanManifests(cwd, 6);
     const r = rows[0];
     if (!r) return null;
-    return { count: rows.length, first: relative(cwd, resolve(cwd, r.file)) || r.file };
+    return { count: rows.length, first: shown(relative(cwd, resolve(cwd, r.file)) || r.file) };
   } catch {
     return null;
   }

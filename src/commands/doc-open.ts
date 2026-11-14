@@ -15,7 +15,7 @@ import { helpBlock } from "../output/suggest.js";
 import { emitKV, print } from "../output/toon.js";
 import type { ConnectFn } from "../mcp/types.js";
 import { BIN, URL_FLAG, fetchInventory, runDocScript, urlFlag } from "./doc.js";
-import { requireUnderDesktop, requireVisible, userPath } from "../affinity/paths.js";
+import { requireUnderDesktop, requireVisible, shown, userPath } from "../affinity/paths.js";
 import { callJson } from "./run.js";
 
 const PATH_ARG = { name: "path", required: true, description: "a saved .af file; must be inside the Desktop folder for doc open" };
@@ -46,7 +46,7 @@ export function DOC_OPEN(path: string): string {
 function afPath(raw: string): string {
   const path = userPath(raw);
   if (!path.toLowerCase().endsWith(".af")) {
-    throw new UsageError(`path must end in .af: ${path}`, `example: ${BIN} doc open ~/Desktop/work.af`);
+    throw new UsageError(`path must end in .af: ${shown(path)}`, `example: ${BIN} doc open ~/Desktop/work.af`);
   }
   // doc info and doc note share this and only read the manifest offline; the
   // hidden check applies to them too, since Affinity can never have saved a
@@ -95,8 +95,8 @@ function namedLine(inv: Inventory | null): string | null {
   if (!inv) return null;
   const names = [...new Set(inv.nodes.map((n) => n.name).filter((n) => n !== ""))];
   if (names.length === 0) return null;
-  const shown = names.slice(0, MAX_NAMES).join(", ");
-  return `named[${names.length}]: ${shown}${names.length > MAX_NAMES ? ", ..." : ""}`;
+  const listed = names.slice(0, MAX_NAMES).join(", ");
+  return `named[${names.length}]: ${listed}${names.length > MAX_NAMES ? ", ..." : ""}`;
 }
 
 /** The lines shared by `doc open` and `doc info`. */
@@ -122,7 +122,7 @@ function makeOpen(connect: ConnectFn): CommandModule {
     },
     async run(parsed: Parsed): Promise<number> {
       const path = afPath(parsed.positionals[0]!);
-      if (!existsSync(path)) throw new UsageError(`no such file: ${path}`, `run '${BIN} assets' to list saved assets under this directory`);
+      if (!existsSync(path)) throw new UsageError(`no such file: ${shown(path)}`, `run '${BIN} assets' to list saved assets under this directory`);
 
       const client = await connect({ url: urlFlag(parsed) });
       let opened: { status: string; uuid?: string; title?: string; dirty?: boolean; message?: string };
@@ -132,7 +132,7 @@ function makeOpen(connect: ConnectFn): CommandModule {
         requireUnderDesktop(app.desktop, path, "path", "open");
         opened = await runDocScript(client, DOC_OPEN(path), "opening the document");
         if ((opened.status !== "opened" && opened.status !== "already-open") || !opened.uuid) {
-          throw new AxiError(`could not open ${path}: ${opened.message ?? "unknown failure"}`, "check Affinity for an open dialog and answer it by hand; do not re-run blindly");
+          throw new AxiError(`could not open ${shown(path)}: ${opened.message ?? "unknown failure"}`, "check Affinity for an open dialog and answer it by hand; do not re-run blindly");
         }
         inventory = await fetchInventory(client, opened.uuid);
       } finally {
@@ -152,7 +152,7 @@ function makeOpen(connect: ConnectFn): CommandModule {
 
       const pairs: Array<[string, unknown]> = [
         ["doc", uuid],
-        ["path", path],
+        ["path", shown(path)],
         ["status", opened.status],
       ];
       if (opened.dirty) pairs.push(["dirty", true]);
@@ -164,7 +164,7 @@ function makeOpen(connect: ConnectFn): CommandModule {
           helpBlock([
             `${BIN} inspect ${uuid8} --named`,
             made ? `${BIN} run ${made.script} --args '{...,"uuid":"${uuid8}"}'` : `${BIN} run <script.js> --args '{"uuid":"${uuid8}"}'`,
-            `${BIN} doc save ${uuid8} ${path}`,
+            `${BIN} doc save ${uuid8} ${shown(path)}`,
           ]),
         ].join("\n"),
       );
@@ -185,17 +185,17 @@ function makeInfo(): CommandModule {
     run(parsed: Parsed): number {
       const path = afPath(parsed.positionals[0]!);
       const manifest = readManifest(path);
-      if (!manifest && !existsSync(path)) throw new UsageError(`no such file: ${path}`, `run '${BIN} assets' to list saved assets under this directory`);
+      if (!manifest && !existsSync(path)) throw new UsageError(`no such file: ${shown(path)}`, `run '${BIN} assets' to list saved assets under this directory`);
       const fresh = freshness(path);
-      const lines = [`path: ${path}`, ...summaryLines(manifest, fresh.state, fresh.savedAt, manifest?.inventory ?? null, dirname(path))];
+      const lines = [`path: ${shown(path)}`, ...summaryLines(manifest, fresh.state, fresh.savedAt, manifest?.inventory ?? null, dirname(path))];
       if (manifest) {
         lines.push(`history: ${manifest.history.length}`, `exports: ${manifest.exports.length}`, `notes: ${manifest.notes.length}`);
         const last = manifest.notes[manifest.notes.length - 1];
         if (last) lines.push(`lastNote: ${last.text}`);
       }
-      const help = [`${BIN} doc open ${path}`];
+      const help = [`${BIN} doc open ${shown(path)}`];
       if (fresh.state === "stale") help.push(`${BIN} inspect <uuid8> --named   # after doc open: the file, not the manifest, is the truth`);
-      if (manifest) help.push(`${BIN} doc note ${path} "<text>"`);
+      if (manifest) help.push(`${BIN} doc note ${shown(path)} "<text>"`);
       print([...lines, helpBlock(help)].join("\n"));
       return 0;
     },
@@ -214,14 +214,14 @@ function makeNote(): CommandModule {
     run(parsed: Parsed): number {
       const path = afPath(parsed.positionals[0]!);
       const text = parsed.positionals.slice(1).join(" ").trim();
-      if (text === "") throw new UsageError("the note is empty", `example: ${BIN} doc note ${path} "client approved v2"`);
+      if (text === "") throw new UsageError("the note is empty", `example: ${BIN} doc note ${shown(path)} "client approved v2"`);
       const manifest = readManifest(path);
       if (!manifest) {
         throw new AxiError(`no manifest for ${basename(path)}`, `a manifest is written by '${BIN} doc save'; save the document first`);
       }
       manifest.notes.push({ time: new Date().toISOString(), text });
       writeManifest(path, manifest);
-      print([emitKV([["noted", path], ["notes", manifest.notes.length]]), helpBlock([`${BIN} doc info ${path}`])].join("\n"));
+      print([emitKV([["noted", shown(path)], ["notes", manifest.notes.length]]), helpBlock([`${BIN} doc info ${shown(path)}`])].join("\n"));
       return 0;
     },
   };

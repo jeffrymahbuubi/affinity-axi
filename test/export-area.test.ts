@@ -1,6 +1,6 @@
 // Export area, size and exiftool helpers (src/affinity/export-area.ts and exif.ts).
 
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -9,6 +9,7 @@ import {
   describeAi,
   embedAiMetadata,
   exiftoolAvailable,
+  exiftoolCommand,
   SOURCE_COMPOSITE,
   SOURCE_SYNTHETIC,
   sourceTypeFor,
@@ -29,6 +30,7 @@ import { UsageError } from "../src/output/errors.js";
 import { fakeConnect, runCommand } from "./fake-mcp/client.js";
 import { FIXTURE_APP, FIXTURE_DOCS, FIXTURE_PRESETS, FIXTURE_UUID, TINY_JPEG_B64, TINY_JPEG_SIZE } from "./fake-mcp/fixtures.js";
 import { startFakeServer, type FakeServer } from "./fake-mcp/server.js";
+import { installFakeExiftool, removeFakeExiftool, shimPath } from "./helpers/exiftool-shim.js";
 
 function pngBuf(width: number, height: number): Buffer {
   const b = Buffer.alloc(33);
@@ -199,21 +201,18 @@ describe("exif module", () => {
   let log: string;
   const origPath = process.env["PATH"];
 
-  const shim = (exit = 0): void => {
-    const file = join(dir, "bin", "exiftool");
-    writeFileSync(file, `#!/bin/sh\nif [ "$1" = "-ver" ]; then echo 13.55; exit 0; fi\nprintf '%s\\n' "$@" >> "${log}"\nexit ${exit}\n`);
-    chmodSync(file, 0o755);
-  };
+  const shim = (exit = 0): void => installFakeExiftool(join(dir, "bin"), { log, exit });
 
   beforeEach(() => {
     dir = mkdtempSync(join(tmpdir(), "axi-exif-"));
     mkdirSync(join(dir, "bin"));
     log = join(dir, "args.log");
-    process.env["PATH"] = join(dir, "bin") + ":/usr/bin:/bin";
+    process.env["PATH"] = shimPath(join(dir, "bin"));
   });
 
   afterEach(() => {
     process.env["PATH"] = origPath;
+    removeFakeExiftool();
     rmSync(dir, { recursive: true, force: true });
   });
 
@@ -244,6 +243,19 @@ describe("exif module", () => {
     const r = embedAiMetadata("/x/a.png", SOURCE_SYNTHETIC, "d");
     expect(r.ok).toBe(false);
     expect(r.error).toBeTruthy();
+  });
+
+  it("exiftoolCommand defaults to exiftool on PATH and splits a JSON array into command and leading arguments", () => {
+    expect(exiftoolCommand({})).toEqual({ cmd: "exiftool", pre: [] });
+    expect(exiftoolCommand({ AFFINITY_AXI_EXIFTOOL_CMD: "" })).toEqual({ cmd: "exiftool", pre: [] });
+    expect(exiftoolCommand({ AFFINITY_AXI_EXIFTOOL_CMD: '["node","fake.mjs","opts.json"]' })).toEqual({ cmd: "node", pre: ["fake.mjs", "opts.json"] });
+    expect(exiftoolCommand({ AFFINITY_AXI_EXIFTOOL_CMD: '["fake-exiftool"]' })).toEqual({ cmd: "fake-exiftool", pre: [] });
+  });
+
+  it("exiftoolCommand falls back to exiftool for malformed values", () => {
+    for (const bad of ["not json", "[]", "[1]", '""', '["a",""]', '{"cmd":"x"}']) {
+      expect(exiftoolCommand({ AFFINITY_AXI_EXIFTOOL_CMD: bad })).toEqual({ cmd: "exiftool", pre: [] });
+    }
   });
 
   it("picks compositeSynthetic only when a generative edit was logged", () => {
@@ -297,12 +309,9 @@ describe("export command: embedded AI metadata", () => {
   function pathWith(exit?: number): void {
     const bin = join(root, "bin");
     mkdirSync(bin, { recursive: true });
-    if (exit !== undefined) {
-      const file = join(bin, "exiftool");
-      writeFileSync(file, `#!/bin/sh\nif [ "$1" = "-ver" ]; then echo 13.55; exit 0; fi\nprintf '%s\\n' "$@" >> "${log}"\nexit ${exit}\n`);
-      chmodSync(file, 0o755);
-    }
-    process.env["PATH"] = `${bin}:/usr/bin:/bin`;
+    if (exit !== undefined) installFakeExiftool(bin, { log, exit });
+    else removeFakeExiftool();
+    process.env["PATH"] = shimPath(bin);
   }
 
   const exiftoolArgs = (): string[] => (existsSync(log) ? readFileSync(log, "utf8").trimEnd().split("\n") : []);
@@ -334,6 +343,7 @@ describe("export command: embedded AI metadata", () => {
   });
   afterEach(async () => {
     process.env["PATH"] = origPath;
+    removeFakeExiftool();
     process.chdir(origCwd);
     if (origUrl === undefined) delete process.env["AFFINITY_MCP_URL"];
     else process.env["AFFINITY_MCP_URL"] = origUrl;

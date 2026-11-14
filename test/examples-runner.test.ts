@@ -7,6 +7,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
+import { normalise } from "../src/examples/normalise.js";
 import { EXAMPLES } from "../src/examples/registry.js";
 import type { Example } from "../src/examples/types.js";
 import {
@@ -228,7 +229,7 @@ describe("runExample against a stub bin", () => {
     expect(r.ok).toBe(true);
     const call = log().find((c) => c.startsWith("run "))!;
     expect(call).toContain('"uuid":"CCCCCCCC"');
-    expect(call).toContain(`"out":"${join(tmp, "work", "args")}"`);
+    expect(call).toContain(`"out":${JSON.stringify(join(tmp, "work", "args"))}`);
     expect(log().some((c) => c.startsWith("doc save"))).toBe(false);
     expect(r.normalised).toContain("echo: run examples/args/script.js");
     expect(r.normalised).not.toContain(tmp);
@@ -239,6 +240,20 @@ describe("runExample against a stub bin", () => {
     const r = runExample(ex({ id: "cells", needs: ["affinity"], commands: ["$BIN batch"] }), opts("cells"));
     expect(r.ok).toBe(true);
     expect(r.normalised).toContain('  a,ok,<uuid8>,<n>,"x, y"');
+  });
+});
+
+describe("normalise home", () => {
+  it("collapses a Windows home printed with / and the native form inside JSON", () => {
+    const parts = ["C:", "home", "x"];
+    const home = join(...parts); // native separator on this OS, so the test needs no platform branch
+    expect(normalise(`${parts.join("/")}/Desktop/a.png`, { home })).toBe("~/Desktop/a.png");
+    expect(normalise(`p=${home}`, { home })).toBe("p=~");
+  });
+
+  it("still collapses a POSIX home", () => {
+    // A POSIX home outside /home and /Users, which the release gate reserves for real local paths.
+    expect(normalise("/srv/x/Desktop/a.png and /srv/xy/b", { home: "/srv/x" })).toBe("~/Desktop/a.png and /srv/xy/b");
   });
 });
 
@@ -311,6 +326,22 @@ describe("gallery helpers", () => {
     expect(inputFiles(e, dir)).toEqual(["script.js"]);
   });
 
+  it("reads an output.txt written with CRLF line endings, and still reports a missing sample", () => {
+    build("$ affinity-axi x\r\na: 1\r\nnoise\r\nb: 2\r\n");
+    expect(checkGallery([base], gallery)).toMatchObject({ errors: [], warnings: [], checked: ["render"] });
+    build("$ affinity-axi x\r\na: 1\r\nnoise\r\n");
+    expect(checkGallery([base], gallery).errors[0]).toMatch(/^render: sample line missing or out of order.*b: 2/);
+    build("b: 2\r\na: 1\r\n");
+    expect(checkGallery([base], gallery).errors[0]).toMatch(/^render: sample line missing or out of order/);
+  });
+
+  it("renders a README without carriage returns from a CRLF output.txt", () => {
+    build("$ affinity-axi render $DOC\r\nrender: x\r\n\r\nbytes: 1\r\n");
+    const readme = renderReadme([ex({ id: "render", images: ["render.jpg"] })], gallery);
+    expect(readme).toContain("render: x");
+    expect(readme).not.toContain("\r");
+  });
+
   it("reads command paths from the root help table", () => {
     const help = ["affinity-axi: x", "commands[3]{command,summary}:", "  run <file.js>,Run", '  doc save <doc> <path.af>,"Save, ok"', "  presets,List", "flags[1]{flag}:", "  --brief"].join("\n");
     expect(parseCommandPaths(help)).toEqual(["run", "doc save", "presets"]);
@@ -353,6 +384,18 @@ describe("scripts/check-examples.mjs", () => {
     expect(r.status).toBe(0);
     expect(r.stdout).toContain("warning: render/render.jpg is 600 KB");
     expect(existsSync(join(root, "render", "render.jpg"))).toBe(true);
+  });
+
+  it("passes for a gallery whose output.txt files use CRLF", () => {
+    const root = join(tmp, "check-crlf");
+    fullGallery(root);
+    for (const e of EXAMPLES) {
+      const p = join(root, e.id, "output.txt");
+      if (existsSync(p)) writeFileSync(p, readFileSync(p, "utf8").replace(/\n/g, "\r\n"));
+    }
+    const r = check(root);
+    expect(r.status).toBe(0);
+    expect(r.stdout).toContain("gallery matches the registry");
   });
 
   it("fails when the gallery is missing a sample line", () => {

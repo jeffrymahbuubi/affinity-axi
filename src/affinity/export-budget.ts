@@ -11,6 +11,7 @@
 import type { Parsed } from "../cli/args.js";
 import { UsageError } from "../output/errors.js";
 import type { Dim } from "./export-area.js";
+import { shown } from "./paths.js";
 
 export interface Step {
   preset: string;
@@ -174,7 +175,7 @@ export function scaledDim(base: Dim, scale: number): Dim {
 
 /** `cannot fit <path> under <n> KB (smallest <k> KB at <preset> <size>)` for the last (smallest) attempt. */
 export function noFitMessage(path: string, kb: number, last: Attempt): string {
-  return `cannot fit ${path} under ${kb} KB (smallest ${(last.bytes / 1024).toFixed(1)} KB at ${last.preset} ${last.size})`;
+  return `cannot fit ${shown(path)} under ${kb} KB (smallest ${(last.bytes / 1024).toFixed(1)} KB at ${last.preset} ${last.size})`;
 }
 
 export const NO_FIT_SUGGESTION = "raise --max-kb, lower --min-scale, or simplify the artwork (fewer gradients and photos)";

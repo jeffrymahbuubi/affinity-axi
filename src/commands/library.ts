@@ -8,6 +8,7 @@ import type { CommandModule } from "../cli/router.js";
 import type { Parsed } from "../cli/args.js";
 import type { CommandSpec } from "../cli/spec.js";
 import { refusalMessage, refusalSuggestion, scanForAi } from "../affinity/guard.js";
+import { shown } from "../affinity/paths.js";
 import { classify, resultText } from "../affinity/result.js";
 import { AxiError, UsageError } from "../output/errors.js";
 import { helpBlock } from "../output/suggest.js";
@@ -163,16 +164,16 @@ export function makeRead(connect: ConnectFn): CommandModule {
           mkdirSync(dirname(out), { recursive: true });
           writeFileSync(out, code);
         } catch (err) {
-          throw new AxiError(`cannot write ${out}: ${err instanceof Error ? err.message : String(err)}`, "choose a writable --out path");
+          throw new AxiError(`cannot write ${shown(out)}: ${err instanceof Error ? err.message : String(err)}`, "choose a writable --out path");
         }
         print(
           [
             emitKV([
-              ["file", out],
+              ["file", shown(out)],
               ["bytes", Buffer.byteLength(code)],
               ["lines", lineCount(code)],
             ]),
-            helpBlock([`${BIN} run ${quote(out)}`]),
+            helpBlock([`${BIN} run ${quote(shown(out))}`]),
           ].join("\n"),
         );
         return 0;
@@ -214,13 +215,13 @@ export function makeSave(connect: ConnectFn): CommandModule {
       try {
         code = readFileSync(file, "utf8");
       } catch {
-        throw new UsageError(`cannot read file ${file}`, "pass the path of an existing script file");
+        throw new UsageError(`cannot read file ${shown(file)}`, "pass the path of an existing script file");
       }
 
       // Guard first: refuse before any connection is opened.
       const hits = scanForAi(code);
       if (hits.length > 0 && parsed.flags["allow-generative"] !== true) {
-        throw new AxiError(refusalMessage(hits[0]!), refusalSuggestion(`${BIN} library save ${quote(file)} --allow-generative ...`));
+        throw new AxiError(refusalMessage(hits[0]!), refusalSuggestion(`${BIN} library save ${quote(shown(file))} --allow-generative ...`));
       }
 
       const result = await withClient(connect, parsed, async (client) => {

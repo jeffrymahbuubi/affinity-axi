@@ -13,6 +13,7 @@ import { make as makeExportModule } from "../src/commands/export.js";
 import { fakeConnect, runCommand } from "./fake-mcp/client.js";
 import { FIXTURE_APP, FIXTURE_DOCS, FIXTURE_PRESETS, FIXTURE_UUID } from "./fake-mcp/fixtures.js";
 import { startFakeServer, type FakeServer } from "./fake-mcp/server.js";
+import { slash } from "./helpers/paths.js";
 
 const SIG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 function chunk(type: string, data: Buffer): Buffer {
@@ -136,7 +137,7 @@ describe("export command: multi-page documents", () => {
     expect(png.includes("iTXt")).toBe(false);
     expect(png.includes("account-handle")).toBe(false);
     expect(png.includes("iCCP")).toBe(true);
-    expect(r.stdout).toContain(`export: ${join(desktop, "s1.png")}`);
+    expect(r.stdout).toContain(`export: ${slash(join(desktop, "s1.png"))}`);
     expect(r.stdout).toContain(`bytes: ${png.length}`);
     expect(r.stdout).toContain("size: 100x50");
     expect(r.stdout).not.toContain("pages:");
@@ -152,7 +153,7 @@ describe("export command: multi-page documents", () => {
     for (const n of files()) {
       expect(read(n).includes("iTXt")).toBe(false);
       expect(read(n).includes("account-handle")).toBe(false);
-      expect(r.stdout).toContain(`export: ${join(desktop, n)}`);
+      expect(r.stdout).toContain(`export: ${slash(join(desktop, n))}`);
     }
     expect(r.stdout.match(/^export: /gm)).toHaveLength(2);
     expect(r.stdout).toContain("note: pages: 2 files (s0_1.png … s0_2.png; Affinity names multi-page exports per page)");

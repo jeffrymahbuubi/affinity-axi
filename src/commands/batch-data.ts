@@ -3,6 +3,7 @@
 
 import { readFileSync } from "node:fs";
 import { extname } from "node:path";
+import { shown } from "../affinity/paths.js";
 import { UsageError } from "../output/errors.js";
 
 export type DataRecord = Record<string, unknown>;
@@ -73,12 +74,12 @@ function csvRecords(text: string, file: string): DataRecord[] {
   const rows = parseCsv(text.replace(/^﻿/, "")).filter((r) => !(r.length === 1 && r[0] === ""));
   if (rows.length === 0) return [];
   const header = rows[0]!.map((h) => h.trim());
-  if (header.some((h) => h === "")) throw new UsageError(`${file}: CSV header has an empty column name`, "name every column in the first row");
+  if (header.some((h) => h === "")) throw new UsageError(`${shown(file)}: CSV header has an empty column name`, "name every column in the first row");
   const dup = header.find((h, i) => header.indexOf(h) !== i);
-  if (dup !== undefined) throw new UsageError(`${file}: CSV header repeats column '${dup}'`, "column names must be unique");
+  if (dup !== undefined) throw new UsageError(`${shown(file)}: CSV header repeats column '${dup}'`, "column names must be unique");
   return rows.slice(1).map((r, i) => {
     if (r.length !== header.length) {
-      throw new UsageError(`${file}: CSV row ${i + 2} has ${r.length} fields, expected ${header.length}`, "quote fields that contain commas or line breaks");
+      throw new UsageError(`${shown(file)}: CSV row ${i + 2} has ${r.length} fields, expected ${header.length}`, "quote fields that contain commas or line breaks");
     }
     const rec: DataRecord = {};
     header.forEach((h, j) => (rec[h] = r[j]));
@@ -91,12 +92,12 @@ function jsonRecords(text: string, file: string): DataRecord[] {
   try {
     v = JSON.parse(text);
   } catch (err) {
-    throw new UsageError(`${file} is not valid JSON: ${err instanceof Error ? err.message : String(err)}`, "the file must be a JSON array of objects");
+    throw new UsageError(`${shown(file)} is not valid JSON: ${err instanceof Error ? err.message : String(err)}`, "the file must be a JSON array of objects");
   }
-  if (!Array.isArray(v)) throw new UsageError(`${file}: JSON data must be an array of objects`, `wrap the records in [ ... ]`);
+  if (!Array.isArray(v)) throw new UsageError(`${shown(file)}: JSON data must be an array of objects`, `wrap the records in [ ... ]`);
   v.forEach((r, i) => {
     if (r === null || typeof r !== "object" || Array.isArray(r)) {
-      throw new UsageError(`${file}: record ${i} is not an object`, "every element of the array must be an object like {\"slug\":\"a\"}");
+      throw new UsageError(`${shown(file)}: record ${i} is not an object`, "every element of the array must be an object like {\"slug\":\"a\"}");
     }
   });
   return v as DataRecord[];
@@ -108,12 +109,12 @@ export function loadRecords(file: string): DataRecord[] {
   try {
     text = readFileSync(file, "utf8");
   } catch {
-    throw new UsageError(`cannot read data file '${file}'`, "usage: affinity-axi batch <template.js> --data <file.json|file.csv>");
+    throw new UsageError(`cannot read data file '${shown(file)}'`, "usage: affinity-axi batch <template.js> --data <file.json|file.csv>");
   }
   const ext = extname(file).toLowerCase();
   if (ext === ".json") return jsonRecords(text, file);
   if (ext === ".csv") return csvRecords(text, file);
-  throw new UsageError(`unsupported data file type '${ext || file}'`, "use a .json (array of objects) or .csv file");
+  throw new UsageError(`unsupported data file type '${ext || shown(file)}'`, "use a .json (array of objects) or .csv file");
 }
 
 /**

@@ -5,6 +5,7 @@
 // placeholders and never claims live state.
 
 import { homedir } from "node:os";
+import { shown } from "../affinity/paths.js";
 import { emitBlock, emitList } from "../output/toon.js";
 import { helpBlock } from "../output/suggest.js";
 
@@ -103,7 +104,7 @@ export function renderBrief(tool: string, s: HomeState): string {
 }
 
 export function renderHome(binPath: string, s: HomeState): string {
-  const header = `${TOOL}: ${collapseHome(binPath)} — ${DESCRIPTION}`;
+  const header = `${TOOL}: ${shown(collapseHome(binPath))} — ${DESCRIPTION}`;
   return [header, renderHomeBody(TOOL, s)].join("\n");
 }
 

@@ -6,6 +6,7 @@ import { dirname, join } from "node:path";
 import type { CommandModule } from "../cli/router.js";
 import type { Parsed } from "../cli/args.js";
 import { resolveDocRef } from "../affinity/docref.js";
+import { shown } from "../affinity/paths.js";
 import { jpegSize } from "../affinity/jpeg.js";
 import { resultText } from "../affinity/result.js";
 import { LIST_DOCUMENTS } from "../affinity/scripts.js";
@@ -84,7 +85,7 @@ export function make(connect: ConnectFn): CommandModule {
 
       const size = jpegSize(buf);
       const pairs: Array<[string, unknown]> = [
-        ["render", path],
+        ["render", shown(path)],
         ["doc", doc.uuid],
       ];
       pairs.push(selection ? ["selection", "true"] : ["spread", spread]);

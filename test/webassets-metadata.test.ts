@@ -2,7 +2,7 @@
 // (ICC kept), WebP without XMP is untouched and never reaches exiftool, and the output shape is unchanged.
 // Fake MCP server whose area-export writes a stamped PNG; a fake exiftool on PATH logs its calls.
 
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { crc32 } from "node:zlib";
@@ -11,7 +11,9 @@ import { imageSize } from "../src/affinity/export-area.js";
 import { make } from "../src/commands/webassets.js";
 import { fakeConnect, runCommand } from "./fake-mcp/client.js";
 import { FIXTURE_UUID } from "./fake-mcp/fixtures.js";
+import { slash } from "./helpers/paths.js";
 import { startFakeServer, type FakeServer } from "./fake-mcp/server.js";
+import { installFakeExiftool, removeFakeExiftool, shimPath } from "./helpers/exiftool-shim.js";
 
 const SIG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 function chunk(type: string, data: Buffer): Buffer {
@@ -78,10 +80,8 @@ describe("webassets: XMP strip", () => {
     process.chdir(root);
     const bin = join(root, "bin");
     mkdirSync(bin);
-    const tool = join(bin, "exiftool");
-    writeFileSync(tool, `#!/bin/sh\nif [ "$1" = "-ver" ]; then echo 13.55; exit 0; fi\nprintf '%s\\n' "$@" >> "${log}"\nexit 0\n`);
-    chmodSync(tool, 0o755);
-    process.env["PATH"] = `${bin}:/usr/bin:/bin`;
+    installFakeExiftool(bin, { log });
+    process.env["PATH"] = shimPath(bin);
     server.onScript("affinity-axi:list-presets", JSON.stringify(PRESETS));
     server.onScript("affinity-axi:app-info", JSON.stringify({ version: "3.3.1", desktop }));
     server.onScript(
@@ -102,6 +102,7 @@ describe("webassets: XMP strip", () => {
 
   afterEach(async () => {
     process.env["PATH"] = origPath;
+    removeFakeExiftool();
     process.chdir(origCwd);
     if (origUrl === undefined) delete process.env["AFFINITY_MCP_URL"];
     else process.env["AFFINITY_MCP_URL"] = origUrl;
@@ -136,11 +137,26 @@ describe("webassets: XMP strip", () => {
     expect(r.code, r.stdout).toBe(0);
     expect(r.stdout).not.toContain("metadata");
     expect(r.stdout).toContain("{role,file,size,bytes}:");
-    expect(r.stdout).toContain(`manifest: ${join(out, "webassets.json")}`);
+    expect(r.stdout).toContain(`manifest: ${slash(join(out, "webassets.json"))}`);
     const record = JSON.parse(readFileSync(join(out, "webassets.json"), "utf8")) as { files: Array<{ file: string; bytes: number }> };
     const og = record.files.find((f) => f.file === "og.png")!;
     expect(og.bytes).toBe(readFileSync(join(out, "og.png")).length); // bytes are measured after the strip
     expect(readFileSync(join(out, "head.html"), "utf8")).toContain("og.png");
+  });
+
+  it("prints every path with / (manifest, head, help lines) and writes head.html and webassets.json without one", async () => {
+    const r = await runCommand(cmd, ["current", "--out-dir", out]);
+    expect(r.code, r.stdout).toBe(0);
+    expect(r.stdout).not.toContain("\\");
+    const printed = (key: string): string => r.stdout.split("\n").find((l) => l.startsWith(`${key}: `))!.slice(key.length + 2);
+    expect(existsSync(printed("manifest"))).toBe(true);
+    expect(existsSync(printed("head"))).toBe(true);
+    expect(r.stdout).toContain(`open ${slash(join(out, "head.html"))}`);
+    for (const f of ["head.html", "webassets.json"]) {
+      const text = readFileSync(join(out, f), "utf8");
+      expect(text).not.toContain("\\");
+      expect(text).not.toContain(slash(out));
+    }
   });
 
   it("the favicon.ico is built from the stripped PNGs", async () => {

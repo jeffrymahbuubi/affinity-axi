@@ -10,6 +10,7 @@ import { BRAND_FLAG, loadBrand, resolveBrandRef, type BrandKit } from "../affini
 import { resolveDocRef } from "../affinity/docref.js";
 import { INSPECT } from "../affinity/inspect-script.js";
 import { lintInventory, type Finding } from "../affinity/lint.js";
+import { shown } from "../affinity/paths.js";
 import type { Inventory } from "../affinity/manifest-types.js";
 import { findPlatform } from "../affinity/platforms.js";
 import { LIST_DOCUMENTS } from "../affinity/scripts.js";
@@ -98,7 +99,7 @@ export function make(connect: ConnectFn): CommandModule {
 
       const head: Array<[string, unknown]> = [["doc", inv.doc.uuid]];
       if (kit) head.push(["brand", kit.name]);
-      if (out !== undefined) head.push(["out", out]);
+      if (out !== undefined) head.push(["out", shown(out)]);
       const lines = [emitKV(head)];
       if (findings.length === 0) lines.push(`lint: clean (${checked} nodes checked)`);
       else lines.push(emitList("lint", findings as unknown as Array<Record<string, unknown>>, FIELDS));

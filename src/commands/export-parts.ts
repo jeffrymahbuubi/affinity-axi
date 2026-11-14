@@ -13,6 +13,7 @@ import { pageFilesFor, recoverPages } from "../affinity/export-pages.js";
 import { INSPECT } from "../affinity/inspect-script.js";
 import { readManifest, writeManifest } from "../affinity/manifest.js";
 import type { Inventory } from "../affinity/manifest-types.js";
+import { shown } from "../affinity/paths.js";
 import { classify, resultText } from "../affinity/result.js";
 import { AxiError, UsageError } from "../output/errors.js";
 import { helpBlock } from "../output/suggest.js";
@@ -112,7 +113,7 @@ export function report(uuid: string, plan: Plan, preset: string, written: Writte
   if (plan.mode === "all") {
     const head: Array<[string, string | number]> = [["doc", uuid], ["preset", preset], ...(kb !== null ? ([["budget_kb", kb]] as Array<[string, number]>) : [])];
     const cols = ["artboard", "path", ...(kb !== null ? ["preset"] : []), "bytes", "size", ...(wantAlt ? ["alt"] : [])];
-    const rows = written.map((w) => ({ artboard: w.name, path: w.path, preset: w.preset, bytes: w.bytes, size: w.size, alt: altText(w) }));
+    const rows = written.map((w) => ({ artboard: w.name, path: shown(w.path), preset: w.preset, bytes: w.bytes, size: w.size, alt: altText(w) }));
     const parts = [emitKV(head)];
     if (kb !== null) parts.push(emitList("attempts", written.flatMap((w) => tried(w, { artboard: w.name })), ["artboard", "preset", "size", "bytes", "fit"]));
     parts.push(emitList("exports", rows, cols));
@@ -121,7 +122,7 @@ export function report(uuid: string, plan: Plan, preset: string, written: Writte
   }
   const only = written[0]!;
   const final = only.preset ?? preset;
-  const head: Array<[string, string | number]> = [["export", only.path], ["doc", uuid], ["preset", final]];
+  const head: Array<[string, string | number]> = [["export", shown(only.path)], ["doc", uuid], ["preset", final]];
   if (final !== preset) head.push(["requested", preset]);
   if (only.name !== "") head.push(["artboard", only.name]);
   if (kb !== null) head.push(["budget_kb", kb]);
@@ -173,7 +174,7 @@ export function afterTimeout(err: unknown, path: string, tmp: string, pageMode: 
     }
   }
   return new AxiError(
-    `timeout: export of ${path} cancelled after ${timeoutMs} ms; Affinity may still write ${tmp} later, delete it when it appears`,
+    `timeout: export of ${shown(path)} cancelled after ${timeoutMs} ms; Affinity may still write ${shown(tmp)} later, delete it when it appears`,
     "heavy live filters stall exports; bake them first (axiBake) or raise --timeout",
   );
 }
@@ -182,7 +183,7 @@ function moveOnto(from: string, to: string): string {
   try {
     renameSync(from, to); // replaces an older file
   } catch {
-    throw new AxiError(`cannot move the finished export ${from} to ${to}`, "check the folder is writable and retry");
+    throw new AxiError(`cannot move the finished export ${shown(from)} to ${shown(to)}`, "check the folder is writable and retry");
   }
   return to;
 }
@@ -195,7 +196,7 @@ function moveOnto(from: string, to: string): string {
 export function settleExport(tmp: string, path: string, pageMode: "whole" | "spread" | null, startedMs: number): string[] | null {
   const pages = pageMode === null ? null : recoverPages(tmp, pageMode, startedMs);
   if (pages === null) {
-    if (!existsSync(tmp)) throw new AxiError(`export reported success but ${path} was not written`, "check the folder exists and retry");
+    if (!existsSync(tmp)) throw new AxiError(`export reported success but ${shown(path)} was not written`, "check the folder exists and retry");
     moveOnto(tmp, path);
     return null;
   }
@@ -217,7 +218,7 @@ export function readBytes(path: string): Buffer {
   try {
     return readFileSync(path);
   } catch {
-    throw new AxiError(`export reported success but ${path} was not written`, "check the folder exists and retry");
+    throw new AxiError(`export reported success but ${shown(path)} was not written`, "check the folder exists and retry");
   }
 }
 

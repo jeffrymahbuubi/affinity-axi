@@ -9,6 +9,7 @@ import { make } from "../src/commands/lint.js";
 import { loadBrand } from "../src/affinity/brand.js";
 import { backgroundFor, fontPx, lintInventory, type LintOptions } from "../src/affinity/lint.js";
 import type { Inventory, InventoryNode } from "../src/affinity/manifest-types.js";
+import { slash } from "./helpers/paths.js";
 import { fakeConnect, runCommand } from "./fake-mcp/client.js";
 import { FIXTURE_DOCS, FIXTURE_UUID } from "./fake-mcp/fixtures.js";
 import { startFakeServer, type FakeServer } from "./fake-mcp/server.js";
@@ -364,7 +365,7 @@ describe("lint command", () => {
     const out = join(dir, "sub", "lint.json");
     const r = await runCommand(lint, ["current", "--brand", "examples/_brand/brand.json", "--out", out]);
     expect(r.code).toBe(0);
-    expect(r.stdout).toContain(`out: ${out}`);
+    expect(r.stdout).toContain(`out: ${slash(out)}`);
     const j = JSON.parse(readFileSync(out, "utf8"));
     expect(j.schema).toBe("affinity-axi/lint/1");
     expect(j.doc).toBe(FIXTURE_UUID);

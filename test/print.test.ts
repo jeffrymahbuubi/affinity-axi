@@ -1,7 +1,7 @@
 // `print`: preset checks, the export and CMYK scripts, the offline preflight and exit codes,
 // against the fake server. The area-export handler writes synthetic PDFs at the output path.
 
-import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { deflateSync } from "node:zlib";
@@ -10,7 +10,9 @@ import { dispatch, type Registry } from "../src/cli/router.js";
 import { make as makePrint } from "../src/commands/print.js";
 import { fakeConnect, runCommand } from "./fake-mcp/client.js";
 import { FIXTURE_APP, FIXTURE_DOCS, FIXTURE_UUID } from "./fake-mcp/fixtures.js";
+import { slash } from "./helpers/paths.js";
 import { startFakeServer, type FakeServer } from "./fake-mcp/server.js";
+import { installFakeExiftool, removeFakeExiftool, shimPath } from "./helpers/exiftool-shim.js";
 
 const PRESETS = ["PNG", "PDF (digital - high quality)", "PDF (press ready)", "PDF/X-1a:2003", "PDF/X-4"];
 
@@ -74,7 +76,7 @@ describe("print", () => {
     expect(r.code).toBe(0);
     expect(r.stdout).toContain(`doc: ${FIXTURE_UUID}`);
     expect(r.stdout).toContain("preset: PDF/X-4");
-    expect(r.stdout).toContain(`file: ${out}`);
+    expect(r.stdout).toContain(`file: ${slash(out)}`);
     expect(r.stdout).toMatch(/bytes: \d+/);
     expect(r.stdout).toContain("preflight[");
     expect(r.stdout).toContain("{check,status,note}:");
@@ -220,16 +222,15 @@ describe("print", () => {
     const origPath = process.env["PATH"];
     afterEach(() => {
       process.env["PATH"] = origPath;
+      removeFakeExiftool();
     });
 
     /** PATH with only a fake exiftool answering `-j` with the given JSON (sbin dirs are kept off PATH so no real tool answers). */
     function fakeExiftool(json: string): void {
       const bin = join(root, "bin");
       mkdirSync(bin, { recursive: true });
-      const file = join(bin, "exiftool");
-      writeFileSync(file, `#!/bin/sh\necho '${json}'\n`);
-      chmodSync(file, 0o755);
-      process.env["PATH"] = `${bin}:/usr/bin:/bin`;
+      installFakeExiftool(bin, { stdout: json });
+      process.env["PATH"] = shimPath(bin);
     }
 
     it("warns with an author-metadata row and a note when exiftool reports Author, without changing the exit code", async () => {

@@ -1,6 +1,6 @@
 // Export metadata core (src/affinity/metadata.ts): PNG text-chunk and JPEG segment strip, TIFF via exiftool, hasXmp, notes, credit resolution.
 
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { crc32 } from "node:zlib";
@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { Parsed } from "../src/cli/args.js";
 import { creditFor, finalizeFile, hasXmp, metadataNote, stripJpegSegments, stripPngText, type MetaOutcome } from "../src/affinity/metadata.js";
 import { UsageError } from "../src/output/errors.js";
+import { installFakeExiftool, removeFakeExiftool, shimPath } from "./helpers/exiftool-shim.js";
 
 const SIG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 
@@ -302,6 +303,7 @@ describe("finalizeFile: JPEG and TIFF", () => {
   afterEach(() => {
     if (origPath === undefined) delete process.env["PATH"];
     else process.env["PATH"] = origPath;
+    removeFakeExiftool();
     rmSync(dir, { recursive: true, force: true });
   });
 
@@ -309,12 +311,9 @@ describe("finalizeFile: JPEG and TIFF", () => {
   function pathWith(fake: boolean): void {
     const bin = join(dir, "bin");
     mkdirSync(bin, { recursive: true });
-    if (fake) {
-      const file = join(bin, "exiftool");
-      writeFileSync(file, `#!/bin/sh\nif [ "$1" = "-ver" ]; then echo 13.55; exit 0; fi\nprintf '%s\\n' "$@" >> "${log}"\necho "--" >> "${log}"\nexit 0\n`);
-      chmodSync(file, 0o755);
-    }
-    process.env["PATH"] = `${bin}:/usr/bin:/bin`;
+    if (fake) installFakeExiftool(bin, { log, separator: true });
+    else removeFakeExiftool();
+    process.env["PATH"] = shimPath(bin);
   }
   const calls = (): string[][] =>
     existsSync(log)

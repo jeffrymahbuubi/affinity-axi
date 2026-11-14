@@ -26,6 +26,7 @@ import type { ConnectFn } from "../src/mcp/types.js";
 import { fakeConnect, runCommand } from "./fake-mcp/client.js";
 import { FIXTURE_APP, FIXTURE_DOCS, FIXTURE_PRESETS, FIXTURE_UUID, FIXTURE_UUID_2 } from "./fake-mcp/fixtures.js";
 import { startFakeServer, type FakeServer } from "./fake-mcp/server.js";
+import { slash } from "./helpers/paths.js";
 
 let server: FakeServer;
 let root: string;
@@ -115,7 +116,7 @@ describe("run --allow-generative", () => {
     const r = await runCommand(run(), [file, "--args", PROMPT]);
     expect(r.code).toBe(1);
     expect(r.stdout.startsWith("error: script references SDK AI API generateImage at line 3")).toBe(true);
-    expect(r.stdout).toContain(`run ${file} --allow-generative`);
+    expect(r.stdout).toContain(`run ${slash(file)} --allow-generative`);
     expect(r.stdout).toContain("logs provenance");
     expect(server.sessionsOpened()).toBe(0);
     expect(existsSync(logFile())).toBe(false);
@@ -240,7 +241,7 @@ describe("export tags AI-generated documents", () => {
     const r = await runCommand(exportCmd(), ["current", "PNG", target]);
     expect(r.code).toBe(0);
     expect(r.stdout).toContain("provenance: ai-generated");
-    expect(r.stdout).toContain(`provenance_file: ${target}.provenance.json`);
+    expect(r.stdout).toContain(`provenance_file: ${slash(target)}.provenance.json`);
     const sidecar = JSON.parse(readFileSync(`${target}.provenance.json`, "utf8"));
     expect(sidecar).toMatchObject({ ai_generated: true, document: FIXTURE_UUID, export: target });
     expect(sidecar.records).toHaveLength(1);

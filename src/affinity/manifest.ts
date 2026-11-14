@@ -11,6 +11,7 @@ import { createHash } from "node:crypto";
 import { existsSync, readFileSync, renameSync, statSync, writeFileSync } from "node:fs";
 import { dirname, relative, resolve } from "node:path";
 import { readAiUuids } from "./manifest-ai.js";
+import { toPosix } from "./paths.js";
 import { recordsFor, type ProvenanceRecord } from "./provenance.js";
 import type { BrandRef, Freshness, Inventory, Manifest } from "./manifest-types.js";
 import { runsSince } from "./runlog.js";
@@ -83,11 +84,34 @@ export function readManifest(afPath: string): Manifest | null {
   }
 }
 
+const posixBrand = (b: BrandRef | undefined): BrandRef | undefined => (b && typeof b.path === "string" ? { ...b, path: toPosix(b.path) } : b);
+
+/**
+ * The manifest as it is stored: every path field that comes from a run (madeBy.script,
+ * history[].script and the brand paths) uses "/", so the file reads back on any OS.
+ * Pure: returns a copy; unknown keys, exports, inventory and notes pass through.
+ */
+export function portable(manifest: Manifest): Manifest {
+  const out: Manifest = { ...manifest };
+  const m = manifest.madeBy;
+  if (m) {
+    const brand = posixBrand(m.brand);
+    out.madeBy = { ...m, script: typeof m.script === "string" ? toPosix(m.script) : m.script, ...(brand ? { brand } : {}) };
+  }
+  if (Array.isArray(manifest.history)) {
+    out.history = manifest.history.map((h) => {
+      const brand = posixBrand(h.brand);
+      return { ...h, ...(typeof h.script === "string" ? { script: toPosix(h.script) } : {}), ...(brand ? { brand } : {}) };
+    });
+  }
+  return out;
+}
+
 /** Two-space JSON, written to a temp file then renamed so readers never see a torn manifest. */
 export function writeManifest(afPath: string, manifest: Manifest): string {
   const file = manifestPath(afPath);
   const tmp = `${file}.${process.pid}.tmp`;
-  writeFileSync(tmp, JSON.stringify(manifest, null, 2) + "\n");
+  writeFileSync(tmp, JSON.stringify(portable(manifest), null, 2) + "\n");
   renameSync(tmp, file);
   return file;
 }
@@ -230,6 +254,7 @@ export function recordSave(
     inventory,
     notes: base.notes ?? [],
   };
-  writeManifest(af, manifest);
-  return manifest;
+  const stored = portable(manifest);
+  writeManifest(af, stored);
+  return stored;
 }

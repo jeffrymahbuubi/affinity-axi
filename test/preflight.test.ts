@@ -1,11 +1,12 @@
 // preflightPdf and externalPdfInfo on synthetic PDFs built here (no Affinity, no real export).
 
-import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { deflateSync } from "node:zlib";
 import { afterEach, describe, expect, it } from "vitest";
 import { externalPdfInfo, preflightPdf, type PreflightRow } from "../src/affinity/preflight.js";
+import { installFakeExiftool, removeFakeExiftool } from "./helpers/exiftool-shim.js";
 
 const WANT = { pdfx: true, bleed: true, cmyk: true };
 
@@ -142,6 +143,7 @@ describe("externalPdfInfo", () => {
   const oldPath = process.env["PATH"];
   afterEach(() => {
     process.env["PATH"] = oldPath;
+    removeFakeExiftool();
     for (const d of dirs.splice(0)) rmSync(d, { recursive: true, force: true });
   });
 
@@ -155,9 +157,7 @@ describe("externalPdfInfo", () => {
   it("reads PDFVersion and PageCount from exiftool when it is on PATH", () => {
     const dir = mkdtempSync(join(tmpdir(), "axi-pf-"));
     dirs.push(dir);
-    const tool = join(dir, "exiftool");
-    writeFileSync(tool, `#!/bin/sh\necho '[{"SourceFile":"x","PDFVersion":"1.6","PageCount":3,"Producer":"Test"}]'\n`);
-    chmodSync(tool, 0o755);
+    installFakeExiftool(dir, { stdout: '[{"SourceFile":"x","PDFVersion":"1.6","PageCount":3,"Producer":"Test"}]' });
     process.env["PATH"] = dir;
     const r = externalPdfInfo(join(dir, "x.pdf"));
     expect(r?.tool).toBe("exiftool");
@@ -167,9 +167,7 @@ describe("externalPdfInfo", () => {
   it("asks exiftool for -Author -Creator and warns when either is set", () => {
     const dir = mkdtempSync(join(tmpdir(), "axi-pf-"));
     dirs.push(dir);
-    const tool = join(dir, "exiftool");
-    writeFileSync(tool, `#!/bin/sh\necho "$@" > "${join(dir, "args")}"\necho '[{"SourceFile":"x","Creator":"studio-handle"}]'\n`);
-    chmodSync(tool, 0o755);
+    installFakeExiftool(dir, { argsFile: join(dir, "args"), stdout: '[{"SourceFile":"x","Creator":"studio-handle"}]' });
     process.env["PATH"] = dir;
     const r = externalPdfInfo(join(dir, "x.pdf"));
     expect(readFileSync(join(dir, "args"), "utf8")).toContain("-Author -Creator");

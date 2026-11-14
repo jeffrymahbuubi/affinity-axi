@@ -1,8 +1,8 @@
 // Manifest, run log and asset scan: pure filesystem, no Affinity.
 
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { scanManifests } from "../src/affinity/assets-scan.js";
 import { freshness, manifestPath, readManifest, recordSave, sha256File, writeManifest } from "../src/affinity/manifest.js";
@@ -66,6 +66,29 @@ describe("manifest read/write", () => {
     const back = readManifest(af) as Manifest & { futureKey?: unknown };
     expect(back.futureKey).toEqual({ keep: true });
     expect(readManifest(`${af}.axi.json`)?.file).toBe("a.af");
+  });
+
+  it("stores madeBy and history paths with / only, and they still resolve to the script", () => {
+    mkdirSync(join(root, "out"));
+    mkdirSync(join(root, "scripts"));
+    writeFileSync(join(root, "scripts", "promo.js"), "//");
+    const af = writeAf(join("out", "a.af"));
+    const script = join("..", "scripts", "promo.js");
+    const brand = { name: "Acme", path: join("..", "brands", "acme.brand.json"), sha256: "feed" };
+    const input: Manifest = {
+      ...recordSave(af, UUID, null, root),
+      madeBy: { script, scriptSha256: "abc", args: {}, flags: [], brand },
+      history: [{ time: "t", kind: "run", script: join("scripts", "promo.js"), brand }, { time: "t", kind: "save" }],
+    };
+    writeManifest(af, input);
+    expect(input.madeBy?.script).toBe(script); // the caller's object is not mutated
+    const back = readManifest(af) as Manifest;
+    expect(back.madeBy?.script).toBe("../scripts/promo.js");
+    expect(back.madeBy?.brand?.path).toBe("../brands/acme.brand.json");
+    expect(back.history[0]?.script).toBe("scripts/promo.js");
+    expect(back.history[0]?.brand?.path).toBe("../brands/acme.brand.json");
+    expect(readFileSync(manifestPath(af), "utf8")).not.toContain("\\\\");
+    expect(existsSync(resolve(dirname(af), back.madeBy?.script ?? ""))).toBe(true);
   });
 
   it("returns null for a missing or corrupt manifest", () => {
@@ -168,7 +191,7 @@ describe("recordSave", () => {
     mkdirSync(join(root, "out"));
     appendRun(run({ script: join(root, "scripts", "promo.js") }), root);
     const af = writeAf("out/a.af");
-    expect(recordSave(af, UUID, null, root).madeBy?.script).toBe(join("..", "scripts", "promo.js"));
+    expect(recordSave(af, UUID, null, root).madeBy?.script).toBe("../scripts/promo.js");
   });
 
   it("rebases brand.path onto the manifest directory in history and madeBy", () => {
@@ -178,7 +201,7 @@ describe("recordSave", () => {
     appendRun(run({ cwd: proj, script: "scripts/promo.js", brand }), root);
     const af = writeAf("proj/out/a.af");
     const m = recordSave(af, UUID, null, root);
-    const rebased = { ...brand, path: join("..", "brands", "acme.brand.json") };
+    const rebased = { ...brand, path: "../brands/acme.brand.json" };
     expect(m.madeBy?.brand).toEqual(rebased);
     expect(m.history[0]?.brand).toEqual(rebased);
     // the run-log line itself keeps its cwd-relative meaning
@@ -189,7 +212,7 @@ describe("recordSave", () => {
     mkdirSync(join(root, "out"));
     appendRun(run({ cwd: "", brand: { name: "Acme", path: "acme.brand.json", sha256: "feed" } }), root);
     const withKit = recordSave(writeAf("out/a.af"), UUID, null, root);
-    expect(withKit.madeBy?.brand?.path).toBe(join("..", "acme.brand.json"));
+    expect(withKit.madeBy?.brand?.path).toBe("../acme.brand.json");
 
     const other = "BBBBBBBB-1111-4222-8333-444455556666";
     appendRun(run({ documents: [{ uuid: other, path: "" }] }), root);

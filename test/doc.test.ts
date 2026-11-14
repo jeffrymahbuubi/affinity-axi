@@ -9,6 +9,7 @@ import { make } from "../src/commands/doc.js";
 import { fakeConnect, runCommand } from "./fake-mcp/client.js";
 import { FIXTURE_APP, FIXTURE_DOCS, FIXTURE_UUID, FIXTURE_UUID_2 } from "./fake-mcp/fixtures.js";
 import { startFakeServer, type FakeServer } from "./fake-mcp/server.js";
+import { slash } from "./helpers/paths.js";
 
 let server: FakeServer;
 let root: string;
@@ -178,7 +179,8 @@ describe("doc save", () => {
     stubSave();
     const r = await runCommand(cmds["doc save"], ["current", target()]);
     expect(r.code).toBe(0);
-    expect(r.stdout).toContain(`saved: ${target()}`);
+    expect(r.stdout).toContain(`saved: ${slash(target())}`);
+    expect(r.stdout).not.toContain("\\");
     expect(r.stdout).toContain(`doc: ${FIXTURE_UUID}`);
     expect(r.stdout).toContain("bytes: 14");
     expect(r.stdout).toContain("dirty: false");

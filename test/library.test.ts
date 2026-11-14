@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { dispatch, type Registry } from "../src/cli/router.js";
 import { make, parseTitles } from "../src/commands/library.js";
 import type { ConnectFn } from "../src/mcp/types.js";
+import { slash } from "./helpers/paths.js";
 import { fakeConnect, runCommand } from "./fake-mcp/client.js";
 import { startFakeServer, type FakeServer } from "./fake-mcp/server.js";
 
@@ -97,7 +98,7 @@ describe("library read", () => {
     const r = await runCommand(mods()["library read"], ["Greeter", "--out", out]);
     expect(r.code).toBe(0);
     expect(readFileSync(out, "utf8")).toBe(code);
-    expect(r.stdout).toContain(`file: ${out}`);
+    expect(r.stdout).toContain(`file: ${slash(out)}`);
     expect(r.stdout).toContain(`bytes: ${Buffer.byteLength(code)}`);
     expect(r.stdout).toContain("lines: 2");
     expect(r.stdout).not.toContain("console.log");

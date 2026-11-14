@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { make as makeRun } from "../src/commands/run.js";
 import { fakeConnect, runCommand } from "./fake-mcp/client.js";
 import { startFakeServer, type FakeServer } from "./fake-mcp/server.js";
+import { slash } from "./helpers/paths.js";
 
 let server: FakeServer;
 let root: string;
@@ -75,7 +76,7 @@ describe("run --args-file", () => {
     const missing = join(root, "work", "nope.json");
     const r = await exec(["--args-file", missing]);
     expect(r.code).toBe(2);
-    expect(r.stdout).toContain(missing);
+    expect(r.stdout).toContain(slash(missing));
     expect(executed()).toEqual([]);
   });
 
@@ -83,7 +84,7 @@ describe("run --args-file", () => {
     const f = jsonFile("bad.json", "{not json");
     const r = await exec(["--args-file", f]);
     expect(r.code).toBe(2);
-    expect(r.stdout).toContain(f);
+    expect(r.stdout).toContain(slash(f));
     expect(executed()).toEqual([]);
   });
 });

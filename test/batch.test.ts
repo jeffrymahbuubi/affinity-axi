@@ -10,6 +10,7 @@ import { deriveKeys, loadRecords, parseCsv, sanitizeKey } from "../src/commands/
 import { readManifest } from "../src/affinity/manifest.js";
 import { readRuns } from "../src/affinity/runlog.js";
 import { parseToon } from "../src/output/toon.js";
+import { slash } from "./helpers/paths.js";
 import { fakeConnect, runCommand } from "./fake-mcp/client.js";
 import { FIXTURE_APP } from "./fake-mcp/fixtures.js";
 import { startFakeServer, type FakeServer } from "./fake-mcp/server.js";
@@ -328,10 +329,10 @@ describe("batch --save-dir", () => {
       const rowLine = r.stdout.split("\n").find((l) => l.startsWith("  a,failed"))!;
       expect(rowLine).toContain("a.af exists and was not saved by affinity-axi (no manifest); refusing to overwrite (--force to replace); left open");
       expect(rowLine).not.toContain("doc open");
-      expect(rowLine).not.toContain(folder);
+      expect(rowLine).not.toContain(slash(folder));
       expect(rowLine.endsWith('"')).toBe(false);
-      expect(r.stdout.split(`doc open ${a}`)).toHaveLength(2);
-      expect(r.stdout).toContain(`batch ${t} --data ${d} --key slug --save-dir ${folder} --force   # replace the 1 refused .af: a.af`);
+      expect(r.stdout.split(`doc open ${slash(a)}`)).toHaveLength(2);
+      expect(r.stdout).toContain(`batch ${slash(t)} --data ${slash(d)} --key slug --save-dir ${slash(folder)} --force   # replace the 1 refused .af: a.af`);
     });
 
     it("with several refused rows the help names them all but doc open names only the first", async () => {
@@ -344,8 +345,8 @@ describe("batch --save-dir", () => {
       const r = await run(["--continue-on-error"]);
       expect(r.code).toBe(1);
       expect(r.stdout).toContain("# replace the 2 refused .af: a.af, b.af");
-      expect(r.stdout).toContain(`doc open ${a}`);
-      expect(r.stdout).not.toContain(`doc open ${b}`);
+      expect(r.stdout).toContain(`doc open ${slash(a)}`);
+      expect(r.stdout).not.toContain(`doc open ${slash(b)}`);
     });
 
     it("a run with nothing refused adds no refusal lines", async () => {

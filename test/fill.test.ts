@@ -10,6 +10,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { make } from "../src/commands/fill.js";
 import { type ApplyReply } from "../src/affinity/fill-script.js";
 import { dispatch } from "../src/cli/router.js";
+import { slash } from "./helpers/paths.js";
 import { readManifest } from "../src/affinity/manifest.js";
 import { readRuns } from "../src/affinity/runlog.js";
 import { parseToon } from "../src/output/toon.js";
@@ -23,7 +24,6 @@ let work: string;
 let desktop: string;
 const origCwd = process.cwd();
 const origUrl = process.env["AFFINITY_MCP_URL"];
-
 beforeEach(async () => {
   server = await startFakeServer();
   process.env["AFFINITY_MCP_URL"] = server.url;
@@ -228,7 +228,7 @@ describe("fill execution", () => {
     expect(r.stdout).toContain("records[2]{key,status,doc,ms,note}:");
     expect(r.stdout).toContain("mar,ok,00000000,");
     expect(r.stdout).toContain("saved mar.af; exported mar.png");
-    expect(r.stdout).toContain(`saved: ${out}`);
+    expect(r.stdout).toContain(`saved: ${slash(out)}`);
     expect(r.stdout).toContain("exported: 2");
     expect(markers()).toEqual([
       "list-presets",
@@ -254,7 +254,7 @@ describe("fill execution", () => {
     expect(r.code).toBe(0);
     expect(markers()).toEqual(["fill-open", "fill-apply", "doc-save", "doc-close", "fill-open", "fill-apply", "doc-save", "doc-close"]);
     expect(r.stdout).toContain("exported: 0");
-    expect(r.stdout).toContain(`doc open ${join(out, "mar.af")}`);
+    expect(r.stdout).toContain(`doc open ${slash(join(out, "mar.af"))}`);
   });
 
   it("--all-artboards writes <key>-<artboard>.<ext> per artboard", async () => {

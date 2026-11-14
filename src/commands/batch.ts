@@ -23,7 +23,7 @@ import { creditFor, finalizeFile, metadataNote, type Credit, type MetaOutcome } 
 import { appendProvenance, extractUuids, sha256 } from "../affinity/provenance.js";
 import { recordSave } from "../affinity/manifest.js";
 import { checkOverwrite, FORCE_FLAG } from "../affinity/overwrite.js";
-import { requireUnderDesktop, requireVisible, userPath } from "../affinity/paths.js";
+import { requireUnderDesktop, requireVisible, shown, userPath } from "../affinity/paths.js";
 import type { BrandRef } from "../affinity/manifest-types.js";
 import { classify, resultText } from "../affinity/result.js";
 import { APP_INFO, injectArgs } from "../affinity/scripts.js";
@@ -268,11 +268,11 @@ async function runOne(c: Ctx, rec: DataRecord, key: string, index: number): Prom
     if (saved.status === "missing") return row("failed", uuid, joinNotes(["document not found to save (the template may have closed it)", ...notes]));
     if (saved.dirty === true) {
       c.leftOpen.push(uuid);
-      return row("failed", uuid, joinNotes([`still dirty after save; left open (${path})`, ...notes]));
+      return row("failed", uuid, joinNotes([`still dirty after save; left open (${shown(path)})`, ...notes]));
     }
     if (!existsSync(path)) {
       c.leftOpen.push(uuid);
-      return row("failed", uuid, joinNotes([`save reported success but ${path} was not written; left open`, ...notes]));
+      return row("failed", uuid, joinNotes([`save reported success but ${shown(path)} was not written; left open`, ...notes]));
     }
     try {
       // The same writer as `doc save`: hash, folded history, madeBy. A null inventory skips the extra script.
@@ -282,8 +282,8 @@ async function runOne(c: Ctx, rec: DataRecord, key: string, index: number): Prom
     }
     const closed = await docScript<{ status: string }>(c, DOC_CLOSE(uuid), "closing the document");
     if (closed.status === "still-open") throw new FatalRecord(`document ${uuid} is still open after close; check Affinity for a dialog`);
-    if (closed.status !== "closed") return row("failed", uuid, joinNotes([`saved ${path} but not closed (${closed.status})`, ...notes]));
-    notes.unshift(`saved ${path}, closed`);
+    if (closed.status !== "closed") return row("failed", uuid, joinNotes([`saved ${shown(path)} but not closed (${closed.status})`, ...notes]));
+    notes.unshift(`saved ${shown(path)}, closed`);
   }
   return row("ok", uuid, joinNotes(notes));
 }
@@ -323,11 +323,11 @@ export function make(connect: ConnectFn): CommandModule {
       try {
         source = readFileSync(file, "utf8");
       } catch {
-        throw new UsageError(`cannot read template file '${file}'`, `usage: ${BIN} batch <template.js> --data <file.json|file.csv>`);
+        throw new UsageError(`cannot read template file '${shown(file)}'`, `usage: ${BIN} batch <template.js> --data <file.json|file.csv>`);
       }
       const hits = scanForAi(source);
       if (hits.length > 0 && parsed.flags["allow-generative"] !== true) {
-        throw new AxiError(refusalMessage(hits[0]!), refusalSuggestion(`${BIN} batch ${file} --data ${dataFile} --allow-generative`));
+        throw new AxiError(refusalMessage(hits[0]!), refusalSuggestion(`${BIN} batch ${shown(file)} --data ${shown(dataFile)} --allow-generative`));
       }
       const blocking = scanForBlocking(source);
       if (blocking.length > 0 && !parsed.flags["allow-blocking"]) {
@@ -356,7 +356,7 @@ export function make(connect: ConnectFn): CommandModule {
         print(
           [
             emitList("batch", [], ["key", "status", "doc", "ms", "note"]),
-            `summary: ok=0 failed=0 skipped=0 ms=0 (no records in ${dataFile}; nothing was run)`,
+            `summary: ok=0 failed=0 skipped=0 ms=0 (no records in ${shown(dataFile)}; nothing was run)`,
           ].join("\n"),
         );
         return 0;
@@ -427,7 +427,7 @@ export function make(connect: ConnectFn): CommandModule {
         out.push(`warning: record field${many ? "s" : ""} ${reserved.join(", ")} ${many ? "are" : "is"} replaced in ARGS by the batch values (${BATCH_RESERVED.join(", ")}); rename ${many ? "them" : "it"} in the data file`);
       }
       const helps: string[] = [];
-      if (count("skipped") > 0) helps.push(`${BIN} batch ${file} --data ${dataFile} --continue-on-error   # process the records after a failure`);
+      if (count("skipped") > 0) helps.push(`${BIN} batch ${shown(file)} --data ${shown(dataFile)} --continue-on-error   # process the records after a failure`);
       const firstDoc = rows.find((r) => r.status === "ok" && r.doc);
       if (firstDoc && saveDir === undefined) helps.push(`${BIN} render ${firstDoc.doc}`, `${BIN} doc save ${firstDoc.doc} <path-under-Desktop>.af   # documents stay open; use --save-dir to save and close them`);
       if (firstDoc && saveDir !== undefined) helps.push(`${BIN}   # home view: confirm no documents are left open`);
@@ -435,8 +435,8 @@ export function make(connect: ConnectFn): CommandModule {
       if (refused.length > 0) {
         const names = refused.slice(0, 5).map((r) => `${r.key}.af`).join(", ") + (refused.length > 5 ? ", ..." : "");
         helps.push(
-          `${BIN} batch ${file} --data ${dataFile}${keyField ? ` --key ${keyField}` : ""} --save-dir ${String(rawSave)} --force   # replace the ${refused.length} refused .af: ${names}`,
-          `${BIN} doc open ${refused[0]!.path}   # work on the existing file instead`,
+          `${BIN} batch ${shown(file)} --data ${shown(dataFile)}${keyField ? ` --key ${keyField}` : ""} --save-dir ${shown(String(rawSave))} --force   # replace the ${refused.length} refused .af: ${names}`,
+          `${BIN} doc open ${shown(refused[0]!.path)}   # work on the existing file instead`,
         );
       }
       if (helps.length > 0) out.push(helpBlock(helps));

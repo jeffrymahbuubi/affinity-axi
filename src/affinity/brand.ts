@@ -9,7 +9,8 @@
 
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
-import { dirname, isAbsolute, relative, resolve } from "node:path";
+import { dirname, isAbsolute, resolve } from "node:path";
+import { shownRel } from "./paths.js";
 import { UsageError } from "../output/errors.js";
 import type { BrandRef } from "./manifest-types.js";
 
@@ -179,25 +180,25 @@ export function extraKeys(kit: BrandKit): string[] {
 /** Reads and validates a kit; logo paths become absolute (relative to the kit's folder). The file is not rewritten. */
 export function loadBrand(path: string, cwd: string = process.cwd()): { kit: BrandKit; ref: BrandRef } {
   const abs = resolve(cwd, path);
-  const shown = relative(cwd, abs) || abs;
+  const at = shownRel(abs, cwd);
   let bytes: Buffer;
   try {
     bytes = readFileSync(abs);
   } catch {
-    throw new UsageError(`cannot read brand kit '${shown}'`, "pass --brand <path to a .brand.json | name under ./brands/>, or create one with: affinity-axi brand init <name>");
+    throw new UsageError(`cannot read brand kit '${at}'`, "pass --brand <path to a .brand.json | name under ./brands/>, or create one with: affinity-axi brand init <name>");
   }
   let json: unknown;
   try {
     json = JSON.parse(bytes.toString("utf8"));
   } catch (err) {
-    throw new UsageError(`brand kit ${shown}: not valid JSON (${err instanceof Error ? err.message : String(err)})`, FIX);
+    throw new UsageError(`brand kit ${at}: not valid JSON (${err instanceof Error ? err.message : String(err)})`, FIX);
   }
-  const kit = validateKit(json, shown);
+  const kit = validateKit(json, at);
   if (kit.logo) {
     const dir = dirname(abs);
     kit.logo = Object.fromEntries(Object.entries(kit.logo).map(([k, p]) => [k, isAbsolute(p) ? p : resolve(dir, p)]));
   }
-  return { kit, ref: { name: kit.name, path: shown, sha256: createHash("sha256").update(bytes).digest("hex") } };
+  return { kit, ref: { name: kit.name, path: at, sha256: createHash("sha256").update(bytes).digest("hex") } };
 }
 
 /** Prepends `const AXI_BRAND = {...}; ` on line 1 (no newline added, so user line numbers hold). */

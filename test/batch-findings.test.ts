@@ -1,7 +1,7 @@
 // `batch` row notes and left-open documents: notes join with "; ", and a failed record that left a
 // document open is named (diff against the listing taken at the start of the run). Fake MCP server.
 
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { crc32 } from "node:zlib";
@@ -11,6 +11,7 @@ import { listDocs, type DocListing } from "../src/commands/run.js";
 import { fakeConnect, runCommand } from "./fake-mcp/client.js";
 import { FIXTURE_APP, FIXTURE_DOCS } from "./fake-mcp/fixtures.js";
 import { startFakeServer, type FakeServer } from "./fake-mcp/server.js";
+import { installFakeExiftool, removeFakeExiftool, shimPath } from "./helpers/exiftool-shim.js";
 
 const U1 = "00000000-0000-4000-8000-000000000001";
 const U2 = "00000000-0000-4000-8000-000000000002";
@@ -67,6 +68,7 @@ describe("batch left-open reporting", () => {
   afterEach(async () => {
     process.chdir(origCwd);
     process.env["PATH"] = origPath;
+    removeFakeExiftool();
     if (origUrl === undefined) delete process.env["AFFINITY_MCP_URL"];
     else process.env["AFFINITY_MCP_URL"] = origUrl;
     if (origBrand === undefined) delete process.env["AFFINITY_AXI_BRAND"];
@@ -202,10 +204,8 @@ describe("batch left-open reporting", () => {
     // A fake exiftool so the kit credit is embedded.
     const bin = join(root, "bin");
     mkdirSync(bin);
-    const tool = join(bin, "exiftool");
-    writeFileSync(tool, '#!/bin/sh\nif [ "$1" = "-ver" ]; then echo 13.55; exit 0; fi\nexit 0\n');
-    chmodSync(tool, 0o755);
-    process.env["PATH"] = `${bin}:/usr/bin:/bin`;
+    installFakeExiftool(bin);
+    process.env["PATH"] = shimPath(bin);
     const kit = JSON.parse(readFileSync(join(origCwd, "examples/_brand/brand.json"), "utf8")) as Record<string, unknown>;
     write("brand.json", JSON.stringify({ ...kit, credit: { creator: "Studio X" } }));
 

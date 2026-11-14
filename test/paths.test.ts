@@ -5,6 +5,7 @@ import { homedir, tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { UsageError } from "../src/output/errors.js";
+import { slash } from "./helpers/paths.js";
 import {
   expandHome,
   hiddenSegment,
@@ -66,7 +67,7 @@ describe("realish", () => {
     const real = join(root, "real");
     mkdirSync(real);
     const link = join(root, "link");
-    symlinkSync(real, link);
+    symlinkSync(real, link, "junction");
     expect(realish(join(link, "new.af"))).toBe(join(realpathSync(real), "new.af"));
   });
 });
@@ -90,13 +91,13 @@ describe("isInside", () => {
   it("rejects a symlink inside dir that points outside", () => {
     const outside = join(root, "outside");
     mkdirSync(outside);
-    symlinkSync(outside, join(dir, "link"));
+    symlinkSync(outside, join(dir, "link"), "junction");
     expect(isInside(dir, join(dir, "link", "x.af"))).toBe(false);
   });
 
   it("accepts a dir reached through a symlinked parent", () => {
     const link = join(root, "deskLink");
-    symlinkSync(dir, link);
+    symlinkSync(dir, link, "junction");
     expect(isInside(link, join(dir, "x.af"))).toBe(true);
     expect(isInside(dir, join(link, "x.af"))).toBe(true);
   });
@@ -127,10 +128,17 @@ describe("requireVisible", () => {
     const p = "/a/.cache/x.af";
     const err = usage(() => requireVisible(p, "save path"));
     expect(err.exitCode).toBe(2);
-    expect(err.message).toBe(`save path is inside a hidden folder or file ('.cache'): ${p}`);
+    expect(err.message).toBe(`save path is inside a hidden folder or file ('.cache'): ${slash(p)}`);
     expect(err.suggestion).toBe(
       "Affinity refuses dot-prefixed paths such as .affinity-axi/; choose a path whose folders and file name do not start with a dot",
     );
+  });
+
+  it("prints a join()-built path with no backslash", () => {
+    const p = join(dir, ".cache", "x.af");
+    const err = usage(() => requireVisible(p, "save path"));
+    expect(err.message).toBe(`save path is inside a hidden folder or file ('.cache'): ${slash(p)}`);
+    expect(err.message).not.toContain("\\");
   });
 
   it("does not throw on a visible path", () => {
@@ -141,20 +149,28 @@ describe("requireVisible", () => {
 describe("requireUnderDesktop", () => {
   const outside = "/elsewhere/x.af";
   const cases: [DesktopAccess, (d: string) => string][] = [
-    ["write-file", (d) => `Affinity can only write under ${d}; choose a path inside it`],
-    ["write-folder", (d) => `Affinity can only write under ${d}; choose a folder inside it`],
-    ["read-image", (d) => `Affinity can only read images under ${d}; copy it there`],
-    ["open", (d) => `Affinity can only open files under ${d}`],
+    ["write-file", (d) => `Affinity can only write under ${slash(d)}; choose a path inside it`],
+    ["write-folder", (d) => `Affinity can only write under ${slash(d)}; choose a folder inside it`],
+    ["read-image", (d) => `Affinity can only read images under ${slash(d)}; copy it there`],
+    ["open", (d) => `Affinity can only open files under ${slash(d)}`],
   ];
 
   for (const [access, text] of cases) {
     it(`gives the ${access} suggestion`, () => {
       const err = usage(() => requireUnderDesktop(dir, outside, "image", access));
       expect(err.exitCode).toBe(2);
-      expect(err.message).toBe(`image is outside the Desktop folder: ${outside}`);
+      expect(err.message).toBe(`image is outside the Desktop folder: ${slash(outside)}`);
       expect(err.suggestion).toBe(text(dir));
     });
   }
+
+  it("prints a join()-built path and desktop with no backslash", () => {
+    const outside = join(root, "elsewhere", "x.af");
+    const err = usage(() => requireUnderDesktop(dir, outside, "image", "write-file"));
+    expect(err.message).toBe(`image is outside the Desktop folder: ${slash(outside)}`);
+    expect(err.message).not.toContain("\\");
+    expect(err.suggestion).not.toContain("\\");
+  });
 
   it("does not throw for a path inside, even with a trailing slash on desktop", () => {
     expect(() => requireUnderDesktop(dir, join(dir, "x.af"), "path", "open")).not.toThrow();

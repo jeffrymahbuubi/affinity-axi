@@ -28,7 +28,7 @@ import {
 import { withHelpers } from "../affinity/helpers.js";
 import { readManifest, recordSave, sha256File, writeManifest } from "../affinity/manifest.js";
 import { checkOverwrite, FORCE_FLAG } from "../affinity/overwrite.js";
-import { requireUnderDesktop, requireVisible, userPath } from "../affinity/paths.js";
+import { requireUnderDesktop, requireVisible, shown, userPath } from "../affinity/paths.js";
 import { appendRun } from "../affinity/runlog.js";
 import { classify, resultText } from "../affinity/result.js";
 import { APP_INFO, EXPORT, LIST_PRESETS } from "../affinity/scripts.js";
@@ -148,7 +148,7 @@ async function exportDoc(c: Ctx, uuid: string, key: string): Promise<{ files: st
   const outcomes: MetaOutcome[] = [];
   for (const t of targets) {
     await run(t.script, `export of ${basename(t.path)} failed`);
-    if (!existsSync(t.path)) throw new AxiError(`export reported success but ${t.path} was not written`, "check the folder and preset");
+    if (!existsSync(t.path)) throw new AxiError(`export reported success but ${shown(t.path)} was not written`, "check the folder and preset");
     outcomes.push(finalizeFile(t.path, { credit: c.brand?.kit.credit }));
   }
   return { files: targets.map((t) => t.path), note: metadataNote(outcomes) };
@@ -212,7 +212,7 @@ async function runOne(c: Ctx, rec: DataRecord, key: string, edits: Edit[]): Prom
       log("exception", false);
       return row("failed", `${base} (document vanished)`);
     }
-    if (saved.dirty === true || !existsSync(scratch)) throw new FatalRecord(`${base}; could not save a copy to ${scratch}; left open`, id);
+    if (saved.dirty === true || !existsSync(scratch)) throw new FatalRecord(`${base}; could not save a copy to ${shown(scratch)}; left open`, id);
     log("exception", false, scratch);
     try {
       const m = recordSave(scratch, id, null, process.cwd());
@@ -281,8 +281,8 @@ async function runOne(c: Ctx, rec: DataRecord, key: string, edits: Edit[]): Prom
     throw err;
   }
   if (saved.status === "missing") return row("failed", "document not found to save");
-  if (saved.dirty === true) throw new FatalRecord(`${afPath} is still dirty after save; left open`, uuid);
-  if (!existsSync(afPath)) throw new FatalRecord(`save reported success but ${afPath} was not written; left open`, uuid);
+  if (saved.dirty === true) throw new FatalRecord(`${shown(afPath)} is still dirty after save; left open`, uuid);
+  if (!existsSync(afPath)) throw new FatalRecord(`save reported success but ${shown(afPath)} was not written; left open`, uuid);
   log("ok", true);
   try {
     // The same writer as `doc save`; the file's origin is this command, with the record as its args.
@@ -344,9 +344,9 @@ export function make(connect: ConnectFn): CommandModule {
       const rawOut = parsed.flags["out-dir"];
       if (typeof rawOut !== "string") throw new UsageError("--out-dir is required (every record is saved there as <key>.af)", USAGE);
       const template = userPath(templateArg);
-      if (!template.endsWith(".af")) throw new UsageError(`template must be a saved .af file, got '${templateArg}'`, USAGE);
+      if (!template.endsWith(".af")) throw new UsageError(`template must be a saved .af file, got '${shown(templateArg)}'`, USAGE);
       requireVisible(template, "template");
-      if (!existsSync(template)) throw new UsageError(`cannot find template '${templateArg}'`, "save the design first: doc save <doc> <path>.af");
+      if (!existsSync(template)) throw new UsageError(`cannot find template '${shown(templateArg)}'`, "save the design first: doc save <doc> <path>.af");
 
       const preset = typeof parsed.flags["export"] === "string" ? parsed.flags["export"] : undefined;
       const allBoards = parsed.flags["all-artboards"] === true;
@@ -369,7 +369,7 @@ export function make(connect: ConnectFn): CommandModule {
       const brand = brandPath ? loadBrand(brandPath) : undefined;
 
       if (records.length === 0) {
-        print([emitList("records", [], ["key", "status", "doc", "ms", "note"]), `saved: ${outDir}`, "exported: 0"].join("\n"));
+        print([emitList("records", [], ["key", "status", "doc", "ms", "note"]), `saved: ${shown(outDir)}`, "exported: 0"].join("\n"));
         return 0;
       }
 
@@ -435,23 +435,23 @@ export function make(connect: ConnectFn): CommandModule {
       }
 
       const failed = rows.filter((r) => r.status === "failed").length;
-      const out = [emitList("records", rows as unknown as Array<Record<string, unknown>>, ["key", "status", "doc", "ms", "note"]), `saved: ${outDir}`, `exported: ${ctx.exported}`];
-      if (ctx.failedCopies > 0) out.push(`failedCopies: ${join(outDir, "_failed")}`);
+      const out = [emitList("records", rows as unknown as Array<Record<string, unknown>>, ["key", "status", "doc", "ms", "note"]), `saved: ${shown(outDir)}`, `exported: ${ctx.exported}`];
+      if (ctx.failedCopies > 0) out.push(`failedCopies: ${shown(join(outDir, "_failed"))}`);
       if (ctx.leftOpen.length > 0) out.push(`leftOpen: ${ctx.leftOpen.join(" ")}`);
       const firstOk = rows.find((r) => r.status === "ok");
       const helps: string[] = [];
-      if (firstOk) helps.push(`${BIN} doc open ${join(outDir, `${firstOk.key}.af`)}`, `${BIN} inspect <doc> --named   # the doc id doc open prints`);
-      if (rows.some((r) => r.status === "skipped")) helps.push(`${BIN} fill ${templateArg} --data ${dataFile} --out-dir ${rawOut} --continue-on-error   # process the records after a failure`);
+      if (firstOk) helps.push(`${BIN} doc open ${shown(join(outDir, `${firstOk.key}.af`))}`, `${BIN} inspect <doc> --named   # the doc id doc open prints`);
+      if (rows.some((r) => r.status === "skipped")) helps.push(`${BIN} fill ${shown(templateArg)} --data ${shown(dataFile)} --out-dir ${shown(rawOut)} --continue-on-error   # process the records after a failure`);
       if (ctx.refused.length > 0) {
         const names = ctx.refused.slice(0, 5).map((r) => `${r.key}.af`).join(", ") + (ctx.refused.length > 5 ? ", ..." : "");
         helps.push(
-          `${BIN} fill ${templateArg} --data ${dataFile}${keyField ? ` --key ${keyField}` : ""} --out-dir ${rawOut} --force   # replace the ${ctx.refused.length} refused .af: ${names}`,
-          `${BIN} doc open ${ctx.refused[0]!.path}   # work on the existing file instead`,
+          `${BIN} fill ${shown(templateArg)} --data ${shown(dataFile)}${keyField ? ` --key ${keyField}` : ""} --out-dir ${shown(rawOut)} --force   # replace the ${ctx.refused.length} refused .af: ${names}`,
+          `${BIN} doc open ${shown(ctx.refused[0]!.path)}   # work on the existing file instead`,
         );
       }
       const left = rows.find((r) => r.doc !== "" && ctx.leftOpen.some((u) => u.slice(0, 8) === r.doc));
       if (left) helps.push(leftOpenHelp(left.doc, left.key, outDir));
-      if (ctx.failedCopies > 0) helps.push(`rm -r ${join(outDir, "_failed")}   # template copies saved only so failed documents could be closed`);
+      if (ctx.failedCopies > 0) helps.push(`rm -r ${shown(join(outDir, "_failed"))}   # template copies saved only so failed documents could be closed`);
       if (helps.length > 0) out.push(helpBlock(helps));
       print(out.join("\n"));
       return failed > 0 ? 1 : 0;

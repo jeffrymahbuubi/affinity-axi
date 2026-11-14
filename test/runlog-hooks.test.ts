@@ -12,6 +12,7 @@ import { readRuns } from "../src/affinity/runlog.js";
 import { fakeConnect, runCommand } from "./fake-mcp/client.js";
 import { FIXTURE_APP, FIXTURE_PRESETS, FIXTURE_UUID } from "./fake-mcp/fixtures.js";
 import { startFakeServer, type FakeServer } from "./fake-mcp/server.js";
+import { slash } from "./helpers/paths.js";
 
 let server: FakeServer;
 let root: string;
@@ -249,7 +250,7 @@ describe("exports in export", () => {
     stubExport(target, [{ uuid: FIXTURE_UUID, path: af }]);
     const r = await runCommand(exportCmd, ["current", "PNG", target]);
     expect(r.code).toBe(0);
-    expect(r.stdout).toContain(`export: ${target}`);
+    expect(r.stdout).toContain(`export: ${slash(target)}`);
     expect(r.stdout).not.toContain("manifest");
     const m = readManifest(af)!;
     expect(m.exports).toHaveLength(1);

@@ -12,6 +12,7 @@ import type { CommandModule } from "../cli/router.js";
 import type { ConnectFn } from "../mcp/types.js";
 import { AxiError, UsageError } from "../output/errors.js";
 import { emitKV, print } from "../output/toon.js";
+import { shown } from "../affinity/paths.js";
 
 type Json = Record<string, unknown>;
 
@@ -28,9 +29,18 @@ function isOurs(h: unknown): h is Json {
   return isObject(h) && typeof h["command"] === "string" && OURS.test(h["command"]);
 }
 
-function buildCommand(): string {
-  const bin = resolve(process.argv[1] ?? "affinity-axi");
+/**
+ * The session-start command for a bin path. On Windows it is `node "<bin>" --brief`
+ * with forward slashes, the one form that runs in bash, cmd and PowerShell; a bare
+ * `.js` path does not run there. Elsewhere the bin runs itself through its shebang.
+ */
+export function hookCommand(bin: string, platform: NodeJS.Platform = process.platform): string {
+  if (platform === "win32") return `node "${bin.replaceAll("\\", "/")}" --brief`;
   return `${/\s/.test(bin) ? `"${bin}"` : bin} --brief`;
+}
+
+function buildCommand(): string {
+  return hookCommand(resolve(process.argv[1] ?? "affinity-axi"));
 }
 
 function loadJson(file: string): Json {
@@ -40,12 +50,12 @@ function loadJson(file: string): Json {
     parsed = JSON.parse(readFileSync(file, "utf8"));
   } catch (e) {
     throw new AxiError(
-      `cannot parse ${file}: ${e instanceof Error ? e.message : String(e)}`,
+      `cannot parse ${shown(file)}: ${e instanceof Error ? e.message : String(e)}`,
       "fix or remove the file, then re-run; the file was not modified",
     );
   }
   if (!isObject(parsed)) {
-    throw new AxiError(`${file} is not a JSON object`, "fix the file, then re-run; it was not modified");
+    throw new AxiError(`${shown(file)} is not a JSON object`, "fix the file, then re-run; it was not modified");
   }
   return parsed;
 }
@@ -56,12 +66,12 @@ function entries(root: Json, path: string[], key: string, file: string): unknown
   for (const part of path.slice(0, -1)) {
     const next = node[part];
     if (next === undefined) return undefined;
-    if (!isObject(next)) throw new AxiError(`'${key}' in ${file} crosses a value that is not an object`, "fix the file; it was not modified");
+    if (!isObject(next)) throw new AxiError(`'${key}' in ${shown(file)} crosses a value that is not an object`, "fix the file; it was not modified");
     node = next;
   }
   const last = node[path[path.length - 1]!];
   if (last === undefined) return undefined;
-  if (!Array.isArray(last)) throw new AxiError(`'${key}' in ${file} is not an array`, "fix the file; it was not modified");
+  if (!Array.isArray(last)) throw new AxiError(`'${key}' in ${shown(file)} is not an array`, "fix the file; it was not modified");
   return last;
 }
 
@@ -102,7 +112,7 @@ function writeJson(file: string, data: Json): void {
 }
 
 function report(state: string, file: string, command: string): void {
-  print(emitKV([["hook", state], ["file", file], ["command", command]]));
+  print(emitKV([["hook", state], ["file", shown(file)], ["command", command]]));
 }
 
 /** Drops our hook commands, pruning groups and containers left empty. */

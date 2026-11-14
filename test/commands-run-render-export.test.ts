@@ -13,6 +13,7 @@ import { make as makeExportModule } from "../src/commands/export.js";
 import { fakeConnect, runCommand } from "./fake-mcp/client.js";
 import { FIXTURE_APP, FIXTURE_DOCS, FIXTURE_PRESETS, FIXTURE_UUID, FIXTURE_UUID_2, TINY_JPEG_B64, TINY_JPEG_SIZE } from "./fake-mcp/fixtures.js";
 import { startFakeServer, type FakeServer } from "./fake-mcp/server.js";
+import { slash } from "./helpers/paths.js";
 
 let server: FakeServer;
 let root: string;
@@ -87,7 +88,7 @@ describe("run", () => {
     expect(r.code).toBe(1);
     expect(r.stdout.startsWith("error: script references SDK AI API generateImage at line 1")).toBe(true);
     expect(r.stdout).toContain("suggestion:");
-    expect(r.stdout).toContain(`run ${file} --allow-generative`);
+    expect(r.stdout).toContain(`run ${slash(file)} --allow-generative`);
     expect(r.stdout).not.toContain("no-generative-AI rule");
     expect(existsSync(join(work, ".affinity-axi", "provenance.jsonl"))).toBe(false);
     expect(server.sessionsOpened()).toBe(0);
@@ -156,7 +157,7 @@ describe("run", () => {
     const file = writeScript("smoke-test.js", "// SMOKE\nconsole.log('x');\n");
     const r = await run_(file);
     expect(r.code).toBe(0);
-    expect(r.stdout).toContain(`script: ${file}`);
+    expect(r.stdout).toContain(`script: ${slash(file)}`);
     expect(r.stdout).toContain("status: ok");
     expect(r.stdout).toMatch(/^ms: \d+$/m);
     expect(r.stdout).toContain("output[4]:");
@@ -268,7 +269,7 @@ describe("run", () => {
     const r = await run_(file, "--args", "{}", "--timeout", "90000");
     expect(r.code).toBe(0);
     expect(r.stdout).toContain(`... (truncated, ${big.length} chars total)`);
-    expect(r.stdout).toContain(`affinity-axi run ${file} --args '{}' --timeout 90000 --full`);
+    expect(r.stdout).toContain(`affinity-axi run ${slash(file)} --args '{}' --timeout 90000 --full`);
     expect(r.stdout).not.toContain("line 099");
     const full = await run_(file, "--full");
     expect(full.stdout).toContain("line 099");
@@ -299,15 +300,14 @@ describe("render", () => {
     stubDocs();
     const r = await runCommand(render, ["current"]);
     expect(r.code).toBe(0);
-    const rel = `.affinity-axi/renders/70E876CB-s0.jpg`;
-    expect(r.stdout).toContain(`render: ${rel}`);
+    expect(r.stdout).toContain("render: .affinity-axi/renders/70E876CB-s0.jpg");
     expect(r.stdout).toContain(`doc: ${FIXTURE_UUID}`);
     expect(r.stdout).toContain("spread: 0");
     expect(r.stdout).toContain(`size: ${TINY_JPEG_SIZE.width}x${TINY_JPEG_SIZE.height}`);
     expect(r.stdout).toContain("note: preview capped at 1024px; use export for full resolution");
     expect(r.stdout).toContain("help[2]:");
     expect(r.stdout).not.toContain(TINY_JPEG_B64.slice(0, 40));
-    const buf = readFileSync(join(work, rel));
+    const buf = readFileSync(join(work, ".affinity-axi", "renders", "70E876CB-s0.jpg"));
     expect(buf.subarray(0, 2).toString("hex")).toBe("ffd8");
     expect(buf.subarray(6, 10).toString("latin1")).toBe("JFIF");
     expect(r.stdout).toContain(`bytes: ${buf.length}`);
@@ -348,7 +348,8 @@ describe("render", () => {
     const out = join(work, "deep", "er", "x.jpg");
     const r = await runCommand(render, ["current", "--out", out]);
     expect(r.code).toBe(0);
-    expect(r.stdout).toContain(`render: ${out}`);
+    expect(r.stdout).toContain(`render: ${slash(out)}`);
+    expect(r.stdout).not.toContain("\\");
     expect(existsSync(out)).toBe(true);
   });
 

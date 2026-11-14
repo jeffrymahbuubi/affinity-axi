@@ -10,10 +10,11 @@
 // not tamper-proof: it lives next to the project, in plain text.
 
 import { createHash } from "node:crypto";
-import { appendFileSync, existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import type { AiHit } from "../mcp/types.js";
 import { readAiUuids } from "./manifest-ai.js";
+import { realish } from "./paths.js";
 
 export interface ProvenanceRecord {
   /** ISO 8601 time the run finished. */
@@ -108,20 +109,18 @@ function lookupDirs(cwd: string, opts?: LookupOpts): string[] {
   return [...new Set(roots.flatMap(ancestors))];
 }
 
-/** Realpath (when the file exists) of a path, lowercased, for case-insensitive comparison. */
+/**
+ * Realpath of the deepest existing ancestor plus the rest (so a path that does not exist yet
+ * still resolves through a symlinked or junctioned folder), lowercased for case-insensitive comparison.
+ */
 function pathKey(p: string, cwd: string): string {
-  const abs = resolve(cwd, p);
-  try {
-    return realpathSync(abs).toLowerCase();
-  } catch {
-    return abs.toLowerCase();
-  }
+  return realish(resolve(cwd, p)).toLowerCase();
 }
 
 /**
  * Records that touched this document, from every log found walking up: a record
  * matches when its `documents` has the session UUID (case-insensitive), or the
- * saved `docPath` equals one of its `paths` (realpath, case-insensitive), or the
+ * saved `docPath` equals one of its `paths` (realpath of the deepest existing ancestor, case-insensitive), or the
  * manifest beside `docPath` lists (`ai.uuids`) a UUID its `documents` has.
  * Duplicates (same time, script and documents) count once. Records with
  * `called: false` (the call never ran) are ignored.

@@ -14,6 +14,7 @@ import { SIDE_EFFECT_IDS } from "../src/examples/runner.js";
 import type { Example } from "../src/examples/types.js";
 import { ConnectError, type ConnectFn } from "../src/mcp/types.js";
 import { runCommand } from "./fake-mcp/client.js";
+import { slash } from "./helpers/paths.js";
 
 const TOOL_DIR = join(dirname(fileURLToPath(import.meta.url)), "..");
 const SCRATCH = join(TOOL_DIR, "examples", "_run");
@@ -170,7 +171,7 @@ describe("examples --run: end to end with an offline command", () => {
     const r = await run(["zz-f5-offline", "--run"]);
     expect(r.code).toBe(0);
     expect(r.stdout).toContain("images[1]:");
-    expect(r.stdout).toContain(join(SCRATCH, "zz-f5-offline", "pic.png"));
+    expect(r.stdout).toContain(slash(join(SCRATCH, "zz-f5-offline", "pic.png")));
   });
 
   it("stages the gallery folder's input files into the scratch folder before running", async () => {

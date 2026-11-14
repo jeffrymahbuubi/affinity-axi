@@ -12,6 +12,7 @@ import { make as makeExportModule } from "../src/commands/export.js";
 import { fakeConnect, runCommand } from "./fake-mcp/client.js";
 import { FIXTURE_APP, FIXTURE_DOCS, FIXTURE_PRESETS, FIXTURE_UUID, FIXTURE_UUID_2, TINY_JPEG_B64, TINY_JPEG_SIZE } from "./fake-mcp/fixtures.js";
 import { startFakeServer, type FakeServer } from "./fake-mcp/server.js";
+import { slash } from "./helpers/paths.js";
 
 let server: FakeServer;
 let root: string;
@@ -119,7 +120,7 @@ describe("export", () => {
     const r = await runCommand(exportCmd, ["current", "PNG", join(root, "elsewhere", "x.png")]);
     expect(r.code).toBe(2);
     expect(r.stdout).toContain("outside the Desktop folder");
-    expect(r.stdout).toContain(desktop);
+    expect(r.stdout).toContain(slash(desktop));
     expect(scriptCalls().some((s) => s.includes("affinity-axi:export"))).toBe(false);
   });
 
@@ -157,7 +158,7 @@ describe("export", () => {
     });
     const r = await runCommand(exportCmd, ["current", "PNG", target]);
     expect(r.code).toBe(0);
-    expect(r.stdout).toContain(`export: ${target}`);
+    expect(r.stdout).toContain(`export: ${slash(target)}`);
     expect(r.stdout).toContain(`doc: ${FIXTURE_UUID}`);
     expect(r.stdout).toContain("preset: PNG");
     expect(r.stdout).toContain("bytes: 1842");
@@ -176,9 +177,24 @@ describe("export", () => {
     server.onScript("affinity-axi:export", (script) => (writeFileSync(argOf(script, "outPath") as string, "abc"), "{}"));
     const r = await runCommand(exportCmd, [FIXTURE_UUID_2.slice(0, 8), "PNG", "rel.png"]);
     expect(r.code).toBe(0);
-    expect(r.stdout).toContain(`export: ${target}`);
+    expect(r.stdout).toContain(`export: ${slash(target)}`);
     expect(r.stdout).toContain(`doc: ${FIXTURE_UUID_2}`);
     expect(r.stdout).toContain("bytes: 3");
+  });
+
+  it("prints a nested path with / only and still sends the native path to Affinity", async () => {
+    stubPresets();
+    stubApp();
+    stubDocs();
+    mkdirSync(join(desktop, "a", "b"), { recursive: true });
+    const target = join(desktop, "a", "b", "n.png");
+    server.onScript("affinity-axi:export", (script) => (writeFileSync(argOf(script, "outPath") as string, "abc"), "{}"));
+    const r = await runCommand(exportCmd, ["current", "PNG", target]);
+    expect(r.code).toBe(0);
+    expect(r.stdout).toContain(`export: ${slash(target)}`);
+    expect(r.stdout).not.toContain("\\");
+    const sent = scriptCalls().find((s) => s.includes("affinity-axi:export"))!;
+    expect(String(argOf(sent, "outPath")).startsWith(join(desktop, "a", "b", "n.axi-tmp-"))).toBe(true);
   });
 
   it("exit 1 when the export script reports an SDK error", async () => {
@@ -268,9 +284,9 @@ describe("export area", () => {
     const r = await runCommand(exportCmd, ["current", "PNG", join(desktop, "out-{name}.png"), "--all-artboards"]);
     expect(r.code).toBe(0);
     expect(r.stdout).toContain("exports[3]{artboard,path,bytes,size,alt}:");
-    expect(r.stdout).toContain(`  ig-square,${join(desktop, "out-ig-square.png")},33,1080x1080`);
-    expect(r.stdout).toContain(`  ig-portrait,${join(desktop, "out-ig-portrait.png")},33,1080x1350`);
-    expect(r.stdout).toContain(`  og,${join(desktop, "out-og.png")},33,1200x630`);
+    expect(r.stdout).toContain(`  ig-square,${slash(join(desktop, "out-ig-square.png"))},33,1080x1080`);
+    expect(r.stdout).toContain(`  ig-portrait,${slash(join(desktop, "out-ig-portrait.png"))},33,1080x1350`);
+    expect(r.stdout).toContain(`  og,${slash(join(desktop, "out-og.png"))},33,1200x630`);
     expect(pngDims(join(desktop, "out-og.png"))).toBe("1200x630");
     const list = scriptCalls().find((s) => s.includes("affinity-axi:list-artboards"))!;
     expect(list).toContain("const spreadIndex = 0;");
@@ -318,7 +334,7 @@ describe("export area", () => {
     stubBoards();
     const r = await runCommand(exportCmd, ["current", "PNG", join(desktop, "{name}@card.png"), "--artboard", "OG"]);
     expect(r.code).toBe(0);
-    expect(r.stdout).toContain(`export: ${join(desktop, "og@card.png")}`);
+    expect(r.stdout).toContain(`export: ${slash(join(desktop, "og@card.png"))}`);
     expect(r.stdout).toContain("artboard: og");
     expect(r.stdout).toContain("size: 1200x630");
     expect(areaCalls()).toHaveLength(1);

@@ -13,7 +13,7 @@ import { helpBlock } from "../output/suggest.js";
 import { emitKV, emitList, print } from "../output/toon.js";
 import type { ConnectFn } from "../mcp/types.js";
 import { BIN, URL_FLAG, urlFlag } from "./doc.js";
-import { hiddenSegment, isInside } from "../affinity/paths.js";
+import { hiddenSegment, isInside, shown, shownRel, toPosix } from "../affinity/paths.js";
 import { LIST_FONTS } from "./fonts.js";
 import { callJson } from "./run.js";
 
@@ -45,7 +45,7 @@ function slugOf(name: string): string {
   return name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
 }
 
-const shownPath = (abs: string): string => relative(process.cwd(), abs) || abs;
+const shownPath = (abs: string): string => shownRel(abs);
 
 /** The kit a command should use: the positional ref, else the default resolution. */
 function pick(parsed: Parsed): string {
@@ -79,10 +79,10 @@ function makeInit(): CommandModule {
       const from = parsed.flags["from"];
       if (typeof from === "string") {
         const src = resolveBrandRef(from, process.env, process.cwd());
-        if (!src) throw new UsageError(`cannot find the kit '${from}'`, `${BIN} brand list`);
+        if (!src) throw new UsageError(`cannot find the kit '${shown(from)}'`, `${BIN} brand list`);
         const loaded = loadBrand(src).kit;
         kit = { ...loaded, name };
-        if (loaded.logo) kit.logo = Object.fromEntries(Object.entries(loaded.logo).map(([k, p]) => [k, relative(dir, p)]));
+        if (loaded.logo) kit.logo = Object.fromEntries(Object.entries(loaded.logo).map(([k, p]) => [k, toPosix(relative(dir, p))]));
       }
       if (existsSync(file)) {
         throw new AxiError(`${shownPath(file)} already exists; not overwriting`, `edit it by hand, or pick another name: ${BIN} brand init ${name}-2`);
@@ -246,7 +246,7 @@ function makeCheck(connect: ConnectFn): CommandModule {
         const seg = hiddenSegment(p);
         if (problem) checks.push({ check: `logo ${key}`, status: "fail", note: `${problem}: ${shownPath(p)}` });
         else if (seg) checks.push({ check: `logo ${key}`, status: "fail", note: `inside a hidden folder or file ('${seg}'); Affinity cannot read it` });
-        else if (!isInside(resolve(desktop), p)) checks.push({ check: `logo ${key}`, status: "fail", note: `outside the Desktop folder (${desktop}); Affinity can only read files under it` });
+        else if (!isInside(resolve(desktop), p)) checks.push({ check: `logo ${key}`, status: "fail", note: `outside the Desktop folder (${shown(desktop)}); Affinity can only read files under it` });
         else checks.push({ check: `logo ${key}`, status: "ok", note: shownPath(p) });
       }
       for (const [fg, bg] of kit.pairs ?? []) {

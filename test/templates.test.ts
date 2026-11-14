@@ -18,6 +18,7 @@ import { ConnectError } from "../src/mcp/types.js";
 import { parseToon } from "../src/output/toon.js";
 import { fakeConnect, runCommand } from "./fake-mcp/client.js";
 import { FIXTURE_APP } from "./fake-mcp/fixtures.js";
+import { slash } from "./helpers/paths.js";
 import { startFakeServer, type FakeServer } from "./fake-mcp/server.js";
 
 const BRAND_FILE = fileURLToPath(new URL("../examples/_brand/brand.json", import.meta.url));
@@ -305,9 +306,8 @@ describe("templates new", () => {
     expect(r.code).toBe(0);
     expect(r.stdout).toContain("template: ig-post");
     expect(r.stdout).toContain(`doc: ${UUID.toUpperCase()}`);
-    expect(r.stdout).toContain(`saved: ${join(desktop, "x.af")}`);
-    expect(r.stdout).toContain("slots[4]: headline, sub, photo, cta");
-    expect(r.stdout).toContain("affinity-axi fill");
+    expect(r.stdout).toContain(`saved: ${slash(join(desktop, "x.af"))}`);
+    for (const line of ["slots[4]: headline, sub, photo, cta", "affinity-axi fill"]) expect(r.stdout).toContain(line);
     expect(parseToon(r.stdout).ok).toBe(true);
 
     expect(markers()).toEqual(["app-info", "template ig-post", "doc-save", "doc-close"]);

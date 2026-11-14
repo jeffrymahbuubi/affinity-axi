@@ -17,7 +17,7 @@ import { existsSync, statSync } from "node:fs";
 import { isAbsolute, resolve } from "node:path";
 import { UsageError } from "../output/errors.js";
 import { exifOrientation, orientationOps } from "./orientation.js";
-import { expandHome } from "./paths.js";
+import { expandHome, shown } from "./paths.js";
 
 const BIN = "affinity-axi";
 /** The picture types a slot takes (HEIC, HEIF and TIFF were loaded live by Bitmap.loadFromFile). */
@@ -118,8 +118,8 @@ function checkKey(key: string): void {
 function imageFile(key: string, raw: unknown, dataDir: string): string {
   if (typeof raw !== "string" || raw === "") throw bad(key, "image must be a file path", `use {"image": "photo.png"}`);
   const p = imagePath(raw, dataDir);
-  if (!IMAGE_EXT.test(p)) throw bad(key, `'${raw}' is not a .png, .jpg, .jpeg, .webp, .heic, .heif, .tif or .tiff file`, `use ${IMAGE_TYPES}`);
-  if (!existsSync(p)) throw bad(key, `image file not found: ${p}`, "paths are relative to the data file's folder");
+  if (!IMAGE_EXT.test(p)) throw bad(key, `'${shown(raw)}' is not a .png, .jpg, .jpeg, .webp, .heic, .heif, .tif or .tiff file`, `use ${IMAGE_TYPES}`);
+  if (!existsSync(p)) throw bad(key, `image file not found: ${shown(p)}`, "paths are relative to the data file's folder");
   return p;
 }
 
@@ -240,9 +240,9 @@ export function planEdits(record: Record<string, unknown>, keyField: string | un
         if (existsSync(p)) {
           e.strImage = p;
           orient(e, p);
-        } else if (!/\s/.test(v)) throw bad(key, `image file not found: ${p}`, "paths are relative to the data file's folder");
+        } else if (!/\s/.test(v)) throw bad(key, `image file not found: ${shown(p)}`, "paths are relative to the data file's folder");
       } else if (FILE_EXT.test(v) && !/\s/.test(v) && isFile(imagePath(v, dataDir))) {
-        throw bad(key, `'${v}' is an unsupported image type`, `use ${IMAGE_TYPES}`);
+        throw bad(key, `'${shown(v)}' is an unsupported image type`, `use ${IMAGE_TYPES}`);
       }
       edits.push(e);
     } else if (typeof v === "number" && Number.isFinite(v)) {

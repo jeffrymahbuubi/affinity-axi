@@ -14,7 +14,7 @@ import { INSPECT } from "../affinity/inspect-script.js";
 import { finalizeFile, metadataNote, type MetaOutcome } from "../affinity/metadata.js";
 import { readManifest, writeManifest } from "../affinity/manifest.js";
 import type { Inventory } from "../affinity/manifest-types.js";
-import { requireUnderDesktop, requireVisible, userPath } from "../affinity/paths.js";
+import { requireUnderDesktop, requireVisible, shown, userPath } from "../affinity/paths.js";
 import { recordsFor } from "../affinity/provenance.js";
 import { classify, resultText } from "../affinity/result.js";
 import { APP_INFO, LIST_DOCUMENTS, LIST_PRESETS } from "../affinity/scripts.js";
@@ -124,7 +124,7 @@ function readBytes(path: string, what: string): Buffer {
   try {
     return readFileSync(path);
   } catch {
-    throw new AxiError(`${what}: the export reported success but ${path} was not written`, "check the folder exists and retry");
+    throw new AxiError(`${what}: the export reported success but ${shown(path)} was not written`, "check the folder exists and retry");
   }
 }
 
@@ -376,7 +376,7 @@ export function make(connect: ConnectFn): CommandModule {
       const parts = [
         emitKV([["doc", doc.uuid]]),
         emitList("files", files.map((f) => ({ ...f })), ["role", "file", "size", "bytes"]),
-        emitKV([["manifest", jsonPath], ["head", join(opts.outDir, "head.html")]]),
+        emitKV([["manifest", shown(jsonPath)], ["head", shown(join(opts.outDir, "head.html"))]]),
       ];
       if (skipped.length > 0) parts.push(`skipped[${skipped.length}]: ${skipped.join("; ")}`);
       for (const n of notes) parts.push(`note: ${n}`);
@@ -386,9 +386,9 @@ export function make(connect: ConnectFn): CommandModule {
         );
       }
       const card = jobs.find((j) => j.role === "og");
-      const help = [`open ${join(opts.outDir, "head.html")}`];
+      const help = [`open ${shown(join(opts.outDir, "head.html"))}`];
       if (written.some((w) => w.alt)) help.push("edit the alt text in webassets.json and head.html before publishing");
-      if (card) help.push(`${BIN} export ${doc.uuid.slice(0, 8)} PNG ${join(opts.outDir, "og@2x.png")} --artboard ${card.artboard} --scale 2`);
+      if (card) help.push(`${BIN} export ${doc.uuid.slice(0, 8)} PNG ${shown(join(opts.outDir, "og@2x.png"))} --artboard ${card.artboard} --scale 2`);
       parts.push(helpBlock(help));
       print(parts.join("\n"));
       return 0;

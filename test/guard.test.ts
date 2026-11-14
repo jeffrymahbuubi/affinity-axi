@@ -11,6 +11,7 @@ import { make as makeRun } from "../src/commands/run.js";
 import { fakeConnect, runCommand } from "./fake-mcp/client.js";
 import { FIXTURE_UUID } from "./fake-mcp/fixtures.js";
 import { startFakeServer, type FakeServer } from "./fake-mcp/server.js";
+import { slash } from "./helpers/paths.js";
 
 describe("guard: axiGenerativePatch", () => {
   it("is a generative identifier", () => {
@@ -70,7 +71,7 @@ describe("run: axiGenerativePatch", () => {
     const r = await runCommand(run(), [file, "--with-helpers"]);
     expect(r.code).toBe(1);
     expect(r.stdout.startsWith("error: script references SDK AI API axiGenerativePatch at line 2")).toBe(true);
-    expect(r.stdout).toContain(`run ${file} --allow-generative`);
+    expect(r.stdout).toContain(`run ${slash(file)} --allow-generative`);
     expect(server.sessionsOpened()).toBe(0);
     expect(existsSync(join(work, ".affinity-axi", "provenance.jsonl"))).toBe(false);
   });

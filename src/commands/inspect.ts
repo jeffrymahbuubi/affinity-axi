@@ -9,6 +9,7 @@ import type { CommandModule } from "../cli/router.js";
 import type { Parsed } from "../cli/args.js";
 import { resolveDocRef } from "../affinity/docref.js";
 import { INSPECT } from "../affinity/inspect-script.js";
+import { shown } from "../affinity/paths.js";
 import type { Inventory, InventoryNode } from "../affinity/manifest-types.js";
 import { LIST_DOCUMENTS } from "../affinity/scripts.js";
 import { UsageError } from "../output/errors.js";
@@ -118,7 +119,7 @@ export function make(connect: ConnectFn): CommandModule {
         writeFileSync(out, JSON.stringify(inv, null, 2) + "\n");
         print(
           [
-            emitKV([["inspect", out], ["doc", doc.uuid], ...countPairs]),
+            emitKV([["inspect", shown(out)], ["doc", doc.uuid], ...countPairs]),
             helpBlock([`${BIN} inspect ${uuid8} --named`, `${BIN} render ${uuid8}`]),
           ].join("\n"),
         );
@@ -126,7 +127,7 @@ export function make(connect: ConnectFn): CommandModule {
       }
 
       const capped = !full && !named && inv.nodes.length > ROW_CAP;
-      const shown = capped ? inv.nodes.slice(0, ROW_CAP) : inv.nodes;
+      const shownNodes = capped ? inv.nodes.slice(0, ROW_CAP) : inv.nodes;
       const filters: string[] = [];
       if (named) filters.push("named only");
       if (artboard !== undefined) filters.push(`artboard ${artboard}`);
@@ -137,16 +138,16 @@ export function make(connect: ConnectFn): CommandModule {
         artboard !== undefined ? ` --artboard ${JSON.stringify(artboard)}` : "",
         depth !== undefined ? ` --depth ${depth}` : "",
       ].join("");
-      const note = `${shown.length} of ${counts.nodes} nodes${qual}` + (capped ? `; ${BIN} inspect ${uuid8}${fullFlags} --full` : "");
+      const note = `${shownNodes.length} of ${counts.nodes} nodes${qual}` + (capped ? `; ${BIN} inspect ${uuid8}${fullFlags} --full` : "");
 
       print(
         [
           emitKV([
             ["doc", doc.uuid],
-            ["path", doc.path ? tilde(doc.path) : "(unsaved)"],
+            ["path", doc.path ? shown(tilde(doc.path)) : "(unsaved)"],
             ["size", `${doc.width}x${doc.height} px @ ${doc.dpi} dpi`],
           ]),
-          emitList("nodes", shown.map(row), FIELDS),
+          emitList("nodes", shownNodes.map(row), FIELDS),
           ...missingFontLines(inv),
           `note: ${note}`,
           helpBlock([

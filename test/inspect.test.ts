@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { make } from "../src/commands/inspect.js";
 import { dispatch, type Registry } from "../src/cli/router.js";
 import type { Inventory, InventoryNode } from "../src/affinity/manifest-types.js";
+import { slash } from "./helpers/paths.js";
 import { fakeConnect, runCommand } from "./fake-mcp/client.js";
 import { FIXTURE_DOCS, FIXTURE_UUID } from "./fake-mcp/fixtures.js";
 import { startFakeServer, type FakeServer } from "./fake-mcp/server.js";
@@ -135,7 +136,7 @@ describe("inspect --out", () => {
     const out = join(dir, "sub", "inv.json");
     const r = await runCommand(inspect, ["current", "--out", out]);
     expect(r.code).toBe(0);
-    expect(r.stdout).toContain(`inspect: ${out}`);
+    expect(r.stdout).toContain(`inspect: ${slash(out)}`);
     expect(r.stdout).toContain("nodes: 4");
     expect(r.stdout).toContain("named: 3");
     expect(r.stdout).not.toContain("nodes[");

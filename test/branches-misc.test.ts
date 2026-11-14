@@ -13,6 +13,7 @@ import { make as makeHome, parseHomeInfo, rootHelp } from "../src/commands/home.
 import { ConnectError, type AffinityClient, type ConnectFn, type ToolResult } from "../src/mcp/types.js";
 import { version } from "../src/mcp/connect.js";
 import { runCommand } from "./fake-mcp/client.js";
+import { slash } from "./helpers/paths.js";
 
 // The manifest scan is real unless a test asks for a failure or fixed rows.
 const scan = vi.hoisted(() => ({
@@ -97,7 +98,7 @@ describe("assets: branch cases", () => {
   it("reports an empty directory with a pointer to the next step", async () => {
     const r = await runCommand(assets, ["--dir", root]);
     expect(r.code).toBe(0);
-    expect(r.stdout).toContain(`assets: none under ${root}`);
+    expect(r.stdout).toContain(`assets: none under ${slash(root)}`);
     expect(r.stdout).toContain("affinity-axi assets --dir <other-dir>");
   });
 
@@ -112,7 +113,7 @@ describe("assets: branch cases", () => {
     scan.mode = "throw";
     const r = await runCommand(assets, ["--dir", root]);
     expect(r.code).toBe(2);
-    expect(r.stdout).toContain(`error: cannot scan ${root}: EACCES: permission denied`);
+    expect(r.stdout).toContain(`error: cannot scan ${slash(root)}: EACCES: permission denied`);
     expect(r.stdout).toContain("suggestion: pass an existing directory with --dir");
   });
 

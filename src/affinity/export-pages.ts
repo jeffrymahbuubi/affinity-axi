@@ -9,6 +9,7 @@ import { existsSync, readdirSync, readFileSync, renameSync, statSync } from "nod
 import { basename, dirname, extname, join } from "node:path";
 import { emitKV } from "../output/toon.js";
 import { imageSize } from "./export-area.js";
+import { shown } from "./paths.js";
 
 /** Affinity numbers pages from 1; looking past this many is pointless. */
 const MAX_PAGE = 999;
@@ -103,7 +104,7 @@ export function pageRows(files: string[]): PageRow[] {
 
 /** The TOON report of a multi-page export: one `export:` block per file, then the shared lines and the note. */
 export function pagesReport(uuid: string, preset: string, rows: PageRow[], tags: Array<[string, string]>): string {
-  const parts = rows.map((r) => emitKV([["export", r.path], ["bytes", r.bytes], ...(r.size !== "" ? ([["size", r.size]] as Array<[string, string]>) : [])]));
+  const parts = rows.map((r) => emitKV([["export", shown(r.path)], ["bytes", r.bytes], ...(r.size !== "" ? ([["size", r.size]] as Array<[string, string]>) : [])]));
   parts.push(emitKV([["doc", uuid], ["preset", preset], ...tags, ["note", pagesNote(rows.map((r) => r.path))]]));
   return parts.join("\n");
 }

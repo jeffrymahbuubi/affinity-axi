@@ -26,6 +26,7 @@ import { UsageError } from "../src/output/errors.js";
 import { fakeConnect, runCommand } from "./fake-mcp/client.js";
 import { FIXTURE_APP, FIXTURE_UUID } from "./fake-mcp/fixtures.js";
 import { startFakeServer, type FakeServer } from "./fake-mcp/server.js";
+import { slash } from "./helpers/paths.js";
 
 const LIVE = [
   "PNG",
@@ -333,7 +334,7 @@ describe("export --max-kb", () => {
     const r = await runCommand(exportCmd, ["current", "JPEG (High quality)", target, "--artboard", "ig-square", "--max-kb", "10", "--no-alt"]);
     expect(r.code).toBe(1);
     expect(r.stdout).toContain("attempts[8]{preset,size,bytes,fit}:");
-    expect(r.stdout).toContain("cannot fit " + target + " under 10 KB (smallest 34.2 KB at JPEG (Low quality) 540x540)");
+    expect(r.stdout).toContain("cannot fit " + slash(target) + " under 10 KB (smallest 34.2 KB at JPEG (Low quality) 540x540)");
     expect(r.stdout).toContain("raise --max-kb");
     expect(readFileSync(target).length).toBe(35_000);
   });
@@ -362,7 +363,7 @@ describe("export --max-kb", () => {
     stub({ schedule: [90_000, 80_000, 70_000, 60_000, 50_000, 49_000, 48_000, 47_000, 46_000, 45_000, 5_000] });
     const r = await runCommand(exportCmd, ["current", "JPEG (Low quality)", join(desktop, "{name}.jpg"), "--all-artboards", "--max-kb", "40", "--no-alt"]);
     expect(r.code).toBe(1);
-    expect(r.stdout).toContain("cannot fit " + join(desktop, "ig-square.jpg") + " under 40 KB");
+    expect(r.stdout).toContain("cannot fit " + slash(join(desktop, "ig-square.jpg")) + " under 40 KB");
     expect(readFileSync(join(desktop, "og.jpg")).length).toBe(5_000);
   });
 

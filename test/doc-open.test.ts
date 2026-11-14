@@ -10,6 +10,7 @@ import type { Inventory, Manifest } from "../src/affinity/manifest-types.js";
 import { fakeConnect, runCommand } from "./fake-mcp/client.js";
 import { FIXTURE_APP, FIXTURE_UUID_2 } from "./fake-mcp/fixtures.js";
 import { startFakeServer, type FakeServer } from "./fake-mcp/server.js";
+import { slash } from "./helpers/paths.js";
 
 let server: FakeServer;
 let root: string;
@@ -358,5 +359,43 @@ describe("partial manifest (hand-truncated)", () => {
     expect(r.code).toBe(0);
     expect(r.stdout).toContain("status: opened");
     expect(manifestOf(af).history.map((h) => h.kind)).toEqual(["open"]);
+  });
+});
+
+describe("printed paths use / on every OS", () => {
+  it("doc info prints path: and its help lines with /", async () => {
+    const af = seed("promo.af", { madeBy: true });
+    const r = await runCommand(cmds["doc info"], [af]);
+    expect(r.stdout).toContain(`path: ${slash(af)}`);
+    expect(r.stdout).toContain(`doc open ${slash(af)}`);
+    expect(r.stdout).toContain(`doc note ${slash(af)} "<text>"`);
+    expect(r.stdout).not.toContain("\\");
+  });
+
+  it("doc note prints noted: and the doc info help line with /", async () => {
+    const af = seed("promo.af");
+    const r = await runCommand(cmds["doc note"], [af, "hello"]);
+    expect(r.stdout).toContain(`noted: ${slash(af)}`);
+    expect(r.stdout).toContain(`doc info ${slash(af)}`);
+    expect(r.stdout).not.toContain("\\");
+  });
+
+  it("doc open prints path: and the doc save help line with /", async () => {
+    const af = seed("promo.af");
+    stubOpen();
+    const r = await runCommand(cmds["doc open"], [af]);
+    expect(r.stdout).toContain(`path: ${slash(af)}`);
+    expect(r.stdout).toContain(`doc save 01E35352 ${slash(af)}`);
+    expect(r.stdout).not.toContain("\\");
+  });
+
+  it("a missing file and a non-.af path are echoed with /", async () => {
+    const gone = join(desktop, "sub", "gone.af");
+    const missing = await runCommand(cmds["doc info"], [gone]);
+    expect(missing.stdout).toContain(`no such file: ${slash(gone)}`);
+    const wrong = join(desktop, "sub", "x.png");
+    const bad = await runCommand(cmds["doc note"], [wrong, "hi"]);
+    expect(bad.stdout).toContain(`path must end in .af: ${slash(wrong)}`);
+    expect(missing.stdout + bad.stdout).not.toContain("\\");
   });
 });

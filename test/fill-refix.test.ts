@@ -5,12 +5,13 @@
 
 import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, sep } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { make } from "../src/commands/fill.js";
 import { type ApplyReply } from "../src/affinity/fill-script.js";
 import { readManifest } from "../src/affinity/manifest.js";
 import { readRuns } from "../src/affinity/runlog.js";
+import { slash } from "./helpers/paths.js";
 import { fakeConnect, runCommand } from "./fake-mcp/client.js";
 import { FIXTURE_APP } from "./fake-mcp/fixtures.js";
 import { startFakeServer, type FakeServer } from "./fake-mcp/server.js";
@@ -92,13 +93,13 @@ describe("fill: undo left the document dirty (J4 re-fix)", () => {
     expect(r.stdout).toMatch(/apply failed: axiSelectSubject: no subject found \(undo left the document dirty; saved as _failed\/mar-[0-9A-F]{8}\.af and closed\)/);
     expect(r.stdout).toContain("mar,failed");
     expect(r.stdout).not.toContain("leftOpen:");
-    expect(r.stdout).toContain(`failedCopies: ${join(out, "_failed")}`);
-    expect(r.stdout).toContain(`rm -r ${join(out, "_failed")}   # template copies saved only so failed documents could be closed`);
+    expect(r.stdout).toContain(`failedCopies: ${slash(join(out, "_failed"))}`);
+    expect(r.stdout).toContain(`rm -r ${slash(join(out, "_failed"))}   # template copies saved only so failed documents could be closed`);
     expect(r.stdout).toContain("apr,ok");
     expect(markers()).toEqual(["fill-open", "fill-apply", "doc-save", "doc-close", "fill-open", "fill-apply", "doc-save", "doc-close"]);
 
     const scratch = saves[0]!;
-    expect(scratch.startsWith(join(out, "_failed") + "/")).toBe(true);
+    expect(scratch.startsWith(join(out, "_failed") + sep)).toBe(true);
     expect(scratch).toMatch(/mar-00000000\.af$/);
     expect(existsSync(scratch)).toBe(true);
     const m = readManifest(scratch)!;

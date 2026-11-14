@@ -2,7 +2,7 @@
 // credit is embedded (one exiftool call per file), and a missing exiftool is a note, not a failure.
 // Fake MCP server plus a fake exiftool first on PATH (pattern of export-metadata.test.ts).
 
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { crc32 } from "node:zlib";
@@ -12,6 +12,7 @@ import { make } from "../src/commands/fill.js";
 import { fakeConnect, runCommand } from "./fake-mcp/client.js";
 import { FIXTURE_APP } from "./fake-mcp/fixtures.js";
 import { startFakeServer, type FakeServer } from "./fake-mcp/server.js";
+import { installFakeExiftool, removeFakeExiftool, shimPath } from "./helpers/exiftool-shim.js";
 
 const SIG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 function chunk(type: string, data: Buffer): Buffer {
@@ -58,6 +59,7 @@ beforeEach(async () => {
 });
 afterEach(async () => {
   process.env["PATH"] = origPath;
+  removeFakeExiftool();
   process.chdir(origCwd);
   if (origUrl === undefined) delete process.env["AFFINITY_MCP_URL"];
   else process.env["AFFINITY_MCP_URL"] = origUrl;
@@ -71,12 +73,9 @@ afterEach(async () => {
 function pathWith(exit?: number): void {
   const bin = join(root, "bin");
   mkdirSync(bin, { recursive: true });
-  if (exit !== undefined) {
-    const file = join(bin, "exiftool");
-    writeFileSync(file, `#!/bin/sh\nif [ "$1" = "-ver" ]; then echo 13.55; exit 0; fi\nprintf '%s\\n' "$@" >> "${log}"\necho "--" >> "${log}"\nexit ${exit}\n`);
-    chmodSync(file, 0o755);
-  }
-  process.env["PATH"] = `${bin}:/usr/bin:/bin`;
+  if (exit !== undefined) installFakeExiftool(bin, { log, exit, separator: true });
+  else removeFakeExiftool();
+  process.env["PATH"] = shimPath(bin);
 }
 const calls = (): string[][] =>
   existsSync(log)

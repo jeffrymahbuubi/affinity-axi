@@ -14,6 +14,7 @@
 
 import { execFileSync } from "node:child_process";
 import { inflateSync } from "node:zlib";
+import { exiftoolCommand } from "./exif.js";
 
 export interface PreflightRow {
   check: string;
@@ -154,7 +155,8 @@ function run(tool: string, args: string[]): string | null {
 
 /** Extra rows from exiftool, pdfinfo or qpdf, whichever is first on PATH. Null when none is. */
 export function externalPdfInfo(file: string): { tool: string; rows: PreflightRow[] } | null {
-  const ex = run("exiftool", ["-j", "-PDFVersion", "-PageCount", "-Producer", "-Author", "-Creator", file]);
+  const c = exiftoolCommand();
+  const ex = run(c.cmd, [...c.pre, "-j", "-PDFVersion", "-PageCount", "-Producer", "-Author", "-Creator", file]);
   if (ex !== null) {
     try {
       const r = (JSON.parse(ex) as Array<Record<string, unknown>>)[0] ?? {};

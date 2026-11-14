@@ -7,6 +7,7 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { make } from "../src/commands/fill.js";
 import { parseToon } from "../src/output/toon.js";
+import { slash } from "./helpers/paths.js";
 import { fakeConnect, runCommand } from "./fake-mcp/client.js";
 import { FIXTURE_APP } from "./fake-mcp/fixtures.js";
 import { startFakeServer, type FakeServer } from "./fake-mcp/server.js";
@@ -72,10 +73,10 @@ describe("fill refused rows", () => {
     const rowLine = r.stdout.split("\n").find((l) => l.startsWith("  mar,failed"))!;
     expect(rowLine).toContain("mar.af exists and was not saved by affinity-axi (no manifest); refusing to overwrite (--force to replace)");
     expect(rowLine).not.toContain("doc open");
-    expect(rowLine).not.toContain(out);
+    expect(rowLine).not.toContain(slash(out));
     expect(rowLine.endsWith('"')).toBe(false);
-    expect(r.stdout.split(`doc open ${mar}`)).toHaveLength(2);
-    expect(r.stdout).toContain(`fill ${template} --data ${data} --key slug --out-dir ${out} --force   # replace the 1 refused .af: mar.af`);
+    expect(r.stdout.split(`doc open ${slash(mar)}`)).toHaveLength(2);
+    expect(r.stdout).toContain(`fill ${slash(template)} --data ${slash(data)} --key slug --out-dir ${slash(out)} --force   # replace the 1 refused .af: mar.af`);
     expect(markers()).toEqual([]);
     expect(readFileSync(mar, "utf8")).toBe("hand made");
   });
@@ -87,8 +88,8 @@ describe("fill refused rows", () => {
     const r = await runCommand(fill, [template, "--data", data, "--key", "slug", "--out-dir", out, "--continue-on-error"]);
     expect(r.code).toBe(1);
     expect(r.stdout).toContain("# replace the 2 refused .af: mar.af, apr.af");
-    expect(r.stdout).toContain(`doc open ${join(out, "mar.af")}`);
-    expect(r.stdout).not.toContain(`doc open ${join(out, "apr.af")}`);
+    expect(r.stdout).toContain(`doc open ${slash(join(out, "mar.af"))}`);
+    expect(r.stdout).not.toContain(`doc open ${slash(join(out, "apr.af"))}`);
   });
 });
 
@@ -101,6 +102,28 @@ describe("fill number flags", () => {
     expect(t.code).toBe(2);
     expect(t.stdout).toContain("invalid --timeout '1e3'");
     expect((await runCommand(fill, [...base, "--limit", "0x2"])).code).toBe(2);
+    expect(server.sessionsOpened()).toBe(0);
+  });
+});
+
+describe("fill errors that name a file print it with /", () => {
+  it("a missing data file, a missing template and a missing image never show a native separator", async () => {
+    const { template, data, out } = setup();
+    const nested = join(work, "sub", "dir");
+    const noData = await runCommand(fill, [template, "--data", join(nested, "nope.json"), "--out-dir", out]);
+    expect(noData.code).toBe(2);
+    expect(noData.stdout).toContain(`cannot read data file '${slash(join(nested, "nope.json"))}'`);
+    expect(noData.stdout).not.toContain("\\");
+    const noTemplate = await runCommand(fill, [join(nested, "t.af"), "--data", data, "--out-dir", out]);
+    expect(noTemplate.code).toBe(2);
+    expect(noTemplate.stdout).toContain(`cannot find template '${slash(join(nested, "t.af"))}'`);
+    expect(noTemplate.stdout).not.toContain("\\");
+    const imgData = join(work, "img.json");
+    writeFileSync(imgData, JSON.stringify([{ slug: "mar", "slot:photo": "pics/none.png" }]));
+    const noImage = await runCommand(fill, [template, "--data", imgData, "--key", "slug", "--out-dir", out]);
+    expect(noImage.code).toBe(2);
+    expect(noImage.stdout).toContain("image file not found: ");
+    expect(noImage.stdout).not.toContain("\\");
     expect(server.sessionsOpened()).toBe(0);
   });
 });

@@ -2,7 +2,7 @@
 // since the record started are cleaned (and get the kit credit), older files are left alone, and the
 // `cleaned: <n>` line appears only with --out-dir. Fake MCP server; a fake exiftool on PATH logs its calls.
 
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, utimesSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, utimesSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { crc32 } from "node:zlib";
@@ -11,6 +11,7 @@ import { make } from "../src/commands/batch.js";
 import { fakeConnect, runCommand } from "./fake-mcp/client.js";
 import { FIXTURE_APP } from "./fake-mcp/fixtures.js";
 import { startFakeServer, type FakeServer } from "./fake-mcp/server.js";
+import { installFakeExiftool, removeFakeExiftool, shimPath } from "./helpers/exiftool-shim.js";
 
 const SIG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 function chunk(type: string, data: Buffer): Buffer {
@@ -55,13 +56,9 @@ describe("batch --out-dir: XMP strip", () => {
   function pathWith(exit?: number): void {
     const bin = join(root, "bin");
     mkdirSync(bin, { recursive: true });
-    rmSync(join(bin, "exiftool"), { force: true });
-    if (exit !== undefined) {
-      const file = join(bin, "exiftool");
-      writeFileSync(file, `#!/bin/sh\nif [ "$1" = "-ver" ]; then echo 13.55; exit 0; fi\nprintf '%s\\n' "$@" >> "${log}"\necho "--" >> "${log}"\nexit ${exit}\n`);
-      chmodSync(file, 0o755);
-    }
-    process.env["PATH"] = `${bin}:/usr/bin:/bin`;
+    if (exit !== undefined) installFakeExiftool(bin, { log, exit, separator: true });
+    else removeFakeExiftool();
+    process.env["PATH"] = shimPath(bin);
   }
 
   /** The template run writes `<outDir>/<key>.png` (stamped), plus whatever `extra` adds. */
@@ -105,6 +102,7 @@ describe("batch --out-dir: XMP strip", () => {
 
   afterEach(async () => {
     process.env["PATH"] = origPath;
+    removeFakeExiftool();
     process.chdir(origCwd);
     if (origUrl === undefined) delete process.env["AFFINITY_MCP_URL"];
     else process.env["AFFINITY_MCP_URL"] = origUrl;

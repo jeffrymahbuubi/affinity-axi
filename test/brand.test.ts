@@ -143,7 +143,8 @@ describe("loadBrand and injectBrand", () => {
     const p = writeKit("brands/acme.brand.json", { ...clone(), logo: { primary: "art/logo.png" } });
     const { kit, ref } = loadBrand(p);
     expect(kit.logo?.["primary"]).toBe(join(work, "brands", "art", "logo.png"));
-    expect(ref).toMatchObject({ name: "Test Brand", path: join("brands", "acme.brand.json") });
+    expect(ref).toMatchObject({ name: "Test Brand", path: "brands/acme.brand.json" });
+    expect(loadBrand(join("brands", "acme.brand.json"), work).ref.path).toBe("brands/acme.brand.json");
     expect(ref.sha256).toMatch(/^[0-9a-f]{64}$/);
     expect(readFileSync(p, "utf8")).toContain("art/logo.png");
   });
@@ -204,7 +205,7 @@ describe("brand init, list and show (offline)", () => {
     expect(r.code).toBe(0);
     const copy = JSON.parse(readFileSync(join(work, "other", "dark.brand.json"), "utf8"));
     expect(copy.name).toBe("dark");
-    expect(copy.logo.primary).toBe(join("..", "brands", "logo.png"));
+    expect(copy.logo.primary).toBe("../brands/logo.png");
     expect(loadBrand(join(work, "other", "dark.brand.json")).kit.logo?.["primary"]).toBe(join(work, "brands", "logo.png"));
   });
 
@@ -342,7 +343,7 @@ describe("run and batch --brand", () => {
     const sent = scripts().find((s) => s.includes("RUN_MARK"))!;
     expect(sent.split("\n")[0]).toMatch(/^const AXI_BRAND = \{.*"name":"Test Brand".*\}; \/\/ RUN_MARK$/);
     const rec = readRuns(logCwd())[0]!;
-    expect(rec.brand).toMatchObject({ name: "Test Brand", path: join("brands", "acme.brand.json") });
+    expect(rec.brand).toMatchObject({ name: "Test Brand", path: "brands/acme.brand.json" });
     expect(rec.brand?.sha256).toBe(loadBrand(kitPath).ref.sha256);
     expect(rec.flags).toEqual([]);
   });
@@ -463,7 +464,7 @@ describe("provenance: manifest and doc info", () => {
     const af = await madeWithKit();
     recordSave(af, uuidFor(7), null, process.cwd());
     const a = await runCommand(info, [af]);
-    expect(a.stdout).toContain(`brand: Test Brand (${join("brands", "acme.brand.json")})`);
+    expect(a.stdout).toContain("brand: Test Brand (brands/acme.brand.json)"); // the manifest stores / on every OS
     expect(a.stdout).not.toContain("(changed)");
     const kit = clone();
     kit.colours.sky = "#000001";

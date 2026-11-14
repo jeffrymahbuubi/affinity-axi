@@ -15,6 +15,7 @@ import { UsageError } from "../output/errors.js";
 import type { BrandKit } from "./brand.js";
 import { describeAi, exiftoolAvailable, sourceTypeFor, writeXmp } from "./exif.js";
 import { imageKind } from "./export-area.js";
+import { shown } from "./paths.js";
 import { recordsFor, writeSidecar } from "./provenance.js";
 
 export interface Credit { creator: string; copyright?: string }
@@ -291,7 +292,7 @@ export function tagExports(docUuid: string, paths: string[], spec: Omit<MetaSpec
     }
   }
   if (firstError !== undefined) kv.push(["provenance_file", `NOT WRITTEN (${firstError})`]);
-  else if (files.length === 1) kv.push(["provenance_file", files[0]!]);
+  else if (files.length === 1) kv.push(["provenance_file", shown(files[0]!)]);
   else kv.push(["provenance_files", String(files.length)]);
   return kv;
 }

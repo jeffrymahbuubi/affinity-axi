@@ -2,7 +2,7 @@
 // the kit credit, --max-kb measuring the final file, and the AI label sharing one exiftool call.
 // Fake MCP server plus a fake exiftool first on PATH (pattern of export-area.test.ts).
 
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { crc32 } from "node:zlib";
@@ -12,6 +12,7 @@ import { make as makeExportModule } from "../src/commands/export.js";
 import { fakeConnect, runCommand } from "./fake-mcp/client.js";
 import { FIXTURE_APP, FIXTURE_DOCS, FIXTURE_PRESETS, FIXTURE_UUID } from "./fake-mcp/fixtures.js";
 import { startFakeServer, type FakeServer } from "./fake-mcp/server.js";
+import { installFakeExiftool, removeFakeExiftool, shimPath } from "./helpers/exiftool-shim.js";
 
 const SIG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 function chunk(type: string, data: Buffer): Buffer {
@@ -52,12 +53,9 @@ describe("export command: creator metadata", () => {
   function pathWith(exit?: number): void {
     const bin = join(root, "bin");
     mkdirSync(bin, { recursive: true });
-    if (exit !== undefined) {
-      const file = join(bin, "exiftool");
-      writeFileSync(file, `#!/bin/sh\nif [ "$1" = "-ver" ]; then echo 13.55; exit 0; fi\nprintf '%s\\n' "$@" >> "${log}"\necho "--" >> "${log}"\nexit ${exit}\n`);
-      chmodSync(file, 0o755);
-    }
-    process.env["PATH"] = `${bin}:/usr/bin:/bin`;
+    if (exit !== undefined) installFakeExiftool(bin, { log, exit, separator: true });
+    else removeFakeExiftool();
+    process.env["PATH"] = shimPath(bin);
   }
 
   /** One array of arguments per exiftool invocation. */
@@ -106,6 +104,7 @@ describe("export command: creator metadata", () => {
   });
   afterEach(async () => {
     process.env["PATH"] = origPath;
+    removeFakeExiftool();
     process.chdir(origCwd);
     if (origUrl === undefined) delete process.env["AFFINITY_MCP_URL"];
     else process.env["AFFINITY_MCP_URL"] = origUrl;
