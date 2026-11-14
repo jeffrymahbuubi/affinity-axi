@@ -2,7 +2,7 @@
 // helper (R16) and key sanitizing for non-Latin scripts (R20). Pure, no server.
 
 import { describe, expect, it } from "vitest";
-import { BATCH_RESERVED, parseCsv, reservedFields, sanitizeKey } from "../src/commands/batch-data.js";
+import { BATCH_RESERVED, keyRenames, parseCsv, reservedFields, sanitizeKey } from "../src/commands/batch-data.js";
 import { UsageError } from "../src/output/errors.js";
 
 describe("parseCsv: text after a closing quote (R12)", () => {
@@ -69,5 +69,49 @@ describe("sanitizeKey: letters and digits of any script (R20)", () => {
     expect(sanitizeKey("!!!", "k")).toBe("k");
     expect(sanitizeKey("..a..", "k")).toBe("a");
     expect(sanitizeKey("a/b", "k")).toBe("a-b");
+  });
+});
+
+describe("sanitizeKey: typed dashes are kept", () => {
+  it("keeps runs of plain dashes", () => {
+    expect(sanitizeKey("a--b", "k")).toBe("a--b");
+    expect(sanitizeKey("2026-11--promo", "k")).toBe("2026-11--promo");
+    expect(sanitizeKey("a---b", "k")).toBe("a---b");
+  });
+
+  it("folds a run that contains an unsafe character into one dash", () => {
+    expect(sanitizeKey("a - b", "k")).toBe("a-b");
+    expect(sanitizeKey("a -- b", "k")).toBe("a-b");
+    expect(sanitizeKey("a!-b", "k")).toBe("a-b");
+    expect(sanitizeKey("a-!b", "k")).toBe("a-b");
+    expect(sanitizeKey("a / b", "k")).toBe("a-b");
+  });
+
+  it("keeps dash runs elsewhere in the same name", () => {
+    expect(sanitizeKey("a!--b--c", "k")).toBe("a-b--c");
+    expect(sanitizeKey("--x--", "k")).toBe("x");
+  });
+});
+
+describe("keyRenames", () => {
+  it("is empty without a key field", () => {
+    expect(keyRenames([{ slug: "Hello World" }], undefined, ["0"])).toEqual([]);
+  });
+
+  it("is empty when no key changed", () => {
+    expect(keyRenames([{ slug: "a" }, { slug: "b--c" }], "slug", ["a", "b--c"])).toEqual([]);
+  });
+
+  it("lists the changed keys in record order", () => {
+    const records = [{ slug: "ok" }, { slug: "Hello World" }, { slug: "Ärger" }];
+    expect(keyRenames(records, "slug", ["ok", "Hello-World", "Arger"])).toEqual([
+      { value: "Hello World", key: "Hello-World" },
+      { value: "Ärger", key: "Arger" },
+    ]);
+  });
+
+  it("compares a numeric key value as its string", () => {
+    expect(keyRenames([{ n: 7 }], "n", ["7"])).toEqual([]);
+    expect(keyRenames([{ n: 1.5 }], "n", ["1.5"])).toEqual([]);
   });
 });

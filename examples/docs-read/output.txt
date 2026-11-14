@@ -1,6 +1,6 @@
 $ affinity-axi docs read preamble --lines 1-5
 topic: preamble
-size: 4201 chars, 48 lines
+size: 6341 chars, 63 lines
 lines: 1-5
 content:
   System preamble:

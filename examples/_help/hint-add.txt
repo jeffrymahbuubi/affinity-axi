@@ -1,5 +1,5 @@
 command: affinity-axi hint add
-summary: Record a new SDK hint in Affinity (a mutation)
+summary: Append a hint to this install's preamble (every new session reads it; hint search does not)
 args[1]{name,required,description}:
   text,yes,the hint to record
 flags[2]{flag,default,description}:
@@ -7,5 +7,7 @@ flags[2]{flag,default,description}:
   --help,,show this help
 examples[1]:
   affinity-axi hint add "Set the current spread before editing nodes"
-output[1]:
+output[3]:
   hint: added
+  stored: preamble (this install)
+  help[1]:

@@ -94,7 +94,8 @@ describe("fill: undo left the document dirty (J4 re-fix)", () => {
     expect(r.stdout).toContain("mar,failed");
     expect(r.stdout).not.toContain("leftOpen:");
     expect(r.stdout).toContain(`failedCopies: ${slash(join(out, "_failed"))}`);
-    expect(r.stdout).toContain(`rm -r ${slash(join(out, "_failed"))}   # template copies saved only so failed documents could be closed`);
+    expect(r.stdout).toContain(`delete the folder ${slash(join(out, "_failed"))} when you are done: it holds template copies saved only so failed documents could be closed`);
+    expect(r.stdout).not.toContain("rm -r");
     expect(r.stdout).toContain("apr,ok");
     expect(markers()).toEqual(["fill-open", "fill-apply", "doc-save", "doc-close", "fill-open", "fill-apply", "doc-save", "doc-close"]);
 

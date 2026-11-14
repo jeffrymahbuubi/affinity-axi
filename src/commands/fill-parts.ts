@@ -5,6 +5,16 @@ import { shown } from "../affinity/paths.js";
 
 const BIN = "affinity-axi";
 
+/** A failure that makes continuing unsafe (transport error, timeout, a document that cannot be closed). */
+export class FatalRecord extends Error {
+  constructor(
+    message: string,
+    readonly uuid?: string,
+  ) {
+    super(message);
+  }
+}
+
 /** The row note when the record's target .af is open in Affinity: nothing is loaded, the run may go on. */
 export const targetOpenNote = (key: string): string => `${key}.af is open in Affinity; close it (doc save + doc close) or pick another --out-dir`;
 
@@ -17,8 +27,11 @@ export function saveFailNote(error: string, key: string, template: string, uuid:
   return `${error}; the filled copy is still open as '${title}' (not saved). Do not save it over the template: doc save ${uuid.slice(0, 8)} ${shown(join(outDir, `${key}.af`))} once the file is closed, or close it in Affinity with Don't Save`;
 }
 
-/** The help line (one per run) that keeps a left-open copy and closes it. */
-export function leftOpenHelp(uuid: string, key: string, outDir: string): string {
+/** The two help lines (one run) that keep a left-open copy and then close it; no `&&`, so they run in every shell. */
+export function leftOpenHelp(uuid: string, key: string, outDir: string): string[] {
   const id = uuid.slice(0, 8);
-  return `${BIN} doc save ${id} ${shown(join(outDir, "_failed", `${key}.af`))} && ${BIN} doc close ${id}   # keep a left-open copy, then close it`;
+  return [
+    `${BIN} doc save ${id} ${shown(join(outDir, "_failed", `${key}.af`))}   # keep the left-open copy`,
+    `${BIN} doc close ${id}   # then close it`,
+  ];
 }

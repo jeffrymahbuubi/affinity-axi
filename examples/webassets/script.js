@@ -27,17 +27,17 @@ const xc = boards[1];
 const hero = boards[2];
 
 axiOn(doc, 'og');
-axiText(doc, { x: og.x + 600, y: og.y + 340, text: 'lumen', font: 'Helvetica-Bold', size: 200, colour: MIST, align: 'c', name: 'og-title' });
-axiText(doc, { x: og.x + 600, y: og.y + 440, text: 'light for small studios', font: 'Helvetica', size: 48, colour: SUN, align: 'c', name: 'og-tagline' });
+axiText(doc, { x: og.x + 600, y: og.y + 340, text: 'lumen', font: 'Arial-BoldMT', size: 200, colour: MIST, align: 'c', name: 'og-title' });
+axiText(doc, { x: og.x + 600, y: og.y + 440, text: 'light for small studios', font: 'ArialMT', size: 48, colour: SUN, align: 'c', name: 'og-tagline' });
 
 axiOn(doc, 'x-card');
-axiText(doc, { x: xc.x + 600, y: xc.y + 330, text: 'lumen', font: 'Helvetica-Bold', size: 200, colour: INK, align: 'c', name: 'x-title' });
-axiText(doc, { x: xc.x + 600, y: xc.y + 430, text: 'light for small studios', font: 'Helvetica', size: 48, colour: MIST, align: 'c', name: 'x-tagline' });
+axiText(doc, { x: xc.x + 600, y: xc.y + 330, text: 'lumen', font: 'Arial-BoldMT', size: 200, colour: INK, align: 'c', name: 'x-title' });
+axiText(doc, { x: xc.x + 600, y: xc.y + 430, text: 'light for small studios', font: 'ArialMT', size: 48, colour: MIST, align: 'c', name: 'x-tagline' });
 
 axiOn(doc, 'hero');
 axiEllipse(doc, { x: hero.x + 1180, y: hero.y + 180, w: 560, h: 560, fill: SUN, name: 'hero-sun' });
-axiText(doc, { x: hero.x + 160, y: hero.y + 560, text: 'lumen', font: 'Helvetica-Bold', size: 280, colour: INK, name: 'hero-title' });
-axiText(doc, { x: hero.x + 170, y: hero.y + 680, text: 'light for small studios', font: 'Helvetica', size: 64, colour: SKY, name: 'hero-tagline' });
+axiText(doc, { x: hero.x + 160, y: hero.y + 560, text: 'lumen', font: 'Arial-BoldMT', size: 280, colour: INK, name: 'hero-title' });
+axiText(doc, { x: hero.x + 170, y: hero.y + 680, text: 'light for small studios', font: 'ArialMT', size: 64, colour: SKY, name: 'hero-tagline' });
 
 // The mark is built last: axiBool leaves its result selected. Subtract keeps the
 // lowest shape of the stack, so the shape to keep is drawn first.

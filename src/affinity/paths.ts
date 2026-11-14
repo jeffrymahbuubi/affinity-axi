@@ -79,12 +79,27 @@ export function hiddenSegment(p: string): string | null {
   return null;
 }
 
-/** Throws UsageError (exit 2) when hiddenSegment(p) is not null. `label` names the input ("save path", "--out-dir", "image"). */
-export function requireVisible(p: string, label: string): void {
+/**
+ * Throws UsageError (exit 2) when hiddenSegment(p) is not null. `label` names the input ("save path", "--out-dir", "image").
+ * When the current folder itself is the hidden one and p is below it, the suggestion names that and points at ~/Desktop.
+ */
+export function requireVisible(p: string, label: string, cwd: string = process.cwd()): void {
   const seg = hiddenSegment(p);
   if (seg === null) return;
+  const message = `${label} is inside a hidden folder or file ('${seg}'): ${shown(p)}`;
+  const cwdSeg = hiddenSegment(cwd);
+  const rel = relative(resolve(cwd), resolve(p));
+  const below = cwdSeg !== null && rel !== "" && !rel.startsWith("..") && !isAbsolute(rel);
+  if (below && !shown(rel).split("/").some((part) => part.startsWith("."))) {
+    const tail = shown(rel).replace(/^Desktop\//i, "");
+    const eg = tail === "" || tail === "Desktop" ? "~/Desktop" : `~/Desktop/${tail}`;
+    throw new UsageError(
+      message,
+      `the current folder is inside '${cwdSeg}', so a relative path lands there; give a path under the Desktop instead, e.g. ${eg}`,
+    );
+  }
   throw new UsageError(
-    `${label} is inside a hidden folder or file ('${seg}'): ${shown(p)}`,
+    message,
     "Affinity refuses dot-prefixed paths such as .affinity-axi/; choose a path whose folders and file name do not start with a dot",
   );
 }

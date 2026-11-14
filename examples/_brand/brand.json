@@ -9,8 +9,8 @@
     "mist": "#F2F5F9"
   },
   "fonts": {
-    "headline": "Helvetica-Bold",
-    "body": "Helvetica"
+    "headline": "Arial-BoldMT",
+    "body": "ArialMT"
   },
   "type": {
     "display": { "font": "headline", "size": 120 },

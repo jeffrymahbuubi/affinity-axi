@@ -4,11 +4,11 @@
   "title": "Find a font by exact name",
   "summary": "List installed fonts with the exact postscript names scripts need",
   "commands": [
-    "$BIN fonts --grep \"^Helvetica-Bold$\""
+    "$BIN fonts --grep \"^Arial-BoldMT$\""
   ],
   "output": [
     "fonts[1]{family,postscript,style}:",
-    "  Helvetica,Helvetica-Bold,Bold"
+    "  Arial,Arial-BoldMT,Bold"
   ],
   "images": [],
   "needs": [

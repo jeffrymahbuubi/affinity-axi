@@ -11,5 +11,5 @@ if (!ARGS.out) { throw new Error('ARGS.out (the folder holding photo.png) is mis
 axiOn(doc, 'ig-square');
 axiRect(doc, { x: 0, y: 0, w: 1080, h: 1080, fill: '#F2F5F9', name: 'bg' });
 axiImage(doc, { path: ARGS.out + '/photo.png', x: 90, y: 90, w: 900, h: 700, fit: 'cover', radius: 48, focus: { x: 0.72, y: 0.4 }, name: 'photo' });
-axiText(doc, { x: 90, y: 900, text: 'Evening light, Lumen Studio', font: 'Helvetica-Bold', size: 56, colour: '#1F2A44', name: 'caption' });
+axiText(doc, { x: 90, y: 900, text: 'Evening light, Lumen Studio', font: 'Arial-BoldMT', size: 56, colour: '#1F2A44', name: 'caption' });
 console.log(JSON.stringify({ added: ['bg', 'photo', 'caption'] }));

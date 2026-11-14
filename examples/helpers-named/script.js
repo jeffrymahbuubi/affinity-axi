@@ -9,7 +9,7 @@ if (!doc) { throw new Error('demo document not found: ' + want); }
 
 axiOn(doc, 'ig-square');
 axiRect(doc, { x: 0, y: 0, w: 1080, h: 1080, fill: '#1F2A44', name: 'bg' });
-axiText(doc, { x: 90, y: 360, text: 'Draft headline', font: 'Helvetica-Bold', size: 84, colour: '#F2F5F9', name: 'headline' });
+axiText(doc, { x: 90, y: 360, text: 'Draft headline', font: 'Arial-BoldMT', size: 84, colour: '#F2F5F9', name: 'headline' });
 axiRect(doc, { x: 90, y: 820, w: 360, h: 110, radius: 55, fill: '#4C8DFF', name: 'cta' });
 axiRect(doc, { x: 630, y: 820, w: 360, h: 110, radius: 55, fill: '#4C8DFF', name: 'cta' });
 

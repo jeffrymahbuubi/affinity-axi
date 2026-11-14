@@ -66,6 +66,9 @@ describe("home", () => {
     expect(Number(help?.[1])).toBeGreaterThanOrEqual(2);
     expect(Number(help?.[1])).toBeLessThanOrEqual(4);
     expect(r.stdout).toContain(`affinity-axi render ${FIXTURE_UUID.slice(0, 8)}`);
+    expect(r.stdout).toContain(
+      "  affinity-axi docs read guide --grep <regex>   # this tool's usage rules (offline); SDK topics: affinity-axi docs\n",
+    );
     expect(parseToon(r.stdout).ok).toBe(true);
   });
 
@@ -92,6 +95,8 @@ describe("home", () => {
     expect(r.code).toBe(0);
     expect(r.stdout).toContain("documents[0]{uuid,title,dirty,units}:");
     expect(r.stdout).not.toContain("affinity-axi render");
+    expect(r.stdout).toContain("help[2]:");
+    expect(r.stdout).toContain("affinity-axi docs read guide --grep <regex>");
   });
 
   it("unreachable: exit 0, affinity: unreachable, fix and help block", async () => {
@@ -136,6 +141,13 @@ describe("home", () => {
     expect(lines.filter((l) => l.startsWith("help:")).length).toBe(1);
   });
 
+  it("--brief without a document points at the guide", async () => {
+    stubHome([], null);
+    const r = await runCommand(home(), ["--brief", "--url", server.url]);
+    expect(r.code).toBe(0);
+    expect(r.stdout.trimEnd().split("\n").at(-1)).toBe("help: affinity-axi docs read guide");
+  });
+
   it("--brief is at most 6 lines (unreachable) and exits 0", async () => {
     const r = await runCommand(home(), ["--brief", "--url", DEAD_URL]);
     expect(r.code).toBe(0);
@@ -175,6 +187,14 @@ describe("docs", () => {
     const topics = r.stdout.split("\n").filter((l) => l.startsWith("  ") && !l.includes("affinity-axi"));
     for (const t of topics) expect(t.trim()).toMatch(/^[\w./-]+$/);
     expect(r.stdout).toMatch(/help\[3\]:\n {2}affinity-axi docs read \S+ --grep <regex>\n/);
+  });
+
+  it("the listing starts with the line that points at the offline guide", async () => {
+    const r = await runCommand(docs()["docs list"]!, ["--url", server.url]);
+    expect(r.stdout.split("\n")[0]).toBe(
+      "guide: affinity-axi docs read guide --grep <regex>   # usage rules for this tool (offline)",
+    );
+    expect(r.stdout).toContain("help[3]:");
   });
 
   it("one-per-line listings still group", async () => {
@@ -391,8 +411,22 @@ describe("agent guide content", () => {
     expect(a).not.toContain("blocked-by-cli");
   });
 
+  it("names the guide topic, the renamed list and the ~/Desktop rule", () => {
+    const g = renderGuide();
+    expect(g).toContain("docs read guide");
+    expect(g).toContain("renamed[n]{value,key}:");
+    expect(g).toContain("~/Desktop/");
+  });
+
   it("carries no machine-specific paths", () => {
     expect(renderGuide()).not.toContain(homedir());
+  });
+
+  it("states the path and inline JSON rule without foreign shell commands", () => {
+    const g = renderGuide();
+    expect(g).toContain("printed with `/` on every OS");
+    expect(g).toContain("--args-file <args.json>");
+    expect(g).not.toMatch(/\brm -r|\/tmp\//);
   });
 });
 

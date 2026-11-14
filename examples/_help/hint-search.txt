@@ -1,5 +1,5 @@
 command: affinity-axi hint search
-summary: Search Affinity's SDK hints for a task (truncated at 1500 chars)
+summary: Ask Affinity's global SDK hint pool (other sessions' hints; a written answer, truncated at 1500 chars)
 args[1]{name,required,description}:
   prompt,yes,what you are trying to do
 flags[3]{flag,default,description}:
@@ -9,6 +9,8 @@ flags[3]{flag,default,description}:
 examples[2]:
   affinity-axi hint search "rounded rectangle with gradient fill"
   affinity-axi hint search "export preset names" --full
-output[2]:
+output[4]:
   prompt: export a document to PNG
+  source: global pool (the answer is reworded on each call; hints you add are in the preamble, not here)
   hints:
+  help[1]:

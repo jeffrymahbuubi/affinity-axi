@@ -18,8 +18,9 @@ function makeTarget(children: any[] = []): any {
   return { isRasterNode: true, isImageNode: false, id: "target", children };
 }
 
-function setup(): { h: Record<string, Fn>; log: Log; doc: any } {
+function setup(): { h: Record<string, Fn>; log: Log; doc: any; curves: any[] } {
   const log: Log = [];
+  const curves: any[] = [];
   const names = [...HELPERS_SOURCE.matchAll(/^function (axi\w+)\(/gm)].map((m) => m[1]!);
   const body = `${HELPERS_SOURCE}\nreturn { ${names.join(", ")} };`;
   const adj = (name: string) => ({ create: (p?: unknown) => ({ kind: name, p }) });
@@ -37,6 +38,21 @@ function setup(): { h: Record<string, Fn>; log: Log; doc: any } {
     VibranceAdjustmentRasterNodeDefinition: adj("Vibrance"),
     ExposureAdjustmentParameters: params("Exposure"),
     ExposureAdjustmentRasterNodeDefinition: adj("Exposure"),
+    WhiteBalanceAdjustmentParameters: params("WhiteBalance"),
+    WhiteBalanceAdjustmentRasterNodeDefinition: adj("WhiteBalance"),
+    ShadowsHighlightsAdjustmentParameters: params("ShadowsHighlights"),
+    ShadowsHighlightsAdjustmentRasterNodeDefinition: adj("ShadowsHighlights"),
+    SplitToningAdjustmentParameters: params("SplitToning"),
+    SplitToningAdjustmentRasterNodeDefinition: adj("SplitToning"),
+    CurvesAdjustmentParameters: {
+      create: () => {
+        const channels: Record<number, unknown> = {};
+        const p: any = { __params: "Curves", channels, setChannelSpline: (i: number, sp: unknown) => (channels[i] = sp) };
+        curves.push(p);
+        return p;
+      },
+    },
+    CurvesAdjustmentRasterNodeDefinition: adj("Curves"),
   };
   const cmd = (name: string) => () => (log.push(`cmd:${name}`), `cmd:${name}`);
   const modules: Record<string, unknown> = {
@@ -83,7 +99,14 @@ function setup(): { h: Record<string, Fn>; log: Log; doc: any } {
           return { pts, addPoint: (p: { x: number; y: number }) => pts.push([p.x, p.y]) };
         },
       },
-      Spline: { createFromPoints: (p: unknown) => p },
+      // Strict like Affinity 3.3.3: only {x, y} objects are accepted, arrays throw.
+      Spline: {
+        createFromPoints: (pts: any[]) => {
+          const ok = Array.isArray(pts) && pts.every((p) => p && typeof p === "object" && !Array.isArray(p) && typeof p.x === "number" && typeof p.y === "number");
+          if (!ok) throw new Error("INVALID_ARGS");
+          return { spline: pts };
+        },
+      },
     },
   };
   const req = (id: string) => {
@@ -100,7 +123,7 @@ function setup(): { h: Record<string, Fn>; log: Log; doc: any } {
     },
     setRasterSelectionFromPolygon: (poly: unknown, op: string, aa: boolean, feather: number) => log.push(`select:${JSON.stringify(poly)}:${op}:${aa}:${feather}`),
   };
-  return { h, log, doc };
+  return { h, log, doc, curves };
 }
 
 describe("registration", () => {
@@ -231,6 +254,40 @@ describe("axiGrade filter keys and replace", () => {
     };
     h.axiGrade(doc, t, {}, { replace: true });
     expect(log.filter((l) => l.startsWith("delete:"))).toEqual(["delete:a1:false", "delete:a2:false"]);
+  });
+});
+
+describe("axiGrade curves", () => {
+  it("hands the SDK {x, y} objects for a master curve given as [x, y] arrays", () => {
+    const { h, log, doc, curves } = setup();
+    h.axiGrade(doc, makeTarget(), { curves: [[0, 0.04], [0.5, 0.57], [1, 0.985]] });
+    expect(log.filter((l) => l.startsWith("add:")).map((l) => l.split(":")[1])).toEqual(["Curves"]);
+    expect(curves).toHaveLength(1);
+    expect(curves[0].masterSpline.spline).toEqual([{ x: 0, y: 0.04 }, { x: 0.5, y: 0.57 }, { x: 1, y: 0.985 }]);
+  });
+
+  it("sets per-channel splines by index and no master spline", () => {
+    const { h, doc, curves } = setup();
+    h.axiGrade(doc, makeTarget(), { curves: { r: [[0, 0], [1, 0.9]], b: [{ x: 0, y: 0.1 }, { x: 1, y: 1 }] } });
+    expect(curves[0].masterSpline).toBeUndefined();
+    expect(Object.keys(curves[0].channels)).toEqual(["0", "2"]);
+    expect(curves[0].channels[0].spline).toEqual([{ x: 0, y: 0 }, { x: 1, y: 0.9 }]);
+    expect(curves[0].channels[2].spline).toEqual([{ x: 0, y: 0.1 }, { x: 1, y: 1 }]);
+  });
+
+  it("applies the airy and warm-soft looks with the strict spline stub", () => {
+    for (const look of ["airy", "warm-soft"]) {
+      const { h, log, doc, curves } = setup();
+      expect(() => h.axiGrade(doc, makeTarget(), look)).not.toThrow();
+      expect(log.some((l) => l.startsWith("add:Curves:"))).toBe(true);
+      expect(curves).toHaveLength(1);
+    }
+  });
+
+  it("rejects a bad curve before any edit", () => {
+    const { h, log, doc } = setup();
+    expect(() => h.axiGrade(doc, makeTarget(), { exposure: 0.1, curves: { rgb: [[0, 0], [1, 1]] } }, { replace: true })).toThrow(/unknown channel rgb/);
+    expect(log).toEqual([]);
   });
 });
 

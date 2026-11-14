@@ -2,7 +2,7 @@ command: affinity-axi batch
 summary: Run a template script once per data record (JSON or CSV) over one connection
 args[1]{name,required,description}:
   template,yes,"path to the .js template; it reads ARGS (the record plus key, index, outDir, outBase)"
-flags[13]{flag,default,description}:
+flags[14]{flag,default,description}:
   --data,,"records: a .json array of objects, or a .csv with a header row (required)"
   --key,,"record field that names each record (default: the record index); made filesystem-safe, must be unique"
   --with-helpers,,append the axi* SDK helpers after the template (see: affinity-axi helpers)
@@ -12,9 +12,10 @@ flags[13]{flag,default,description}:
   --save-dir,,"folder under Desktop: after each record, save its document as <dir>/<key>.af and close it"
   --out-dir,,folder under Desktop passed as ARGS.outDir; ARGS.outBase = <outDir>/<key> (the template exports itself)
   --limit,,process only the first N records
+  --force,,overwrite a .af that was changed outside affinity-axi (stale manifest) or that affinity-axi never saved (no manifest)
   --continue-on-error,,keep going after a failed record (default: stop at the first failure)
   --timeout,60000,per-record script timeout in milliseconds
-  --url,,Affinity MCP URL (default $AFFINITY_MCP_URL or http://[::1]:6767)
+  --url,,Affinity MCP URL (AFFINITY_MCP_URL wins; default http://[::1]:6767)
   --help,,show this help
 examples[2]:
   affinity-axi batch post.js --data posts.json --key slug --with-helpers --out-dir ~/Desktop/out --save-dir ~/Desktop/af

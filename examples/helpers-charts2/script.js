@@ -12,8 +12,8 @@ const INK = '#1F2A44';
 const SKY = '#4C8DFF';
 const SUN = '#FFC857';
 const MIST = '#F2F5F9';
-const BOLD = 'Helvetica-Bold';
-const BODY = 'Helvetica';
+const BOLD = 'Arial-BoldMT';
+const BODY = 'ArialMT';
 
 const QUARTERS = ['Q1', 'Q2', 'Q3', 'Q4'];
 const SERIES = [

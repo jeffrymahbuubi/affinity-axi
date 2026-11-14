@@ -8,7 +8,7 @@ import { shown } from "../affinity/paths.js";
 import { refusalMessage, refusalSuggestion, scanForAi, scanForBlocking } from "../affinity/guard.js";
 import { withHelpers } from "../affinity/helpers.js";
 import { appendProvenance, extractUuids, sha256 } from "../affinity/provenance.js";
-import { openedDocs, provenanceLabel, scanMarkers, withGenerativeShim, type Called } from "./run-parts.js";
+import { openedDocs, provenanceLabel, runDocHelp, scanMarkers, withGenerativeShim, type Called } from "./run-parts.js";
 import { appendRun } from "../affinity/runlog.js";
 import type { BrandRef, RunRecord } from "../affinity/manifest-types.js";
 import { classify, resultText } from "../affinity/result.js";
@@ -218,7 +218,7 @@ export function make(connect: ConnectFn): CommandModule {
           // Re-stringify so the injected text is guaranteed single-line.
           argsJson = JSON.stringify(JSON.parse(rawArgs));
         } catch {
-          throw new UsageError("--args is not valid JSON", `example: --args '{"size":512}'`);
+          throw new UsageError("--args is not valid JSON", `example: --args '{"size":512}'; if your shell changes the quotes (Windows PowerShell, cmd), put the JSON in a file and pass --args-file <args.json>`);
         }
       } else if (typeof argsFile === "string") {
         let text: string;
@@ -294,7 +294,7 @@ export function make(connect: ConnectFn): CommandModule {
           const current = namedUuids(text, argsJson).length === 0 ? (listing?.current ?? undefined) : undefined;
           provenance = logGenerative({ file, source: userSource, hits, argsJson, outcome: outcome.kind, text, current, called, paths: runDocuments(text, listing, argsJson).map((d) => d.path) });
         }
-        if (outcome.kind !== "ok") opened = openedDocs(before, listing);
+        opened = openedDocs(before, listing);
         logged(outcome.kind, text, listing);
       } finally {
         client.close();
@@ -331,23 +331,12 @@ export function make(connect: ConnectFn): CommandModule {
         out.push(block);
       }
 
-      if (opened.length > 0) {
+      if (outcome.kind !== "ok" && opened.length > 0) {
         out.push(emitList("leftOpen", opened.map((d) => ({ uuid: d.uuid, title: d.title ?? "", dirty: d.dirty })), ["uuid", "title", "dirty"]));
-        for (const d of opened) if (d.dirty) helps.push(`${BIN} doc save ${d.uuid.slice(0, 8).toUpperCase()} <path-under-Desktop>.af`);
       }
+      helps.push(...runDocHelp(BIN, outcome.kind === "ok", text, opened));
 
-      if (outcome.kind === "ok") {
-        const uuid = /\b[0-9A-Fa-f]{8}(?:-[0-9A-Fa-f]{4}){3}-[0-9A-Fa-f]{12}\b/.exec(text)?.[0];
-        if (uuid) {
-          const ref = uuid.slice(0, 8).toUpperCase();
-          helps.push(`${BIN} render ${ref}`, `${BIN} export ${ref} PNG <path-under-Desktop>`);
-        } else {
-          helps.push(
-            `${BIN} render <doc>   # print doc.sessionUuid in the script to get the id`,
-            `${BIN} export <doc> PNG <path-under-Desktop>`,
-          );
-        }
-      } else if (outcome.kind === "not-allowed") {
+      if (outcome.kind === "not-allowed") {
         helps.push(
           generative
             ? "turn ON Affinity > Settings > Use Canva AI Studio features (and sign in to Canva AI), then re-run"

@@ -15,8 +15,8 @@ const INK = '#1F2A44';
 const SKY = '#4C8DFF';
 const SUN = '#FFC857';
 const MIST = '#F2F5F9';
-const BOLD = 'Helvetica-Bold';
-const BODY = 'Helvetica';
+const BOLD = 'Arial-BoldMT';
+const BODY = 'ArialMT';
 
 const sheet = axiPrintSheet(doc, { name: 'card-proof', w: 360, h: 360, unit: 'px', bleed: 24, slug: 48, guides: true });
 const t = sheet.trim;

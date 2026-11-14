@@ -2,32 +2,23 @@ $ affinity-axi hint search "export a document to PNG"
 prompt: export a document to PNG
 source: global pool (the answer is reworded on each call; hints you add are in the preamble, not here)
 hints:
-  To export a document to PNG using Affinity JavaScript, here's the basic approach:
+  To export a document to PNG in Affinity Javascript, use the following pattern:
   
-  1. **Import the required modules** from '/document':
-     - FileExportOptions
-     - FileExportArea
-     - Document
-  
-  2. **Set the export scope** - Choose one of these:
-     - For the whole document: `FileExportArea.createForWholeDocument()`
-     - For the current spread: `FileExportArea.createForCurrentSpread(doc)`
+  1. Import the required modules: `Document`, `FileExportOptions`, and `FileExportArea` from `/document`
+  2. Set your selection to specify what to export:
+     - For the entire document: `doc.selection = Selection.create(doc, nodes)`
+     - Or use `FileExportArea.createForWholeDocument()` to export all content
+  3. Create PNG export options: `FileExportOptions.createWithPresetName('PNG')`
+  4. Create an export area:
      - For selected nodes: `FileExportArea.createForSelection(doc.selection)`
+     - For the whole document: `FileExportArea.createForWholeDocument()`
+  5. Call the export method: `doc.export(targetPath, options, area)`
   
-  3. **Create PNG export options**:
-     - Use `FileExportOptions.createWithPresetName('PNG')`
-  
-  4. **Execute the export**:
-     - Call `doc.export(path, exportOptions, exportArea)` where path is your target file location
-  
-  For example, to export the whole document to PNG:
-  - Create the options and area as above
-  - Call: `doc.export('/path/to/output/file.png', opts, area)`
+  The export will write the PNG file to the specified path, using the bounding box of the selected content as the canvas.
   
   **Important notes:**
-  - Use backslashes on Windows paths
-  - For desktop paths, use `app.getUserDesktopPath()` to get the desktop location
-  - The export may hang if writing to certain paths - if you encounter issues, consider using alternative methods
-  - To export with transparency, you can set document properties with `isTransparent=true` before exporting
+  - If exporting specific content (not the whole document), you can set transparency by using `DocumentProperties` with `isTransparent=true`
+  - On Windows, use backslash characters in file paths
+  - There have been occasional timeout issues when writing to certain paths—if you encounter hangs, it may be a permissions issue
 help[1]:
   affinity-axi docs read preamble

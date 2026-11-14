@@ -192,7 +192,7 @@ describe("axiCarouselDecor placement", () => {
   it("uses the documented defaults for number: true (tr, pad 48, size 36)", () => {
     const { h, doc } = scene();
     h.axiCarouselDecor(doc, boards, true, false);
-    expect(h.S.texts[0]).toMatchObject({ x: 1080 - 48, y: 48 + 36 * 0.72, size: 36, align: "r", font: "Helvetica" });
+    expect(h.S.texts[0]).toMatchObject({ x: 1080 - 48, y: 48 + 36 * 0.72, size: 36, align: "r", font: "ArialMT" });
   });
 
   it("selects each board before drawing on it", () => {

@@ -6,7 +6,7 @@ flags[5]{flag,default,description}:
   --run,,run the example live in the scratch folder examples/_run/<id> and print the real output
   --feature,,"list only examples of this feature: a command ('export', 'doc') or a helper family ('helpers')"
   --include-side-effects,,"allow --run for examples that change Affinity's stored state (hint-add, library-read, library-save, brand-init)"
-  --url,,Affinity MCP URL for --run (default $AFFINITY_MCP_URL or http://[::1]:6767)
+  --url,,Affinity MCP URL for --run (AFFINITY_MCP_URL wins; default http://[::1]:6767)
   --help,,show this help
 examples[4]:
   affinity-axi examples

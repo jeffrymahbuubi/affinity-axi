@@ -241,7 +241,9 @@ function makeNew(connect: ConnectFn): CommandModule {
         if (reply.error !== undefined || !reply.uuid) {
           if (reply.uuid) {
             logRun({ cmd: "templates", script: `templates/${name}`, source: t.source, args: userArgs, flags: [], outcome: "error", ms: Date.now() - started, documents: [{ uuid: reply.uuid, path: "" }], brand: brand.ref });
-            throw new AxiError(`template ${name}: ${reply.error ?? "no document was reported"} (document ${reply.uuid} is unsaved and left open)`, "check Affinity; save it with: doc save <doc> <path>.af, or close it by hand");
+            const id = reply.uuid.slice(0, 8).toUpperCase();
+            const keep = shown(out).replace(/\.af$/i, "-failed.af");
+            throw new AxiError(`template ${name}: ${reply.error ?? "no document was reported"} (document ${reply.uuid} is unsaved and left open)`, `check Affinity; keep the half-built document, then close it: ${BIN} doc save ${id} ${keep}   then: ${BIN} doc close ${id}. For a missing font, ${BIN} brand check <kit> lists the kit fonts that are not installed`);
           }
           throw new AxiError(`template ${name}: ${reply.error ?? "no document was reported"}`, "fix the kit or --args");
         }

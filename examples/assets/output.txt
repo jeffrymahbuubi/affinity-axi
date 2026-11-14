@@ -10,7 +10,7 @@ help[2]:
 
 $ affinity-axi assets --dir examples/assets/library
 assets[1]{file,madeBy,saved,fresh}:
-  examples/assets/library/asset.af,../../_brand/demo-doc.js,2026-10-24T19:24Z,fresh
+  examples/assets/library/asset.af,../../_brand/demo-doc.js,2026-11-14T11:17Z,fresh
 help[2]:
   affinity-axi doc open examples/assets/library/asset.af
   affinity-axi doc info examples/assets/library/asset.af   # offline

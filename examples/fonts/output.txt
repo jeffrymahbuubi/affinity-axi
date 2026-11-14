@@ -1,5 +1,5 @@
-$ affinity-axi fonts --grep "^Helvetica-Bold$"
+$ affinity-axi fonts --grep "^Arial-BoldMT$"
 fonts[1]{family,postscript,style}:
-  Helvetica,Helvetica-Bold,Bold
+  Arial,Arial-BoldMT,Bold
 help[1]:
-  apply: const font = FontFamily.all.flatMap(f => f.fonts).find(f => f.postscriptName === 'Helvetica-Bold'); then StoryDelta.createFont(FontField.PostscriptName | FontField.FamilyName, font)
+  apply: const font = FontFamily.all.flatMap(f => f.fonts).find(f => f.postscriptName === 'Arial-BoldMT'); then StoryDelta.createFont(FontField.PostscriptName | FontField.FamilyName, font)

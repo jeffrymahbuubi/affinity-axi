@@ -3,7 +3,7 @@
 // what the command prints; `--help` shows the first six lines of the first
 // entry for a command, offline. The gallery generator runs `commands` live
 // and `examples:check` asserts the sample lines appear in the captured
-// output. Demo brand: "Lumen Studio", Helvetica (see examples/_brand).
+// output. Demo brand: "Lumen Studio", Arial (see examples/_brand).
 //
 // Conventions in `commands`: $BIN is affinity-axi, $DOC the demo document's
 // uuid8 (a 1080x1080 document with one artboard named ig-square), $OUT the
@@ -182,8 +182,8 @@ export const CORE_EXAMPLES: readonly Example[] = [
     feature: "fonts",
     title: "Find a font by exact name",
     summary: "List installed fonts with the exact postscript names scripts need",
-    commands: [`$BIN fonts --grep "^Helvetica-Bold$"`],
-    output: ["fonts[1]{family,postscript,style}:", "  Helvetica,Helvetica-Bold,Bold"],
+    commands: [`$BIN fonts --grep "^Arial-BoldMT$"`],
+    output: ["fonts[1]{family,postscript,style}:", "  Arial,Arial-BoldMT,Bold"],
     images: [],
     needs: ["affinity", "fonts"],
   },
@@ -236,7 +236,7 @@ export const CORE_EXAMPLES: readonly Example[] = [
     id: "helpers-text",
     feature: "helpers:text",
     title: "Helpers: text",
-    summary: "Add a headline in Helvetica-Bold and a body paragraph that shrinks to fit its box",
+    summary: "Add a headline in Arial Bold and a body paragraph that shrinks to fit its box",
     commands: [`$BIN run $OUT/script.js --with-helpers ${RUN_ARGS}`, "$BIN render $DOC --out $OUT/render.jpg"],
     script: "script.js",
     output: RUN_OK,

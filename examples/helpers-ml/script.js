@@ -35,7 +35,7 @@ axiColourise(doc, old);
 // itself and blurs the far part of this layer in place (destructive on its pixels).
 const blur = axiImage(doc, { path: mug, x: 770, y: 640, w: 260, h: 260, name: 'mug-blur' });
 axiDepthBlur(doc, blur, undefined, { radius: 14 });
-axiText(doc, { x: 770, y: 920, text: 'depth blur', font: 'Helvetica-Bold', size: 28, colour: '#1F2A44', name: 'blur-label' });
+axiText(doc, { x: 770, y: 920, text: 'depth blur', font: 'Arial-BoldMT', size: 28, colour: '#1F2A44', name: 'blur-label' });
 
-axiText(doc, { x: 50, y: 1010, text: 'Cut-out, depth map, depth blur, colourised', font: 'Helvetica-Bold', size: 44, colour: '#1F2A44', name: 'caption' });
+axiText(doc, { x: 50, y: 1010, text: 'Cut-out, depth map, depth blur, colourised', font: 'Arial-BoldMT', size: 44, colour: '#1F2A44', name: 'caption' });
 console.log('RUN_OK');

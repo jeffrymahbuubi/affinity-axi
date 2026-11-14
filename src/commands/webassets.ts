@@ -386,7 +386,7 @@ export function make(connect: ConnectFn): CommandModule {
         );
       }
       const card = jobs.find((j) => j.role === "og");
-      const help = [`open ${shown(join(opts.outDir, "head.html"))}`];
+      const help = [`copy the tags in ${shown(join(opts.outDir, "head.html"))} into the <head> of your page`];
       if (written.some((w) => w.alt)) help.push("edit the alt text in webassets.json and head.html before publishing");
       if (card) help.push(`${BIN} export ${doc.uuid.slice(0, 8)} PNG ${shown(join(opts.outDir, "og@2x.png"))} --artboard ${card.artboard} --scale 2`);
       parts.push(helpBlock(help));

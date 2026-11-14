@@ -15,7 +15,7 @@ const INK = '#1F2A44';
 const SKY = '#4C8DFF';
 const SUN = '#FFC857';
 const MIST = '#F2F5F9';
-const BOLD = 'Helvetica-Bold';
+const BOLD = 'Arial-BoldMT';
 const photo = ARGS.out + '/photo.png';
 const HEADLINE = 'Light for every room, measured in the studio';
 

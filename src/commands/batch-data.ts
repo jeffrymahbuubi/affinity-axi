@@ -120,14 +120,15 @@ export function loadRecords(file: string): DataRecord[] {
 /**
  * Filesystem-safe name: letters and digits of any script, dot, underscore, dash;
  * Latin diacritics are dropped (Ärger -> Arger); never leading dot/dash, never empty.
+ * A run that holds an unsafe character becomes one dash; dashes the user typed on
+ * their own are kept (a--b stays a--b), so a slug that is already safe is unchanged.
  */
 export function sanitizeKey(raw: string, fallback: string): string {
   const s = raw
     .normalize("NFKD")
     .replace(/[\u0300-\u036f]/g, "")
     .normalize("NFC")
-    .replace(/[^\p{L}\p{N}._-]+/gu, "-")
-    .replace(/-{2,}/g, "-")
+    .replace(/(?:-*[^\p{L}\p{N}._-])+-*/gu, "-")
     .replace(/^[.-]+|[.-]+$/g, "")
     .slice(0, 80);
   return s === "" ? fallback : s;
@@ -159,6 +160,24 @@ export function deriveKeys(records: DataRecord[], keyField: string | undefined):
     seen.set(key, i);
     return key;
   });
+}
+
+/**
+ * The records whose key differs from their `keyField` value, in record order:
+ * `value` is the data value as a string, `key` the name used for files. [] without keyField.
+ */
+export function keyRenames(
+  records: DataRecord[],
+  keyField: string | undefined,
+  keys: string[],
+): Array<{ value: string; key: string }> {
+  if (keyField === undefined) return [];
+  const out: Array<{ value: string; key: string }> = [];
+  records.forEach((rec, i) => {
+    const value = String(rec[keyField]);
+    if (value !== keys[i]) out.push({ value, key: keys[i]! });
+  });
+  return out;
 }
 
 /** Record fields that `batch` replaces in ARGS with its own values. */

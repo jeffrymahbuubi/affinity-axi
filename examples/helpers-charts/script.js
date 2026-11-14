@@ -12,8 +12,8 @@ const INK = '#1F2A44';
 const SKY = '#4C8DFF';
 const SUN = '#FFC857';
 const MIST = '#F2F5F9';
-const BOLD = 'Helvetica-Bold';
-const BODY = 'Helvetica';
+const BOLD = 'Arial-BoldMT';
+const BODY = 'ArialMT';
 
 axiOn(doc, 'ig-square');
 axiRect(doc, { x: 0, y: 0, w: 1080, h: 1080, fill: MIST, name: 'card' });

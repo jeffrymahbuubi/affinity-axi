@@ -47,7 +47,7 @@ const SOLID = /^#[0-9A-Fa-f]{6}$/;
 
 /**
  * Text size in px. The probe showed `font` already prints px on a px document
- * ("Helvetica-Bold 48" for a 48 px text), so this only parses the trailing
+ * ("Arial-BoldMT 48" for a 48 px text), so this only parses the trailing
  * number. It is the one place to scale if another unit ever shows up.
  */
 export function fontPx(row: InventoryNode, _inv: Inventory): number | null {

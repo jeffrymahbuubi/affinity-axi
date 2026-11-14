@@ -60,16 +60,32 @@ describe("run leftOpen", () => {
     expect(r.stdout).toContain("leftOpen[1]{uuid,title,dirty}:");
     expect(r.stdout).toContain("  AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE,Untitled,true");
     expect(r.stdout).not.toContain(OLD.uuid);
-    expect(r.stdout).toContain("affinity-axi doc save AAAAAAAA <path-under-Desktop>.af");
+    const save = "affinity-axi doc save AAAAAAAA <path-under-Desktop>.af   # keep the half-built document";
+    const close = "affinity-axi doc close AAAAAAAA   # then close it, or close it in Affinity with Don't Save";
+    expect(r.stdout).toContain(save);
+    expect(r.stdout).toContain(close);
+    expect(r.stdout.indexOf(save)).toBeLessThan(r.stdout.indexOf(close));
   });
 
-  it("a clean document that was left open is listed but gets no save help", async () => {
+  it("a clean document that was left open is listed with a close line and no save help", async () => {
     listings([OLD], [OLD, SAVED]);
     server.onScript("boom()", "TypeError: nope\n    at s.js:1\n");
     const r = await exec(script("boom();\n"));
     expect(r.stdout).toContain("leftOpen[1]{uuid,title,dirty}:");
     expect(r.stdout).toContain(",made,false");
     expect(r.stdout).not.toContain("doc save");
+    expect(r.stdout).toContain("affinity-axi doc close 99999999   # left open by the failed run; it has no unsaved changes");
+  });
+
+  it("a failed run that opened four documents gets lines for the first three", async () => {
+    const mk = (c: string) => ({ ...NEW, uuid: `${c.repeat(8)}-BBBB-CCCC-DDDD-EEEEEEEEEEEE` });
+    listings([OLD], [OLD, mk("A"), mk("B"), mk("C"), mk("D")]);
+    server.onScript("boom()", "TypeError: nope\n    at s.js:1\n");
+    const r = await exec(script("boom();\n"));
+    expect(r.stdout).toContain("leftOpen[4]{uuid,title,dirty}:");
+    for (const id of ["AAAAAAAA", "BBBBBBBB", "CCCCCCCC"]) expect(r.stdout).toContain(`doc close ${id}`);
+    expect(r.stdout).not.toContain("doc close DDDDDDDD");
+    expect(r.stdout).not.toContain("doc save DDDDDDDD");
   });
 
   it("an ok run prints no leftOpen even when it opened a document", async () => {
@@ -77,6 +93,41 @@ describe("run leftOpen", () => {
     const r = await exec(script("console.log('fine');\n"));
     expect(r.code).toBe(0);
     expect(r.stdout).not.toContain("leftOpen");
+  });
+
+  it("an ok run with no uuid in the output that opened one dirty document points at it", async () => {
+    listings([OLD], [OLD, NEW]);
+    const r = await exec(script("console.log('fine');\n"));
+    expect(r.code).toBe(0);
+    expect(r.stdout).toContain("affinity-axi render AAAAAAAA");
+    expect(r.stdout).toContain("affinity-axi export AAAAAAAA PNG <path-under-Desktop>");
+    expect(r.stdout).toContain("affinity-axi doc save AAAAAAAA <path-under-Desktop>.af   # this run left the document open and unsaved");
+    expect(r.stdout).not.toContain("leftOpen[");
+  });
+
+  it("an ok run that opened one clean document gets render and export but no save line", async () => {
+    listings([OLD], [OLD, SAVED]);
+    const r = await exec(script("console.log('fine');\n"));
+    expect(r.stdout).toContain("affinity-axi render 99999999");
+    expect(r.stdout).not.toContain("doc save");
+  });
+
+  it("an ok run with two new documents and no uuid names both ids on the <doc> line", async () => {
+    listings([OLD], [OLD, NEW, SAVED]);
+    const r = await exec(script("console.log('fine');\n"));
+    expect(r.code).toBe(0);
+    expect(r.stdout).toContain("affinity-axi render <doc>   # this run opened 2 documents: AAAAAAAA 99999999");
+    expect(r.stdout).toContain("affinity-axi export <doc> PNG <path-under-Desktop>");
+    expect(r.stdout).not.toContain("doc save");
+    expect(r.stdout).not.toContain("leftOpen[");
+  });
+
+  it("an ok run that prints a uuid uses it even when one document was opened", async () => {
+    listings([OLD], [OLD, SAVED]);
+    server.onScript("PRINTID", NEW.uuid);
+    const r = await exec(script("// PRINTID\nconsole.log('x');\n"));
+    expect(r.stdout).toContain("affinity-axi render AAAAAAAA");
+    expect(r.stdout).not.toContain("render 99999999");
   });
 
   it("a failed run that opened nothing prints no leftOpen", async () => {

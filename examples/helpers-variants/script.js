@@ -14,7 +14,7 @@ if (!doc) { throw new Error('demo document not found: ' + want); }
 const INK = '#1F2A44';
 const SUN = '#FFC857';
 const MIST = '#F2F5F9';
-const BOLD = 'Helvetica-Bold';
+const BOLD = 'Arial-BoldMT';
 
 // The whole design as one function of a board {x,y,w,h}: edge distances in px,
 // so the master and the variants share the same recipe.

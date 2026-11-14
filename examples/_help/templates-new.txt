@@ -2,12 +2,13 @@ command: affinity-axi templates new
 summary: Build a template on a brand kit and save it as .af, ready for fill (colours and fonts come from the kit)
 args[1]{name,required,description}:
   name,yes,"one of: ig-post, ig-story, carousel-cover, og-card, price-post"
-flags[6]{flag,default,description}:
+flags[7]{flag,default,description}:
   --out,,where to save the .af; must be inside the Desktop folder (required)
   --brand,,"brand kit: a .brand.json path or a name under ./brands/ (default $AFFINITY_AXI_BRAND, then ./brand.json)"
+  --force,,overwrite a .af that was changed outside affinity-axi (stale manifest) or that affinity-axi never saved (no manifest)
   --args,,"JSON: {""photo"": ""<image>""} on photo templates, {""rows"": [[...]]} on price-post"
   --timeout,60000,per-script timeout in milliseconds
-  --url,,Affinity MCP URL (default $AFFINITY_MCP_URL or http://[::1]:6767)
+  --url,,Affinity MCP URL (AFFINITY_MCP_URL wins; default http://[::1]:6767)
   --help,,show this help
 examples[2]:
   affinity-axi templates new ig-post --out ~/Desktop/post.af --brand brand.json

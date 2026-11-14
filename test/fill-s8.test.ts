@@ -130,7 +130,9 @@ describe("fill: a failed save leaves the filled copy open and says so (F-a)", ()
     expect(r.stdout).toContain("Do not save it over the template: doc save 00000000");
     expect(r.stdout).toContain(`${slash(join(out, "mug.af"))} once the file is closed`);
     expect(r.stdout).toContain("Don't Save");
-    expect(r.stdout).toContain(`affinity-axi doc save 00000000 ${slash(join(out, "_failed", "mug.af"))} && affinity-axi doc close 00000000   # keep a left-open copy, then close it`);
+    expect(r.stdout).toContain(`affinity-axi doc save 00000000 ${slash(join(out, "_failed", "mug.af"))}   # keep the left-open copy`);
+    expect(r.stdout).toContain("affinity-axi doc close 00000000   # then close it");
+    expect(r.stdout).not.toContain(" && ");
     expect(r.stdout).toContain("cup,skipped");
     expect(markers()).toEqual(["fill-open", "fill-apply", "doc-save"]);
   });
@@ -150,16 +152,17 @@ describe("fill: a failed save leaves the filled copy open and says so (F-a)", ()
     expect(note).toBe(
       `saving mug.af failed: Error: OPEN_IN_APP; the filled copy is still open as 'template' (not saved). Do not save it over the template: doc save 00000000 ${c2}/mug.af once the file is closed, or close it in Affinity with Don't Save`,
     );
-    expect(leftOpenHelp("00000000-0000-4000-8000-000000000001", "mug", c2)).toBe(
-      `affinity-axi doc save 00000000 ${c2}/_failed/mug.af && affinity-axi doc close 00000000   # keep a left-open copy, then close it`,
-    );
+    expect(leftOpenHelp("00000000-0000-4000-8000-000000000001", "mug", c2)).toEqual([
+      `affinity-axi doc save 00000000 ${c2}/_failed/mug.af   # keep the left-open copy`,
+      "affinity-axi doc close 00000000   # then close it",
+    ]);
   });
 
   it("the note helpers print a join()-built folder with / on every OS", () => {
     const folder = join(root, "Desktop", "sub", "c2");
     expect(saveFailNote("saving mug.af failed", "mug", join(root, "template.af"), uuidFor(1), folder)).not.toContain("\\");
-    expect(leftOpenHelp(uuidFor(1), "mug", folder)).not.toContain("\\");
-    expect(leftOpenHelp(uuidFor(1), "mug", folder)).toContain(`doc save 00000000 ${slash(join(folder, "_failed", "mug.af"))} &&`);
+    expect(leftOpenHelp(uuidFor(1), "mug", folder).join(" ")).not.toContain("\\");
+    expect(leftOpenHelp(uuidFor(1), "mug", folder)[0]).toContain(`doc save 00000000 ${slash(join(folder, "_failed", "mug.af"))}`);
   });
 });
 

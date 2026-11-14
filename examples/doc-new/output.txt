@@ -3,6 +3,7 @@ doc: <uuid>
 size: 800x600 px @ 72 dpi
 units: Pixel
 dirty: false
+transparent: false
 help[3]:
   affinity-axi run <script.js> --args '{"uuid":"<uuid8>"}'   # draw into it
   affinity-axi render <uuid8>

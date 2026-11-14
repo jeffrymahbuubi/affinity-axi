@@ -10,6 +10,6 @@ help[2]:
 
 $ affinity-axi doc note examples/doc-note/asset.af "Lumen Studio launch card, headline approved"
 noted: examples/doc-note/asset.af
-notes: 5
+notes: 8
 help[1]:
   affinity-axi doc info examples/doc-note/asset.af

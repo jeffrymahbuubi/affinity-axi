@@ -4,11 +4,11 @@ args[2]{name,required,description}:
   doc,yes,"session UUID, unique UUID prefix (8+ chars) or 'current'"
   path,yes,output .af path; must be inside the Desktop folder
 flags[3]{flag,default,description}:
-  --force,,overwrite a .af that was changed outside affinity-axi (stale manifest)
-  --url,,Affinity MCP URL (default $AFFINITY_MCP_URL or http://[::1]:6767)
+  --force,,overwrite a .af that was changed outside affinity-axi (stale manifest) or that affinity-axi never saved (no manifest)
+  --url,,Affinity MCP URL (AFFINITY_MCP_URL wins; default http://[::1]:6767)
   --help,,show this help
 examples[2]:
-  affinity-axi doc save current ~/Desktop/logo.af
+  affinity-axi doc save 70E876CB ~/Desktop/logo.af
   affinity-axi doc save 70E876CB out/work.af   # relative to the current directory
 output[4]:
   doc: <uuid>

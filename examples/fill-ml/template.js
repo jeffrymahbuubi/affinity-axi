@@ -8,9 +8,9 @@ if (!ARGS.out) { throw new Error('ARGS.out (the example folder) is missing; pass
 
 axiOn(doc, 'ig-square');
 axiRect(doc, { x: 0, y: 0, w: 1080, h: 1080, fill: '#E9E4DA', name: 'bg' });
-axiText(doc, { x: 90, y: 70, text: 'MORNING SHOP', font: 'Helvetica-Bold', size: 34, colour: '#8A5A3C', name: 'kicker' });
+axiText(doc, { x: 90, y: 70, text: 'MORNING SHOP', font: 'Arial-BoldMT', size: 34, colour: '#8A5A3C', name: 'kicker' });
 // The placeholder photo keeps the slot a picture; fill swaps in the record's photo and cuts it out.
 axiImage(doc, { path: ARGS.out + '/../_photos/street-1930s.jpg', x: 90, y: 130, w: 900, h: 640, fit: 'cover', radius: 40, name: 'slot:photo' });
 axiRename(doc, 'slot:photo-frame', 'photo-frame'); // the frame is decoration; only the picture is a slot
-axiText(doc, { x: 90, y: 850, text: 'Headline goes here', font: 'Helvetica-Bold', size: 72, colour: '#3A2A1E', name: 'slot:headline' });
+axiText(doc, { x: 90, y: 850, text: 'Headline goes here', font: 'Arial-BoldMT', size: 72, colour: '#3A2A1E', name: 'slot:headline' });
 console.log(JSON.stringify({ slots: axiNames(doc).map((r) => r.name).filter((n) => n.indexOf('slot:') === 0) }));

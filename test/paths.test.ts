@@ -2,7 +2,7 @@
 
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { join, parse, resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { UsageError } from "../src/output/errors.js";
 import { slash } from "./helpers/paths.js";
@@ -143,6 +143,38 @@ describe("requireVisible", () => {
 
   it("does not throw on a visible path", () => {
     expect(() => requireVisible("/a/b/c.af", "path")).not.toThrow();
+  });
+});
+
+describe("requireVisible with a hidden current folder", () => {
+  // The first hidden segment: '.hid' normally, an outer dot folder when the temp dir itself sits under one.
+  const seg = (): string => hiddenSegment(join(root, ".hid")) ?? ".hid";
+  const hid = (): string => join(root, ".hid");
+  const suggestion = (p: string, cwd: string): string | undefined => usage(() => requireVisible(p, "save path", cwd)).suggestion;
+  const OLD =
+    "Affinity refuses dot-prefixed paths such as .affinity-axi/; choose a path whose folders and file name do not start with a dot";
+
+  it("points at ~/Desktop/<tail> and strips a leading Desktop segment", () => {
+    expect(suggestion(join(hid(), "Desktop", "x.af"), hid())).toBe(
+      `the current folder is inside '${seg()}', so a relative path lands there; give a path under the Desktop instead, e.g. ~/Desktop/x.af`,
+    );
+    expect(suggestion(join(hid(), "out", "a.af"), hid())).toBe(
+      `the current folder is inside '${seg()}', so a relative path lands there; give a path under the Desktop instead, e.g. ~/Desktop/out/a.af`,
+    );
+  });
+
+  it("keeps the old suggestion for a hidden segment below cwd, a path outside cwd and a visible cwd", () => {
+    expect(suggestion(join(hid(), ".cache", "x.af"), hid())).toBe(OLD);
+    expect(suggestion(join(root, ".other", "x.af"), hid())).toBe(OLD);
+    const top = parse(root).root;
+    expect(suggestion(join(top, "vis", ".c", "x.af"), join(top, "vis"))).toBe(OLD);
+  });
+
+  it("never changes the message", () => {
+    const p = join(hid(), "Desktop", "x.af");
+    const msg = `save path is inside a hidden folder or file ('${seg()}'): ${slash(p)}`;
+    expect(usage(() => requireVisible(p, "save path", hid())).message).toBe(msg);
+    expect(usage(() => requireVisible(p, "save path", join(root, "vis"))).message).toBe(msg);
   });
 });
 

@@ -1,11 +1,11 @@
 command: affinity-axi export
-summary: Export a document with a named preset to a path under the Desktop folder
+summary: Export a document with a named preset to a path under the Desktop folder (Affinity's XMP is stripped; --creator embeds yours)
 args[3]{name,required,description}:
   doc,yes,"session UUID, unique UUID prefix (8+ chars) or 'current'"
   preset,yes,exact preset name (see 'affinity-axi presets')
   path,yes,output file path; must be inside the Desktop folder; {name} stands for the artboard name
-flags[13]{flag,default,description}:
-  --url,,Affinity MCP URL (default $AFFINITY_MCP_URL or http://[::1]:6767)
+flags[18]{flag,default,description}:
+  --url,,Affinity MCP URL (AFFINITY_MCP_URL wins; default http://[::1]:6767)
   --artboard,,export one artboard by name
   --all-artboards,,one file per artboard; <path> must contain {name}
   --selection,,export the current selection
@@ -16,7 +16,12 @@ flags[13]{flag,default,description}:
   --square,,"fit the longer side to <px> keeping the aspect ratio, e.g. 512"
   --max-kb,,"largest file size in KB; steps JPEG/WebP/PNG presets down, then size (to --min-scale)"
   --min-scale,,smallest size step for --max-kb as a fraction of the requested size (default 0.5)
+  --timeout,30000,export timeout in milliseconds; the export goes to a temp file next to the path and is renamed when done; on a timeout the target is untouched
   --no-alt,,skip the alt-text stub (saves one inventory call)
+  --brand,,"brand kit: a .brand.json path or a name under ./brands/ (default $AFFINITY_AXI_BRAND, then ./brand.json)"
+  --creator,,credit to embed as XMP dc:Creator (default: the brand kit's credit.creator); needs exiftool
+  --copyright,,rights text to embed as XMP dc:Rights with the copyright flag set (needs --creator or a kit creator)
+  --keep-metadata,,"keep the metadata Affinity writes (XMP: account name, history, dates; in JPEG also EXIF and IPTC); default strips it"
   --help,,show this help
 examples[4]:
   affinity-axi export current PNG ~/Desktop/logo.png

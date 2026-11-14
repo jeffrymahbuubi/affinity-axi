@@ -13,7 +13,7 @@ path: examples/doc-info/asset.af
 manifest: fresh
 madeBy: ../_brand/demo-doc.js --with-helpers
 named[1]: ig-square
-history: 10
+history: 16
 exports: 0
 notes: 0
 help[2]:

@@ -1,13 +1,13 @@
 {
   "schema": "affinity-axi/webassets/1",
-  "doc": "965B9441-A3A0-45BB-8D5D-6F7612D883EB",
-  "at": "2026-10-25T17:42:54.379Z",
+  "doc": "E7D38B4A-EF72-4F29-86D9-682CE4DF35CE",
+  "at": "2026-11-14T11:16:50.866Z",
   "files": [
     {
       "role": "favicon",
       "file": "favicon-16.png",
       "size": "16x16",
-      "bytes": 729,
+      "bytes": 730,
       "artboard": "mark",
       "alt": ""
     },
@@ -15,7 +15,7 @@
       "role": "favicon",
       "file": "favicon-32.png",
       "size": "32x32",
-      "bytes": 955,
+      "bytes": 956,
       "artboard": "mark",
       "alt": ""
     },
@@ -23,7 +23,7 @@
       "role": "favicon",
       "file": "favicon-48.png",
       "size": "48x48",
-      "bytes": 1185,
+      "bytes": 1186,
       "artboard": "mark",
       "alt": ""
     },
@@ -31,7 +31,7 @@
       "role": "apple-touch-icon",
       "file": "apple-touch-icon.png",
       "size": "180x180",
-      "bytes": 3285,
+      "bytes": 3286,
       "artboard": "mark",
       "alt": ""
     },
@@ -39,7 +39,7 @@
       "role": "icon",
       "file": "icon-192.png",
       "size": "192x192",
-      "bytes": 3325,
+      "bytes": 3326,
       "artboard": "mark",
       "alt": ""
     },
@@ -47,7 +47,7 @@
       "role": "icon",
       "file": "icon-512.png",
       "size": "512x512",
-      "bytes": 8752,
+      "bytes": 8753,
       "artboard": "mark",
       "alt": ""
     },
@@ -62,7 +62,7 @@
       "role": "og",
       "file": "og.png",
       "size": "1200x630",
-      "bytes": 22522,
+      "bytes": 22977,
       "artboard": "og",
       "alt": "lumen. light for small studios"
     },
@@ -70,7 +70,7 @@
       "role": "x-card",
       "file": "x-card.png",
       "size": "1200x600",
-      "bytes": 21164,
+      "bytes": 21693,
       "artboard": "x-card",
       "alt": "lumen. light for small studios"
     },
@@ -78,7 +78,7 @@
       "role": "responsive",
       "file": "hero.png",
       "size": "1920x1080",
-      "bytes": 43526,
+      "bytes": 44094,
       "artboard": "hero",
       "alt": "lumen. light for small studios"
     },
@@ -86,7 +86,7 @@
       "role": "responsive",
       "file": "hero@2x.png",
       "size": "3840x2160",
-      "bytes": 97254,
+      "bytes": 99358,
       "artboard": "hero",
       "alt": "lumen. light for small studios"
     },
@@ -94,7 +94,7 @@
       "role": "responsive",
       "file": "hero.webp",
       "size": "1920x1080",
-      "bytes": 18584,
+      "bytes": 18656,
       "artboard": "hero",
       "alt": "lumen. light for small studios"
     },
@@ -102,7 +102,7 @@
       "role": "responsive",
       "file": "hero@2x.webp",
       "size": "3840x2160",
-      "bytes": 43290,
+      "bytes": 43546,
       "artboard": "hero",
       "alt": "lumen. light for small studios"
     },
@@ -110,7 +110,7 @@
       "role": "favicon",
       "file": "favicon.ico",
       "size": "16+32+48",
-      "bytes": 2923
+      "bytes": 2926
     },
     {
       "role": "webmanifest",

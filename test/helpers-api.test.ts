@@ -128,8 +128,43 @@ describe("axiGrade spec and looks", () => {
   });
 
   it("accepts curves as a master point list or per-channel lists", () => {
-    expect(steps({ curves: [[0, 0], [1, 1]] })[0]![1]).toEqual({ master: [[0, 0], [1, 1]] });
+    expect(steps({ curves: [[0, 0], [1, 1]] })[0]![1]).toEqual({ master: [{ x: 0, y: 0 }, { x: 1, y: 1 }] });
     expect(Object.keys(steps({ curves: { r: [[0, 0], [1, 0.5]], b: [[0, 0], [1, 1]] } })[0]![1])).toEqual(["r", "b"]);
+  });
+
+  it("curve points may be [x, y] or {x, y}, and always leave as plain {x, y} objects", () => {
+    const arrays = steps({ curves: [[0, 0.1], [0.5, 0.6], [1, 1]] })[0]![1];
+    const objects = steps({ curves: [{ x: 0, y: 0.1 }, { x: 0.5, y: 0.6 }, { x: 1, y: 1 }] })[0]![1];
+    const mixed = steps({ curves: [[0, 0.1], { x: 0.5, y: 0.6 }, [1, 1]] })[0]![1];
+    expect(objects).toEqual(arrays);
+    expect(mixed).toEqual(arrays);
+    expect(steps({ curves: { master: [{ x: 0, y: 0, extra: 9 }, { x: 1, y: 1 }] } })[0]![1].master).toEqual([{ x: 0, y: 0 }, { x: 1, y: 1 }]);
+    expect(Object.keys(arrays.master[0])).toEqual(["x", "y"]);
+  });
+
+  it("curve errors name the channel and the point, and match the photo loop skip pattern", () => {
+    const skip = /^axi\w+: (unknown|.*\bmust\b|.*\bneeds\b)/;
+    const bad: Array<[unknown, RegExp]> = [
+      [[[0, 0]], /at least two/],
+      [[[0, 0], [2, 1]], /curves\.master\[1\] x must be a number in 0\.\.1/],
+      [{ r: [[0, 0], [1, "a"]] }, /curves\.r\[1\] y/],
+      [[[0, 0], [0]], /curves\.master\[1\] must be \[x,y\] or \{x,y\}/],
+      [[[0, 0], 5], /curves\.master\[1\] must be \[x,y\] or \{x,y\}/],
+      [[[0, 0], null], /curves\.master\[1\] must be \[x,y\] or \{x,y\}/],
+      [{ rgb: [[0, 0], [1, 1]] }, /unknown channel rgb/],
+      [{}, /at least one of master, r, g, b/],
+      [5, /must be a point list/],
+    ];
+    for (const [curves, re] of bad) {
+      let msg = "";
+      try {
+        steps({ curves });
+      } catch (e) {
+        msg = (e as Error).message;
+      }
+      expect(msg).toMatch(re);
+      expect(msg).toMatch(skip);
+    }
   });
 
   it("rejects unknown keys and out-of-range values naming the key", () => {
@@ -139,7 +174,7 @@ describe("axiGrade spec and looks", () => {
     expect(() => steps({ levels: { gamma: 3 } })).toThrow(/levels.gamma/);
     expect(() => steps({ vibrance: "lots" })).toThrow(/vibrance/);
     expect(() => steps({ curves: [[0, 0]] })).toThrow(/at least two/);
-    expect(() => steps({ curves: [[0, 0], [2, 1]] })).toThrow(/curves.master x/);
+    expect(() => steps({ curves: [[0, 0], [2, 1]] })).toThrow(/curves\.master\[1\] x must be a number in 0\.\.1/);
   });
 
   it("looks are valid grade specs; neutral is gentle and carries no white balance", () => {

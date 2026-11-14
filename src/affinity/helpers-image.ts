@@ -242,16 +242,28 @@ function axiGradeSteps(spec) {
     steps.push(['levels', { blackLevel: opt(l, 'black', 'levels', 0, 1, 0), whiteLevel: opt(l, 'white', 'levels', 0, 1, 1), gamma: opt(l, 'gamma', 'levels', 0, 2, 1), outputBlackLevel: opt(l, 'outBlack', 'levels', 0, 1, 0), outputWhiteLevel: opt(l, 'outWhite', 'levels', 0, 1, 1) }]);
   }
   if (spec.curves) {
+    const chans = ['master', 'r', 'g', 'b'];
+    if (typeof spec.curves !== 'object') { throw new Error('axiGrade: curves must be a point list or {master, r, g, b}'); }
     const c = Array.isArray(spec.curves) ? { master: spec.curves } : spec.curves;
+    Object.keys(c).forEach(function (k) {
+      if (chans.indexOf(k) < 0) { throw new Error('axiGrade: unknown channel ' + k + ' in curves; known: ' + chans.join(', ')); }
+    });
     const lists = {};
-    ['master', 'r', 'g', 'b'].forEach(function (ch) {
+    chans.forEach(function (ch) {
       if (!c[ch]) { return; }
-      if (!Array.isArray(c[ch]) || c[ch].length < 2) { throw new Error('axiGrade: curves.' + ch + ' needs at least two [x,y] points'); }
+      if (!Array.isArray(c[ch]) || c[ch].length < 2) { throw new Error('axiGrade: curves.' + ch + ' needs at least two points, each [x,y] or {x,y}'); }
+      // The SDK takes {x, y} objects; [x, y] arrays are accepted here and converted.
       lists[ch] = c[ch].map(function (p, i) {
-        if (!Array.isArray(p) || p.length !== 2) { throw new Error('axiGrade: curves.' + ch + '[' + i + '] must be [x,y]'); }
-        return [num('curves.' + ch + ' x', p[0], 0, 1), num('curves.' + ch + ' y', p[1], 0, 1)];
+        const at = 'curves.' + ch + '[' + i + ']';
+        let px;
+        let py;
+        if (Array.isArray(p) && p.length === 2) { px = p[0]; py = p[1]; }
+        else if (p && typeof p === 'object' && !Array.isArray(p)) { px = p.x; py = p.y; }
+        else { throw new Error('axiGrade: ' + at + ' must be [x,y] or {x,y}'); }
+        return { x: num(at + ' x', px, 0, 1), y: num(at + ' y', py, 0, 1) };
       });
     });
+    if (Object.keys(lists).length === 0) { throw new Error('axiGrade: curves needs a point list or at least one of master, r, g, b'); }
     steps.push(['curves', lists]);
   }
   if (spec.brightnessContrast) {
@@ -311,7 +323,7 @@ function axiGradeTarget(doc, node) {
 //   exposure: EV, -20..20
 //   whiteBalance: {temp, tint} each -1..1 (temp + is warmer)
 //   levels: {black, white, gamma, outBlack, outWhite}, 0..1 each, gamma 0..2 (1 = neutral)
-//   curves: [[x,y],...] master curve, 0..1; or {master, r, g, b} point lists
+//   curves: [[x,y],...] or [{x,y},...] master curve, 0..1; or {master, r, g, b} point lists
 //   brightnessContrast: {brightness, contrast} -1..1
 //   shadowsHighlights: {shadows, highlights} -2..2
 //   vibrance, saturation: -1..1 (one Vibrance layer)

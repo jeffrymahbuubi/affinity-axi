@@ -26,7 +26,7 @@ function starterKit(name: string): BrandKit {
     schema: BRAND_SCHEMA,
     name,
     colours: { ink: "#111111", paper: "#FFFFFF", accent: "#2F6FEB" },
-    fonts: { headline: "Helvetica-Bold", body: "Helvetica" },
+    fonts: { headline: "Arial-BoldMT", body: "ArialMT" },
     type: {
       display: { font: "headline", size: 120, spacing: -0.01 },
       h1: { font: "headline", size: 64 },

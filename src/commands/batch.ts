@@ -29,11 +29,11 @@ import { classify, resultText } from "../affinity/result.js";
 import { APP_INFO, injectArgs } from "../affinity/scripts.js";
 import { AxiError, UsageError } from "../output/errors.js";
 import { helpBlock } from "../output/suggest.js";
-import { emitList, print } from "../output/toon.js";
+import { emitList, listHeader, listRow, print } from "../output/toon.js";
 import type { AffinityClient, AiHit, ConnectFn } from "../mcp/types.js";
 import { DOC_CLOSE, DOC_SAVE } from "./doc.js";
 import { callJson, listDocs, logRun, replayFlags, runDocuments, type DocListing } from "./run.js";
-import { BATCH_RESERVED, deriveKeys, loadRecords, reservedFields, type DataRecord } from "./batch-data.js";
+import { BATCH_RESERVED, deriveKeys, keyRenames, loadRecords, reservedFields, type DataRecord } from "./batch-data.js";
 
 const BIN = "affinity-axi";
 const DEFAULT_TIMEOUT_MS = 60000;
@@ -47,6 +47,8 @@ interface Row {
   ms: number;
   note: string;
 }
+
+const ROW_FIELDS = ["key", "status", "doc", "ms", "note"];
 
 /** Thrown for a failure that makes continuing unsafe (transport error, timeout, stuck close). */
 class FatalRecord extends Error {}
@@ -355,7 +357,7 @@ export function make(connect: ConnectFn): CommandModule {
       if (records.length === 0) {
         print(
           [
-            emitList("batch", [], ["key", "status", "doc", "ms", "note"]),
+            emitList("batch", [], ROW_FIELDS),
             `summary: ok=0 failed=0 skipped=0 ms=0 (no records in ${shown(dataFile)}; nothing was run)`,
           ].join("\n"),
         );
@@ -390,10 +392,16 @@ export function make(connect: ConnectFn): CommandModule {
         const ctx: Ctx = { client, flags: [...replayFlags(parsed), ...(force ? ["--force"] : [])], force, source, hits, file, helpers: parsed.flags["with-helpers"] === true, timeoutMs, outDir, saveDir, brand, refused, credit, cleaned, known, leftOpen };
         const keepGoing = parsed.flags["continue-on-error"] === true;
         let stopped: string | undefined;
+        // The table streams: the header now, each row as its record finishes (skipped rows too).
+        print(listHeader("batch", records.length, ROW_FIELDS));
+        const push = (row: Row): void => {
+          rows.push(row);
+          print(listRow(row as unknown as Record<string, unknown>, ROW_FIELDS));
+        };
         for (let i = 0; i < records.length; i++) {
           const key = keys[i]!;
           if (stopped !== undefined) {
-            rows.push({ key, status: "skipped", doc: "", ms: 0, note: stopped });
+            push({ key, status: "skipped", doc: "", ms: 0, note: stopped });
             continue;
           }
           let r: Row;
@@ -404,7 +412,7 @@ export function make(connect: ConnectFn): CommandModule {
             r = { key, status: "failed", doc: "", ms: 0, note: oneLine(err.message) };
             stopped = `not run: stopped after a fatal error at '${key}'`;
           }
-          rows.push(r);
+          push(r);
           if (r.status === "failed" && stopped === undefined && !keepGoing) stopped = `not run: stopped after failure at '${key}'`;
         }
       } finally {
@@ -414,7 +422,6 @@ export function make(connect: ConnectFn): CommandModule {
       const count = (s: Row["status"]) => rows.filter((r) => r.status === s).length;
       const failed = count("failed");
       const out = [
-        emitList("batch", rows as unknown as Array<Record<string, unknown>>, ["key", "status", "doc", "ms", "note"]),
         `summary: ok=${count("ok")} failed=${failed} skipped=${count("skipped")} ms=${Date.now() - started}` +
           (limit !== undefined && all.length > records.length ? ` (limited to ${records.length} of ${all.length} records)` : ""),
       ];
@@ -426,6 +433,8 @@ export function make(connect: ConnectFn): CommandModule {
         const many = reserved.length > 1;
         out.push(`warning: record field${many ? "s" : ""} ${reserved.join(", ")} ${many ? "are" : "is"} replaced in ARGS by the batch values (${BATCH_RESERVED.join(", ")}); rename ${many ? "them" : "it"} in the data file`);
       }
+      const renamed = keyRenames(records, keyField, keys);
+      if (renamed.length > 0) out.push(emitList("renamed", renamed.slice(0, 10), ["value", "key"], { total: renamed.length }));
       const helps: string[] = [];
       if (count("skipped") > 0) helps.push(`${BIN} batch ${shown(file)} --data ${shown(dataFile)} --continue-on-error   # process the records after a failure`);
       const firstDoc = rows.find((r) => r.status === "ok" && r.doc);

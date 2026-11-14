@@ -2,8 +2,8 @@ $ affinity-axi brand check examples/_brand/brand.json
 name: Lumen Studio
 path: examples/_brand/brand.json
 checks[5]{check,status,note}:
-  font headline,ok,Helvetica-Bold
-  font body,ok,Helvetica
+  font headline,ok,Arial-BoldMT
+  font body,ok,ArialMT
   contrast ink/mist,ok,13.04
   contrast ink/sun,ok,9.27
   contrast mist/ink,ok,13.04

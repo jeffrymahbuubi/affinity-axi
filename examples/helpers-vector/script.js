@@ -20,7 +20,7 @@ const MIST = '#F2F5F9';
 // Wordmark: live text first, then converted to curves under the same name.
 axiOn(doc, 'ig-square');
 axiRect(doc, { x: 0, y: 0, w: 1080, h: 1080, fill: INK, name: 'bg' });
-axiText(doc, { x: 540, y: 620, text: 'lumen', font: 'Helvetica-Bold', size: 280, colour: MIST, align: 'c', name: 'wordmark' });
+axiText(doc, { x: 540, y: 620, text: 'lumen', font: 'Arial-BoldMT', size: 280, colour: MIST, align: 'c', name: 'wordmark' });
 const word = axiOutline(doc, 'wordmark');
 
 // Mark: union of a rounded square and a circle, minus a smaller circle.

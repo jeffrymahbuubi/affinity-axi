@@ -13,7 +13,7 @@ flags[12]{flag,default,description}:
   --no-favicons,,skip the favicon set (cards and responsive sets only)
   --spread,,spread index from 0 that holds the artboards (default 0)
   --no-alt,,skip the alt-text stub (saves one inventory call)
-  --url,,Affinity MCP URL (default $AFFINITY_MCP_URL or http://[::1]:6767)
+  --url,,Affinity MCP URL (AFFINITY_MCP_URL wins; default http://[::1]:6767)
   --help,,show this help
 examples[3]:
   affinity-axi webassets current --out-dir ~/Desktop/site

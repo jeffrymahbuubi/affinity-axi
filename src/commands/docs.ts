@@ -6,8 +6,13 @@ import { helpBlock } from "../output/suggest.js";
 import { emitBlock, print } from "../output/toon.js";
 import { truncate, truncationNote } from "../output/truncate.js";
 import { McpError, type AffinityClient, type ConnectFn } from "../mcp/types.js";
+import { renderGuide } from "../guide/content.js";
 
 export const TEXT_LIMIT = 1500;
+/** Cut for the guide topic once --grep or --lines narrowed it. */
+export const GUIDE_LIMIT = 6000;
+/** The local topic that is answered offline from this build's usage guide. */
+export const GUIDE_TOPIC = "guide";
 
 export const URL_FLAG: FlagSpec = {
   name: "url",
@@ -48,8 +53,14 @@ export async function toolText(
 }
 
 /** Indented, truncated text block with the exact `--full` command when cut. */
-export function cutBlock(label: string, text: string, full: boolean, fullCommand: string): string[] {
-  const t = full ? { text, truncated: false, totalChars: text.length } : truncate(text, TEXT_LIMIT);
+export function cutBlock(
+  label: string,
+  text: string,
+  full: boolean,
+  fullCommand: string,
+  limit: number = TEXT_LIMIT,
+): string[] {
+  const t = full ? { text, truncated: false, totalChars: text.length } : truncate(text, limit);
   const out = [`${label}:`, ...t.text.split("\n").map((l) => "  " + l)];
   if (t.truncated) {
     out.push(truncationNote(t));
@@ -114,6 +125,7 @@ function docsList(connect: ConnectFn): CommandModule {
       const firstModule = g.modules.find((m) => m !== "preamble") ?? "document.js";
       print(
         [
+          "guide: affinity-axi docs read guide --grep <regex>   # usage rules for this tool (offline)",
           emitBlock("modules", g.modules),
           emitBlock("examples", g.examples),
           emitBlock("tests", g.tests),
@@ -155,7 +167,7 @@ function docsRead(connect: ConnectFn): CommandModule {
     spec: {
       name: "docs read",
       summary: "Read an SDK documentation topic, narrowed by --grep or --lines (truncated at 1500 chars)",
-      args: [{ name: "file", required: true, description: "topic name from 'affinity-axi docs'" }],
+      args: [{ name: "file", required: true, description: "topic name from 'affinity-axi docs', or guide for this tool's usage guide (offline)" }],
       flags: [
         { name: "grep", type: "string", description: "keep only lines matching this regex, prefixed L<n>:" },
         { name: "lines", type: "string", description: "keep only this 1-based inclusive range, e.g. 10-40" },
@@ -166,6 +178,7 @@ function docsRead(connect: ConnectFn): CommandModule {
         "affinity-axi docs read preamble",
         'affinity-axi docs read document.js --grep "export\\("',
         "affinity-axi docs read nodes.js --lines 1-60",
+        "affinity-axi docs read guide --grep slot",
       ],
     },
     async run(parsed) {
@@ -175,9 +188,12 @@ function docsRead(connect: ConnectFn): CommandModule {
       const grep = typeof grepFlag === "string" ? compileGrep(grepFlag) : null;
       const range = typeof linesFlag === "string" ? parseRange(linesFlag) : null;
 
-      const text = await withClient(connect, parsed.flags, (c) =>
-        toolText(c, "read_sdk_documentation_topic", { filename: file }, "run 'affinity-axi docs' to list valid topic names"),
-      );
+      const isGuide = file === GUIDE_TOPIC;
+      const text = isGuide
+        ? renderGuide().replace(/\n$/, "")
+        : await withClient(connect, parsed.flags, (c) =>
+            toolText(c, "read_sdk_documentation_topic", { filename: file }, "run 'affinity-axi docs' to list valid topic names"),
+          );
       const all = text.split("\n");
       const meta = [`topic: ${file}`, `size: ${text.length} chars, ${all.length} lines`];
 
@@ -199,7 +215,9 @@ function docsRead(connect: ConnectFn): CommandModule {
         ...(typeof linesFlag === "string" ? ["--lines", linesFlag] : []),
         "--full",
       ].join(" ");
-      const body = grep && picked.length === 0 ? [] : cutBlock("content", view, parsed.flags["full"] === true, fullCommand);
+      const limit = isGuide && (grep || range) ? GUIDE_LIMIT : TEXT_LIMIT;
+      const body =
+        grep && picked.length === 0 ? [] : cutBlock("content", view, parsed.flags["full"] === true, fullCommand, limit);
       print([...meta, ...body].join("\n"));
       return 0;
     },

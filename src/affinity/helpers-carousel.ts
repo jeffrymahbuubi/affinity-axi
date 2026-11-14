@@ -34,7 +34,7 @@ function axiCarouselDecor(doc, boards, number, cue) {
   if (number) {
     const n = number === true ? {} : number;
     if (typeof n !== 'object') { throw new Error('axiCarousel: number must be true or an options object'); }
-    num = { font: n.font || 'Helvetica', size: n.size === undefined ? 36 : n.size, colour: n.colour || '#1F2A44', pos: n.pos || 'tr', pad: n.pad === undefined ? 48 : n.pad };
+    num = { font: n.font || 'ArialMT', size: n.size === undefined ? 36 : n.size, colour: n.colour || '#1F2A44', pos: n.pos || 'tr', pad: n.pad === undefined ? 48 : n.pad };
     if (['tl', 'tr', 'bl', 'br'].indexOf(num.pos) < 0) { throw new Error('axiCarousel: number.pos must be tl, tr, bl or br'); }
     if (typeof num.font !== 'string') { throw new Error('axiCarousel: number.font must be a postscriptName'); }
     if (!(num.size > 0)) { throw new Error('axiCarousel: number.size must be positive'); }

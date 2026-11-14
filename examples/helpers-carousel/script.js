@@ -13,7 +13,7 @@ if (!doc) { throw new Error('demo document not found: ' + want); }
 const INK = '#1F2A44';
 const SKY = '#4C8DFF';
 const MIST = '#F2F5F9';
-const BOLD = 'Helvetica-Bold';
+const BOLD = 'Arial-BoldMT';
 
 const HEADLINES = [
   'Five rules of studio light',
@@ -27,7 +27,7 @@ const slides = axiCarousel(doc, {
   platform: 'ig-portrait',
   count: HEADLINES.length,
   fill: MIST,
-  number: { font: 'Helvetica', size: 36, colour: INK, pos: 'tr' },
+  number: { font: 'ArialMT', size: 36, colour: INK, pos: 'tr' },
   cue: { colour: SKY },
 });
 

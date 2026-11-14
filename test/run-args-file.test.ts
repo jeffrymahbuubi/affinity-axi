@@ -65,6 +65,14 @@ describe("run --args-file", () => {
     expect(sent[1]).toBe(sent[0]);
   });
 
+  it("unquoted --args JSON (PowerShell 5.1): exit 2, suggestion names --args-file", async () => {
+    const r = await exec(["--args", "{size:512}"]);
+    expect(r.code).toBe(2);
+    expect(r.stdout).toContain("--args is not valid JSON");
+    expect(r.stdout).toContain("--args-file <args.json>");
+    expect(executed()).toEqual([]);
+  });
+
   it("both flags: usage error, exit 2, nothing sent", async () => {
     const r = await exec(["--args", "{}", "--args-file", jsonFile("a.json", "{}")]);
     expect(r.code).toBe(2);

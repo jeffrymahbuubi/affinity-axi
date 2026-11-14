@@ -119,7 +119,7 @@ describe("examples registry", () => {
       expect(gallery.some((s) => s.includes(term)), `gallery mentions ${term}`).toBe(false);
     }
     expect(text).toContain("lumen studio");
-    expect(text).toContain("helvetica");
+    expect(text).toContain("arial");
   });
 });
 

@@ -1,9 +1,11 @@
 $ affinity-axi docs
-modules[69]:
+guide: affinity-axi docs read guide --grep <regex>   # usage rules for this tool (offline)
+modules[363]:
   application.js
   artboardinterface.js
   artboardproperties.js
   baseboxinterface.js
+  baselinegridinterface.js
   blendmodeinterface.js
   brushfillinterface.js
   buffer.js
@@ -36,6 +38,7 @@ modules[69]:
   layereffectsinterface.js
   linestyle.js
   linestyleinterface.js
+  locale.js
   logging.js
   marginsinterface.js
   network.js
@@ -53,6 +56,7 @@ modules[69]:
   rasterinterface.js
   rasterobject.js
   rasterselection.js
+  resource.js
   selectable.js
   selections.js
   shapeinterface.js
@@ -62,12 +66,303 @@ modules[69]:
   storydelta.js
   storyinterface.js
   taginterface.js
+  textflow.js
   textframeinterface.js
   timers.js
   transforminterface.js
   transparencyinterface.js
+  ts/application.d.ts
+  ts/brushes.d.ts
+  ts/buffer.d.ts
+  ts/colours.d.ts
+  ts/commands.d.ts
+  ts/common.d.ts
+  ts/dom.d.ts
+  ts/dom/AddNoiseFilterParametersApi.d.ts
+  ts/dom/AddNoiseFilterRasterNodeApi.d.ts
+  ts/dom/AddNoiseFilterRasterNodeDefinitionApi.d.ts
+  ts/dom/AdjustmentRasterNodeApi.d.ts
+  ts/dom/AdjustmentRasterNodeDefinitionApi.d.ts
+  ts/dom/ArtTextNodeApi.d.ts
+  ts/dom/ArtTextNodeDefinitionApi.d.ts
+  ts/dom/ArtboardDocumentPropertiesApi.d.ts
+  ts/dom/ArtboardInterfaceApi.d.ts
+  ts/dom/ArtboardPropertiesApi.d.ts
+  ts/dom/BaseBoxInterfaceApi.d.ts
+  ts/dom/BaselineGridInterfaceApi.d.ts
+  ts/dom/BaselineGridOptionsApi.d.ts
+  ts/dom/BilateralBlurFilterParametersApi.d.ts
+  ts/dom/BilateralBlurFilterRasterNodeApi.d.ts
+  ts/dom/BilateralBlurFilterRasterNodeDefinitionApi.d.ts
+  ts/dom/BlackAndWhiteAdjustmentParametersApi.d.ts
+  ts/dom/BlackAndWhiteAdjustmentRasterNodeApi.d.ts
+  ts/dom/BlackAndWhiteAdjustmentRasterNodeDefinitionApi.d.ts
+  ts/dom/BlendModeInterfaceApi.d.ts
+  ts/dom/BlendOptionsApi.d.ts
+  ts/dom/BloomFilterParametersApi.d.ts
+  ts/dom/BloomFilterRasterNodeApi.d.ts
+  ts/dom/BloomFilterRasterNodeDefinitionApi.d.ts
+  ts/dom/BoxBlurFilterParametersApi.d.ts
+  ts/dom/BoxBlurFilterRasterNodeApi.d.ts
+  ts/dom/BoxBlurFilterRasterNodeDefinitionApi.d.ts
+  ts/dom/BrightnessContrastAdjustmentParametersApi.d.ts
+  ts/dom/BrightnessContrastAdjustmentRasterNodeApi.d.ts
+  ts/dom/BrightnessContrastAdjustmentRasterNodeDefinitionApi.d.ts
+  ts/dom/BrushFillInterfaceApi.d.ts
+  ts/dom/ClarityFilterParametersApi.d.ts
+  ts/dom/ClarityFilterRasterNodeApi.d.ts
+  ts/dom/ClarityFilterRasterNodeDefinitionApi.d.ts
+  ts/dom/ColourBalanceAdjustmentParametersApi.d.ts
+  ts/dom/ColourBalanceAdjustmentRasterNodeApi.d.ts
+  ts/dom/ColourBalanceAdjustmentRasterNodeDefinitionApi.d.ts
+  ts/dom/ColouredLogicalNodeApi.d.ts
+  ts/dom/ColouredLogicalNodeDefinitionApi.d.ts
+  ts/dom/CompoundOperationInterfaceApi.d.ts
+  ts/dom/ContainerNodeApi.d.ts
+  ts/dom/ContainerNodeDefinitionApi.d.ts
+  ts/dom/CurveEdgeSubSelectionApi.d.ts
+  ts/dom/CurveNodeSubSelectionApi.d.ts
+  ts/dom/CurvePathTextNodeApi.d.ts
+  ts/dom/CurvePathTextNodeDefinitionApi.d.ts
+  ts/dom/CurvesAdjustmentParametersApi.d.ts
+  ts/dom/CurvesAdjustmentRasterNodeApi.d.ts
+  ts/dom/CurvesAdjustmentRasterNodeDefinitionApi.d.ts
+  ts/dom/CurvesInterfaceApi.d.ts
+  ts/dom/DefringeFilterParametersApi.d.ts
+  ts/dom/DefringeFilterRasterNodeApi.d.ts
+  ts/dom/DefringeFilterRasterNodeDefinitionApi.d.ts
+  ts/dom/DenoiseFilterParametersApi.d.ts
+  ts/dom/DenoiseFilterRasterNodeApi.d.ts
+  ts/dom/DenoiseFilterRasterNodeDefinitionApi.d.ts
+  ts/dom/DepthOfFieldFilterParametersApi.d.ts
+  ts/dom/DepthOfFieldFilterRasterNodeApi.d.ts
+  ts/dom/DepthOfFieldFilterRasterNodeDefinitionApi.d.ts
+  ts/dom/DescriptionInterfaceApi.d.ts
+  ts/dom/DevelopNodeApi.d.ts
+  ts/dom/DevelopParametersApi.d.ts
+  ts/dom/DiffuseFilterParametersApi.d.ts
+  ts/dom/DiffuseFilterRasterNodeApi.d.ts
+  ts/dom/DiffuseFilterRasterNodeDefinitionApi.d.ts
+  ts/dom/DiffuseGlowFilterParametersApi.d.ts
+  ts/dom/DiffuseGlowFilterRasterNodeApi.d.ts
+  ts/dom/DiffuseGlowFilterRasterNodeDefinitionApi.d.ts
+  ts/dom/DocumentApi.d.ts
+  ts/dom/DocumentExportRecordApi.d.ts
+  ts/dom/DocumentExportRecordsApi.d.ts
+  ts/dom/DocumentHistoryApi.d.ts
+  ts/dom/DocumentHistoryItemApi.d.ts
+  ts/dom/DocumentNodeApi.d.ts
+  ts/dom/DocumentPresetApi.d.ts
+  ts/dom/DocumentPropertiesApi.d.ts
+  ts/dom/DocumentSnapshotApi.d.ts
+  ts/dom/DrawingScaleApi.d.ts
+  ts/dom/DustAndScratchFilterParametersApi.d.ts
+  ts/dom/DustAndScratchFilterRasterNodeApi.d.ts
+  ts/dom/DustAndScratchFilterRasterNodeDefinitionApi.d.ts
+  ts/dom/EditabilityInterfaceApi.d.ts
+  ts/dom/EmbeddedDocumentNodeApi.d.ts
+  ts/dom/EnclosureRasterNodeApi.d.ts
+  ts/dom/EnclosureRasterNodeDefinitionApi.d.ts
+  ts/dom/ExportConfigApi.d.ts
+  ts/dom/ExportFormatApi.d.ts
+  ts/dom/ExportScaleApi.d.ts
+  ts/dom/ExportSizeApi.d.ts
+  ts/dom/ExportableInterfaceApi.d.ts
+  ts/dom/ExposureAdjustmentParametersApi.d.ts
+  ts/dom/ExposureAdjustmentRasterNodeApi.d.ts
+  ts/dom/ExposureAdjustmentRasterNodeDefinitionApi.d.ts
+  ts/dom/FieldBlurFilterParametersApi.d.ts
+  ts/dom/FieldBlurFilterRasterNodeApi.d.ts
+  ts/dom/FieldBlurFilterRasterNodeDefinitionApi.d.ts
+  ts/dom/FileExportAreaApi.d.ts
+  ts/dom/FileExportOptionsApi.d.ts
+  ts/dom/FillMeshSubSelectionApi.d.ts
+  ts/dom/FillSubSelectionApi.d.ts
+  ts/dom/FilterRasterNodeApi.d.ts
+  ts/dom/FilterRasterNodeDefinitionApi.d.ts
+  ts/dom/FrameTextNodeApi.d.ts
+  ts/dom/FrameTextNodeDefinitionApi.d.ts
+  ts/dom/GaussianBlurFilterParametersApi.d.ts
+  ts/dom/GaussianBlurFilterRasterNodeApi.d.ts
+  ts/dom/GaussianBlurFilterRasterNodeDefinitionApi.d.ts
+  ts/dom/GroupNodeApi.d.ts
+  ts/dom/HSLShiftAdjustmentParametersApi.d.ts
+  ts/dom/HSLShiftAdjustmentRasterNodeApi.d.ts
+  ts/dom/HSLShiftAdjustmentRasterNodeDefinitionApi.d.ts
+  ts/dom/HalftoneFilterParametersApi.d.ts
+  ts/dom/HalftoneFilterRasterNodeApi.d.ts
+  ts/dom/HalftoneFilterRasterNodeDefinitionApi.d.ts
+  ts/dom/HighPassFilterParametersApi.d.ts
+  ts/dom/HighPassFilterRasterNodeApi.d.ts
+  ts/dom/HighPassFilterRasterNodeDefinitionApi.d.ts
+  ts/dom/ImageNodeApi.d.ts
+  ts/dom/ImageNodeDefinitionApi.d.ts
+  ts/dom/ImageResourceInterfaceApi.d.ts
+  ts/dom/InvertAdjustmentRasterNodeApi.d.ts
+  ts/dom/InvertAdjustmentRasterNodeDefinitionApi.d.ts
+  ts/dom/LayerEffectsInterfaceApi.d.ts
+  ts/dom/LensBlurFilterParametersApi.d.ts
+  ts/dom/LensBlurFilterRasterNodeApi.d.ts
+  ts/dom/LensBlurFilterRasterNodeDefinitionApi.d.ts
+  ts/dom/LevelsAdjustmentParametersApi.d.ts
+  ts/dom/LevelsAdjustmentRasterNodeApi.d.ts
+  ts/dom/LevelsAdjustmentRasterNodeDefinitionApi.d.ts
+  ts/dom/LineFillMeshSubSelectionApi.d.ts
+  ts/dom/LineFillSubSelectionApi.d.ts
+  ts/dom/LineStyleInterfaceApi.d.ts
+  ts/dom/LoadDocumentOptionsApi.d.ts
+  ts/dom/LoadDwgOptionsApi.d.ts
+  ts/dom/LogicalNodeApi.d.ts
+  ts/dom/LogicalNodeDefinitionApi.d.ts
+  ts/dom/MarginsInterfaceApi.d.ts
+  ts/dom/MaskRasterNodeApi.d.ts
+  ts/dom/MaskRasterNodeDefinitionApi.d.ts
+  ts/dom/MaximumBlurFilterParametersApi.d.ts
+  ts/dom/MaximumBlurFilterRasterNodeApi.d.ts
+  ts/dom/MaximumBlurFilterRasterNodeDefinitionApi.d.ts
+  ts/dom/MeasurementNodeApi.d.ts
+  ts/dom/MeasurementNodeDefinitionApi.d.ts
+  ts/dom/MedianBlurFilterParametersApi.d.ts
+  ts/dom/MedianBlurFilterRasterNodeApi.d.ts
+  ts/dom/MedianBlurFilterRasterNodeDefinitionApi.d.ts
+  ts/dom/MinimumBlurFilterParametersApi.d.ts
+  ts/dom/MinimumBlurFilterRasterNodeApi.d.ts
+  ts/dom/MinimumBlurFilterRasterNodeDefinitionApi.d.ts
+  ts/dom/MotionBlurFilterParametersApi.d.ts
+  ts/dom/MotionBlurFilterRasterNodeApi.d.ts
+  ts/dom/MotionBlurFilterRasterNodeDefinitionApi.d.ts
+  ts/dom/NewDocumentOptionsApi.d.ts
+  ts/dom/NodeApi.d.ts
+  ts/dom/NodeCastApi.d.ts
+  ts/dom/NodeDefinitionApi.d.ts
+  ts/dom/NormalsAdjustmentParametersApi.d.ts
+  ts/dom/NormalsAdjustmentRasterNodeApi.d.ts
+  ts/dom/NormalsAdjustmentRasterNodeDefinitionApi.d.ts
+  ts/dom/PageBoxInterfaceApi.d.ts
+  ts/dom/PageDocumentPropertiesApi.d.ts
+  ts/dom/PatternRasterNodeApi.d.ts
+  ts/dom/PatternRasterNodeDefinitionApi.d.ts
+  ts/dom/PhysicalNodeApi.d.ts
+  ts/dom/PhysicalNodeDefinitionApi.d.ts
+  ts/dom/PhysicalRootInterfaceApi.d.ts
+  ts/dom/PhysicalRootPropertiesInterfaceApi.d.ts
+  ts/dom/PictureFrameInterfaceApi.d.ts
+  ts/dom/PinchPunchFilterParametersApi.d.ts
+  ts/dom/PinchPunchFilterRasterNodeApi.d.ts
+  ts/dom/PinchPunchFilterRasterNodeDefinitionApi.d.ts
+  ts/dom/PixelateFilterParametersApi.d.ts
+  ts/dom/PixelateFilterRasterNodeApi.d.ts
+  ts/dom/PixelateFilterRasterNodeDefinitionApi.d.ts
+  ts/dom/PolyCurveNodeApi.d.ts
+  ts/dom/PolyCurveNodeDefinitionApi.d.ts
+  ts/dom/PolyCurveTextNodeApi.d.ts
+  ts/dom/PolyCurveTextNodeDefinitionApi.d.ts
+  ts/dom/PosteriseAdjustmentParametersApi.d.ts
+  ts/dom/PosteriseAdjustmentRasterNodeApi.d.ts
+  ts/dom/PosteriseAdjustmentRasterNodeDefinitionApi.d.ts
+  ts/dom/RadialBlurFilterParametersApi.d.ts
+  ts/dom/RadialBlurFilterRasterNodeApi.d.ts
+  ts/dom/RadialBlurFilterRasterNodeDefinitionApi.d.ts
+  ts/dom/RasterInterfaceApi.d.ts
+  ts/dom/RasterNodeApi.d.ts
+  ts/dom/RasterNodeDefinitionApi.d.ts
+  ts/dom/RasterSelectionApi.d.ts
+  ts/dom/RecolourAdjustmentParametersApi.d.ts
+  ts/dom/RecolourAdjustmentRasterNodeApi.d.ts
+  ts/dom/RecolourAdjustmentRasterNodeDefinitionApi.d.ts
+  ts/dom/RippleFilterParametersApi.d.ts
+  ts/dom/RippleFilterRasterNodeApi.d.ts
+  ts/dom/RippleFilterRasterNodeDefinitionApi.d.ts
+  ts/dom/SelectableApi.d.ts
+  ts/dom/SelectionApi.d.ts
+  ts/dom/SelectionItemApi.d.ts
+  ts/dom/SelectiveColourAdjustmentParametersApi.d.ts
+  ts/dom/SelectiveColourAdjustmentRasterNodeApi.d.ts
+  ts/dom/SelectiveColourAdjustmentRasterNodeDefinitionApi.d.ts
+  ts/dom/ShadowsHighlightsAdjustmentParametersApi.d.ts
+  ts/dom/ShadowsHighlightsAdjustmentRasterNodeApi.d.ts
+  ts/dom/ShadowsHighlightsAdjustmentRasterNodeDefinitionApi.d.ts
+  ts/dom/ShadowsHighlightsFilterParametersApi.d.ts
+  ts/dom/ShadowsHighlightsFilterRasterNodeApi.d.ts
+  ts/dom/ShadowsHighlightsFilterRasterNodeDefinitionApi.d.ts
+  ts/dom/ShapeInterfaceApi.d.ts
+  ts/dom/ShapeNodeApi.d.ts
+  ts/dom/ShapeNodeDefinitionApi.d.ts
+  ts/dom/ShapePathTextNodeApi.d.ts
+  ts/dom/ShapePathTextNodeDefinitionApi.d.ts
+  ts/dom/ShapeTextNodeApi.d.ts
+  ts/dom/ShapeTextNodeDefinitionApi.d.ts
+  ts/dom/SphericalFilterParametersApi.d.ts
+  ts/dom/SphericalFilterRasterNodeApi.d.ts
+  ts/dom/SphericalFilterRasterNodeDefinitionApi.d.ts
+  ts/dom/SplitToningAdjustmentParametersApi.d.ts
+  ts/dom/SplitToningAdjustmentRasterNodeApi.d.ts
+  ts/dom/SplitToningAdjustmentRasterNodeDefinitionApi.d.ts
+  ts/dom/SpreadDocumentPropertiesApi.d.ts
+  ts/dom/SpreadNodeApi.d.ts
+  ts/dom/StoryInterfaceApi.d.ts
+  ts/dom/SubSelectionApi.d.ts
+  ts/dom/TableSubSelectionApi.d.ts
+  ts/dom/TableTextNodeApi.d.ts
+  ts/dom/TableTextNodeDefinitionApi.d.ts
+  ts/dom/TagInterfaceApi.d.ts
+  ts/dom/TextFlowApi.d.ts
+  ts/dom/TextFlowOverflowInfoApi.d.ts
+  ts/dom/TextFrameInterfaceApi.d.ts
+  ts/dom/TextNodeApi.d.ts
+  ts/dom/TextNodeDefinitionApi.d.ts
+  ts/dom/TextSelectionApi.d.ts
+  ts/dom/TextVisibilityOptionsApi.d.ts
+  ts/dom/ThresholdAdjustmentParametersApi.d.ts
+  ts/dom/ThresholdAdjustmentRasterNodeApi.d.ts
+  ts/dom/ThresholdAdjustmentRasterNodeDefinitionApi.d.ts
+  ts/dom/ToneCompressionAdjustmentParametersApi.d.ts
+  ts/dom/ToneCompressionAdjustmentRasterNodeApi.d.ts
+  ts/dom/ToneCompressionAdjustmentRasterNodeDefinitionApi.d.ts
+  ts/dom/ToneStretchAdjustmentParametersApi.d.ts
+  ts/dom/ToneStretchAdjustmentRasterNodeApi.d.ts
+  ts/dom/ToneStretchAdjustmentRasterNodeDefinitionApi.d.ts
+  ts/dom/TransformInterfaceApi.d.ts
+  ts/dom/TransparencyInterfaceApi.d.ts
+  ts/dom/TransparencyMeshSubSelectionApi.d.ts
+  ts/dom/TransparencySubSelectionApi.d.ts
+  ts/dom/TwirlFilterParametersApi.d.ts
+  ts/dom/TwirlFilterRasterNodeApi.d.ts
+  ts/dom/TwirlFilterRasterNodeDefinitionApi.d.ts
+  ts/dom/UnsharpMaskFilterParametersApi.d.ts
+  ts/dom/UnsharpMaskFilterRasterNodeApi.d.ts
+  ts/dom/UnsharpMaskFilterRasterNodeDefinitionApi.d.ts
+  ts/dom/VectorNodeApi.d.ts
+  ts/dom/VectorNodeDefinitionApi.d.ts
+  ts/dom/VibranceAdjustmentParametersApi.d.ts
+  ts/dom/VibranceAdjustmentRasterNodeApi.d.ts
+  ts/dom/VibranceAdjustmentRasterNodeDefinitionApi.d.ts
+  ts/dom/VignetteFilterParametersApi.d.ts
+  ts/dom/VignetteFilterRasterNodeApi.d.ts
+  ts/dom/VignetteFilterRasterNodeDefinitionApi.d.ts
+  ts/dom/VisibilityInterfaceApi.d.ts
+  ts/dom/VisibilityTestOptionsApi.d.ts
+  ts/dom/VoronoiFilterParametersApi.d.ts
+  ts/dom/VoronoiFilterRasterNodeApi.d.ts
+  ts/dom/VoronoiFilterRasterNodeDefinitionApi.d.ts
+  ts/dom/WhiteBalanceAdjustmentParametersApi.d.ts
+  ts/dom/WhiteBalanceAdjustmentRasterNodeApi.d.ts
+  ts/dom/WhiteBalanceAdjustmentRasterNodeDefinitionApi.d.ts
+  ts/fills.d.ts
+  ts/fonts.d.ts
+  ts/fs.d.ts
+  ts/geometry.d.ts
+  ts/handles.d.ts
+  ts/hatches.d.ts
+  ts/layereffects.d.ts
+  ts/linestyles.d.ts
+  ts/network.d.ts
+  ts/os.d.ts
+  ts/raster.d.ts
+  ts/story.d.ts
+  ts/timers.d.ts
+  ts/ui.d.ts
   units.js
-  vectorbrush.js
   visibilityinterface.js
 examples[35]:
   examples/addGuides.js
@@ -105,42 +400,7 @@ examples[35]:
   examples/swapObjects.js
   examples/tableFromJson.js
   examples/textOnCurvesAndShapes.js
-tests[35]:
-  tests/addNodeTests.js
-  tests/applicationTests.js
-  tests/artboardInterfaceTests.js
-  tests/blendmodeInterfaceTests.js
-  tests/buffertests.js
-  tests/colourProfileSetTests.js
-  tests/colourProfileTests.js
-  tests/containerNodeTests.js
-  tests/curveNodeTests.js
-  tests/curveTests.js
-  tests/diffusionFillTests.js
-  tests/documentCommandTests.js
-  tests/documentSnapshotTests.js
-  tests/documenttests.js
-  tests/documentviewtests.js
-  tests/embeddedDocumentTests.js
-  tests/filetests.js
-  tests/groupNodeTests.js
-  tests/imageNodeTests.js
-  tests/imageResourceInterfaceTests.js
-  tests/inspecttests.js
-  tests/networkTests.js
-  tests/pictureFrameInterfaceTests.js
-  tests/polyCurveNodeTests.js
-  tests/polygonTests.js
-  tests/rasterNodeTests.js
-  tests/rasterSelectionTests.js
-  tests/splineTests.js
-  tests/storyInterfaceTests.js
-  tests/storyTests.js
-  tests/tagInterfaceTests.js
-  tests/testUtils.js
-  tests/useCases.js
-  tests/vectorNodeTests.js
-  tests/visibilityInterfaceTests.js
+tests[0]:
 data[3]:
   param_ranges.min.json
   struct_array_sizes.min.json

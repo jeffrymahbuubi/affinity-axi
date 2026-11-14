@@ -11,7 +11,7 @@ if (!doc) { throw new Error('demo document not found: ' + want); }
 const INK = '#1F2A44';
 const SUN = '#FFC857';
 const MIST = '#F2F5F9';
-const BOLD = 'Helvetica-Bold';
+const BOLD = 'Arial-BoldMT';
 
 axiOn(doc, 'ig-square');
 axiRect(doc, { x: 0, y: 0, w: 1080, h: 1080, fill: INK, name: 'card' });

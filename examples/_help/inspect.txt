@@ -8,7 +8,7 @@ flags[7]{flag,default,description}:
   --depth,,deepest nesting level to list (spread children are level 1)
   --out,,write the inventory as JSON to this path instead of printing rows
   --full,,print every row (default caps at 60)
-  --url,,Affinity MCP URL (default $AFFINITY_MCP_URL or http://[::1]:6767)
+  --url,,Affinity MCP URL (AFFINITY_MCP_URL wins; default http://[::1]:6767)
   --help,,show this help
 examples[3]:
   affinity-axi inspect current --named

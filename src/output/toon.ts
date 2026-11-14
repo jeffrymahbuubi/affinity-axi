@@ -17,6 +17,16 @@ export interface ListOptions {
   total?: number;
 }
 
+/** `name[count]{f1,f2}:` header line of a list; the caller formats `count`. */
+export function listHeader(name: string, count: number | string, fields: string[]): string {
+  return `${name}[${count}]{${fields.join(",")}}:`;
+}
+
+/** One indented row of a list: the cells of `fields`, comma separated and quoted as needed. */
+export function listRow(row: Record<string, unknown>, fields: string[]): string {
+  return "  " + fields.map((f) => toonValue(row[f])).join(",");
+}
+
 export function emitList(
   name: string,
   rows: Array<Record<string, unknown>>,
@@ -27,11 +37,7 @@ export function emitList(
     opts.total !== undefined && opts.total !== rows.length
       ? `${rows.length} of ${opts.total} total`
       : String(rows.length);
-  const header = `${name}[${count}]{${fields.join(",")}}:`;
-  const lines = rows.map(
-    (row) => "  " + fields.map((f) => toonValue(row[f])).join(","),
-  );
-  return [header, ...lines].join("\n");
+  return [listHeader(name, count, fields), ...rows.map((row) => listRow(row, fields))].join("\n");
 }
 
 /** A named block of pre-formatted lines, e.g. help[2]: or next[3]:. */

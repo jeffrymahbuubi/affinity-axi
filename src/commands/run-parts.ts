@@ -70,3 +70,46 @@ export function openedDocs(before: DocListing | null, after: DocListing | null):
   const known = new Set(before.documents.map((d) => d.uuid.toUpperCase()));
   return after.documents.filter((d) => !known.has(d.uuid.toUpperCase()));
 }
+
+const FULL_UUID = /\b[0-9A-Fa-f]{8}(?:-[0-9A-Fa-f]{4}){3}-[0-9A-Fa-f]{12}\b/;
+
+/** The 8-character id the CLI accepts for a document. */
+const shortId = (uuid: string): string => uuid.slice(0, 8).toUpperCase();
+
+/**
+ * The help lines a finished run adds about documents. A failed run names what it left open (at most 3);
+ * an ok run points at the document it printed, or at the one it opened when the output names none.
+ */
+export function runDocHelp(bin: string, ok: boolean, text: string, opened: DocListing["documents"]): string[] {
+  const out: string[] = [];
+  if (!ok) {
+    for (const d of opened.slice(0, 3)) {
+      const id = shortId(d.uuid);
+      if (d.dirty) {
+        out.push(
+          `${bin} doc save ${id} <path-under-Desktop>.af   # keep the half-built document`,
+          `${bin} doc close ${id}   # then close it, or close it in Affinity with Don't Save`,
+        );
+      } else {
+        out.push(`${bin} doc close ${id}   # left open by the failed run; it has no unsaved changes`);
+      }
+    }
+    return out;
+  }
+  const uuid = FULL_UUID.exec(text)?.[0];
+  const only = opened.length === 1 ? opened[0] : undefined;
+  const ref = uuid ? shortId(uuid) : only ? shortId(only.uuid) : undefined;
+  if (ref) {
+    out.push(`${bin} render ${ref}`, `${bin} export ${ref} PNG <path-under-Desktop>`);
+    if (only?.dirty) out.push(`${bin} doc save ${shortId(only.uuid)} <path-under-Desktop>.af   # this run left the document open and unsaved`);
+  } else if (opened.length > 1) {
+    const ids = opened.slice(0, 4).map((d) => shortId(d.uuid)).join(" ");
+    out.push(`${bin} render <doc>   # this run opened ${opened.length} documents: ${ids}`, `${bin} export <doc> PNG <path-under-Desktop>`);
+  } else {
+    out.push(
+      `${bin} render <doc>   # print doc.sessionUuid in the script to get the id`,
+      `${bin} export <doc> PNG <path-under-Desktop>`,
+    );
+  }
+  return out;
+}

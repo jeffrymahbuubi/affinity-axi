@@ -42,7 +42,8 @@ files[17]{role,file,size,bytes}:
 manifest: examples/webassets/site/webassets.json
 head: examples/webassets/site/head.html
 note: apple-touch-icon uses the artboard fill as its ground; give the mark artboard a fill
+warning: --href is not an absolute URL, so og:image and twitter:image are relative; Meta and X previews need absolute URLs (pass --href https://your-site/)
 help[3]:
-  open examples/webassets/site/head.html
+  copy the tags in examples/webassets/site/head.html into the <head> of your page
   edit the alt text in webassets.json and head.html before publishing
   affinity-axi export <uuid8> PNG examples/webassets/site/og@2x.png --artboard og --scale 2

@@ -159,6 +159,7 @@ describe("runExample against a stub bin", () => {
     const r = runExample(ex({ id: "new", commands: ["$BIN doc new --width 800 --height 600"], needs: ["affinity"] }), opts("new"));
     expect(r.ok).toBe(true);
     expect(log()).toContain("doc close BBBBBBBB");
+    expect(log().some((c) => c.startsWith("doc save"))).toBe(false);
     expect(open()).toEqual([]);
     expect(log().some((c) => c.startsWith("run "))).toBe(false);
   });
@@ -324,6 +325,8 @@ describe("gallery helpers", () => {
     expect(readme).toContain("--include-side-effects");
     expect(readme).toContain("Not generated yet.");
     expect(inputFiles(e, dir)).toEqual(["script.js"]);
+    for (const f of ["demo.af", "new.af", "new.af.axi.json"]) writeFileSync(join(dir, f), "x");
+    expect(inputFiles(e, dir)).toEqual(["script.js"]);
   });
 
   it("reads an output.txt written with CRLF line endings, and still reports a missing sample", () => {
@@ -409,11 +412,11 @@ describe("scripts/check-examples.mjs", () => {
 });
 
 describe("demo brand", () => {
-  it("is Lumen Studio with Helvetica and none of the earlier client palette", () => {
+  it("is Lumen Studio with Arial and none of the earlier client palette", () => {
     const text = readFileSync(join(toolDir, "examples/_brand/brand.json"), "utf8");
     const brand = JSON.parse(text) as { name: string; colours: Record<string, string>; fonts: Record<string, string> };
     expect(brand.name).toBe("Lumen Studio");
-    expect(Object.values(brand.fonts).every((f) => f.startsWith("Helvetica"))).toBe(true);
+    expect(brand.fonts).toEqual({ headline: "Arial-BoldMT", body: "ArialMT" });
     expect(Object.values(brand.colours).sort()).toEqual(["#1F2A44", "#4C8DFF", "#F2F5F9", "#FFC857"]);
     for (const banned of [["pulo", "sari"].join(""), ["ko", "st"].join(""), "b5553a", "6f8f7a", "e0a84a", "f6efe6"]) expect(text.toLowerCase()).not.toContain(banned);
   });

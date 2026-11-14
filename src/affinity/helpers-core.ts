@@ -37,7 +37,11 @@ function axiHex(hex, alpha) {
   const { RGBA8 } = require('/colours.js');
   let h = String(hex).replace('#', '');
   if (h.length === 3) { h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; }
-  if (!/^[0-9a-fA-F]{6}$/.test(h)) { throw new Error('axiHex: bad colour ' + hex); }
+  if (!/^[0-9a-fA-F]{6}$/.test(h)) {
+    const got = typeof hex === 'string' ? "'" + hex + "'" : (hex === null || hex === undefined ? String(hex) : typeof hex + ' ' + String(hex));
+    const hint = hex !== null && typeof hex === 'object' ? '; that is a colour object: pass the hex string itself (axiHex already returns a colour, so do not wrap it twice)' : '';
+    throw new Error("axiHex: bad colour: expected a hex string such as '#1A2B3C' or '#ABC', got " + got + hint);
+  }
   let a = 255;
   if (alpha !== undefined) {
     if (typeof alpha !== 'number' || !(alpha >= 0 && alpha <= 255)) { throw new Error('axiHex: alpha must be 0..1'); }

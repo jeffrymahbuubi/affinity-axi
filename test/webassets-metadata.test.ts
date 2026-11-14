@@ -5,6 +5,8 @@
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import { crc32 } from "node:zlib";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { imageSize } from "../src/affinity/export-area.js";
@@ -151,7 +153,8 @@ describe("webassets: XMP strip", () => {
     const printed = (key: string): string => r.stdout.split("\n").find((l) => l.startsWith(`${key}: `))!.slice(key.length + 2);
     expect(existsSync(printed("manifest"))).toBe(true);
     expect(existsSync(printed("head"))).toBe(true);
-    expect(r.stdout).toContain(`open ${slash(join(out, "head.html"))}`);
+    expect(r.stdout).toContain(`copy the tags in ${slash(join(out, "head.html"))} into the <head> of your page`);
+    expect(r.stdout).not.toMatch(/^\s*open /m);
     for (const f of ["head.html", "webassets.json"]) {
       const text = readFileSync(join(out, f), "utf8");
       expect(text).not.toContain("\\");
@@ -163,5 +166,13 @@ describe("webassets: XMP strip", () => {
     const r = await runCommand(cmd, ["current", "--out-dir", out]);
     expect(r.code, r.stdout).toBe(0);
     expect(hasText(readFileSync(join(out, "favicon.ico")))).toBe(false);
+  });
+
+  it("render --help shows a relative --out example, not a /tmp path", () => {
+    const bin = join(fileURLToPath(new URL("..", import.meta.url)), "bin", "affinity-axi.js");
+    const r = spawnSync(process.execPath, [bin, "render", "--help"], { encoding: "utf8", env: { ...process.env, AFFINITY_MCP_URL: "http://127.0.0.1:1" } });
+    const text = r.stdout + r.stderr;
+    expect(text).toContain("--out renders/sel.jpg");
+    expect(text).not.toContain("/tmp/");
   });
 });
