@@ -6,12 +6,20 @@
 // other commands read the manifest and write only their own field (exports,
 // notes, an `open` history entry) through readManifest/writeManifest.
 // Functions taking `afPath` also accept the manifest path itself.
+//
+// Stored form: the file is meant to be committed and read on other machines, so it
+// holds no home folder. Script and kit paths are relative to the manifest's folder
+// (`../` allowed), else `~/...`, else absolute; exports and inventory.doc.path are
+// stored the same way and read back absolute; every other string is scrubbed of the
+// home path. See portable.ts for the encoding rules.
 
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync, renameSync, statSync, writeFileSync } from "node:fs";
-import { dirname, relative, resolve } from "node:path";
+import { homedir } from "node:os";
+import { dirname, resolve } from "node:path";
 import { readAiUuids } from "./manifest-ai.js";
 import { toPosix } from "./paths.js";
+import { resolveStored, scrubHome, storedPath } from "./portable.js";
 import { recordsFor, type ProvenanceRecord } from "./provenance.js";
 import type { BrandRef, Freshness, Inventory, Manifest } from "./manifest-types.js";
 import { runsSince } from "./runlog.js";
@@ -72,13 +80,26 @@ function normaliseManifest(raw: Record<string, unknown>, afPath: string): Manife
   };
 }
 
+/** The folder a manifest lives in: the base of every stored relative path. */
+const dirOf = (afPath: string): string => dirname(resolve(manifestPath(afPath)));
+
+/** The in-memory shape: exports[].path and inventory.doc.path absolute again; the rest as stored. */
+function decode(m: Manifest, dir: string, home: string): Manifest {
+  const out: Manifest = { ...m };
+  out.exports = m.exports.map((e) => (typeof e?.path === "string" ? { ...e, path: resolveStored(e.path, dir, home) } : e));
+  if (m.inventory?.doc && typeof m.inventory.doc.path === "string") {
+    out.inventory = { ...m.inventory, doc: { ...m.inventory.doc, path: resolveStored(m.inventory.doc.path, dir, home) } };
+  }
+  return out;
+}
+
 /** The manifest (always fully shaped, see normaliseManifest), or null when absent, unparseable or not an object. */
 export function readManifest(afPath: string): Manifest | null {
   const file = manifestPath(afPath);
   if (!existsSync(file)) return null;
   try {
     const m: unknown = JSON.parse(readFileSync(file, "utf8"));
-    return isObj(m) ? normaliseManifest(m, afPath) : null;
+    return isObj(m) ? decode(normaliseManifest(m, afPath), dirOf(afPath), homedir()) : null;
   } catch {
     return null;
   }
@@ -107,11 +128,37 @@ export function portable(manifest: Manifest): Manifest {
   return out;
 }
 
-/** Two-space JSON, written to a temp file then renamed so readers never see a torn manifest. */
-export function writeManifest(afPath: string, manifest: Manifest): string {
+/**
+ * portable(manifest), then every path field in its stored form (see the header), then the
+ * home folder scrubbed out of every string. Pure and idempotent: storing a stored manifest
+ * changes nothing. `dir` is the manifest's folder.
+ */
+export function stored(manifest: Manifest, dir: string, home: string = homedir()): Manifest {
+  const out = portable(manifest);
+  const enc = (v: string): string => storedPath(resolveStored(v, dir, home), dir, home);
+  const brand = (b: BrandRef | undefined): BrandRef | undefined => (b && typeof b.path === "string" ? { ...b, path: enc(b.path) } : b);
+  if (out.madeBy) {
+    const b = brand(out.madeBy.brand);
+    out.madeBy = { ...out.madeBy, ...(typeof out.madeBy.script === "string" ? { script: enc(out.madeBy.script) } : {}), ...(b ? { brand: b } : {}) };
+  }
+  if (Array.isArray(out.history)) {
+    out.history = out.history.map((h) => {
+      const b = brand(h.brand);
+      return { ...h, ...(typeof h.script === "string" ? { script: enc(h.script) } : {}), ...(b ? { brand: b } : {}) };
+    });
+  }
+  if (Array.isArray(out.exports)) out.exports = out.exports.map((e) => (typeof e?.path === "string" ? { ...e, path: enc(e.path) } : e));
+  if (out.inventory?.doc && typeof out.inventory.doc.path === "string") {
+    out.inventory = { ...out.inventory, doc: { ...out.inventory.doc, path: enc(out.inventory.doc.path) } };
+  }
+  return scrubHome(out, home);
+}
+
+/** Two-space JSON of stored(...), written to a temp file then renamed so readers never see a torn manifest. */
+export function writeManifest(afPath: string, manifest: Manifest, home: string = homedir()): string {
   const file = manifestPath(afPath);
   const tmp = `${file}.${process.pid}.tmp`;
-  writeFileSync(tmp, JSON.stringify(portable(manifest), null, 2) + "\n");
+  writeFileSync(tmp, JSON.stringify(stored(manifest, dirOf(afPath), home), null, 2) + "\n");
   renameSync(tmp, file);
   return file;
 }
@@ -183,12 +230,19 @@ function emptyManifest(file: string): Manifest {
 const baseName = (p: string): string => p.split(/[\\/]/).pop() ?? p;
 
 /**
- * A run-log brand ref has its path relative to the run's cwd; in a manifest it is
- * relative to the .af's folder (the way madeBy.script is), so the reader needs no cwd.
+ * The kit of a run as a manifest stores it. A run-log brand ref has its path relative to the
+ * run's cwd (or "~/..."); in a manifest it is relative to the .af's folder (the way madeBy.script
+ * is), `~/...` or absolute, so the reader needs no cwd.
  */
-function rebaseBrand(b: BrandRef, runCwd: string, af: string): BrandRef {
-  const path = relative(dirname(resolve(af)), resolve(runCwd, b.path));
-  return { ...b, path: path === "" ? baseName(b.path) : path };
+export function brandFor(ref: BrandRef, afPath: string, cwd: string = process.cwd(), home: string = homedir()): BrandRef {
+  const path = storedPath(resolveStored(ref.path, cwd, home), dirOf(afPath), home);
+  return { ...ref, path: path === "" || path === "." ? baseName(ref.path) : path };
+}
+
+/** A run's script as a manifest stores it; template scripts ("templates/<name>") keep the name as logged. */
+function scriptFor(r: { cmd: string; script: string; cwd: string }, af: string, cwd: string, home: string): string {
+  if (r.cmd === "templates" || r.script === "") return r.script;
+  return storedPath(resolve(r.cwd || cwd, r.script), dirOf(af), home);
 }
 
 /**
@@ -204,9 +258,10 @@ export function recordSave(
   uuid: string,
   inventory: Inventory | null,
   cwd: string = process.cwd(),
-  opts: { forced?: boolean; fromPath?: string } = {},
+  opts: { forced?: boolean; fromPath?: string; home?: string } = {},
 ): Manifest {
   const af = afOf(afPath);
+  const home = opts.home ?? homedir();
   const now = new Date().toISOString();
   const base = readManifest(af) ?? emptyManifest(baseName(af));
   const prevSave = [...(base.history ?? [])].reverse().find((h) => h.kind === "save");
@@ -217,13 +272,13 @@ export function recordSave(
     history.push({
       time: r.time,
       kind: r.cmd,
-      script: r.script,
+      script: scriptFor(r, af, cwd, home),
       scriptSha256: r.scriptSha256,
       args: r.args,
       flags: r.flags,
       outcome: r.outcome,
       ms: r.ms,
-      ...(r.brand ? { brand: rebaseBrand(r.brand, r.cwd || cwd, af) } : {}),
+      ...(r.brand ? { brand: brandFor(r.brand, af, r.cwd || cwd, home) } : {}),
     });
   }
   history.push(opts.forced ? { time: now, kind: "save", forced: true } : { time: now, kind: "save" });
@@ -231,9 +286,9 @@ export function recordSave(
   let madeBy = base.madeBy ?? null;
   const first = runs[0];
   const kitRun = runs.find((r) => r.brand);
-  const kit = kitRun?.brand ? rebaseBrand(kitRun.brand, kitRun.cwd || cwd, af) : undefined;
+  const kit = kitRun?.brand ? brandFor(kitRun.brand, af, kitRun.cwd || cwd, home) : undefined;
   if (!madeBy && first) {
-    const script = relative(dirname(resolve(af)), resolve(first.cwd || cwd, first.script));
+    const script = scriptFor(first, af, cwd, home);
     madeBy = { script, scriptSha256: first.scriptSha256, args: first.args, flags: first.flags, ...(kit ? { brand: kit } : {}) };
   }
 
@@ -254,7 +309,6 @@ export function recordSave(
     inventory,
     notes: base.notes ?? [],
   };
-  const stored = portable(manifest);
-  writeManifest(af, stored);
-  return stored;
+  writeManifest(af, manifest, home);
+  return readManifest(af) ?? manifest;
 }

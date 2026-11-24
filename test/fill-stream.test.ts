@@ -180,6 +180,6 @@ describe("fill renamed keys", () => {
 describe("fill --help", () => {
   it("the --data description says what a field and a missing field do", () => {
     const data = fill.spec.flags.find((f) => f.name === "data")!;
-    expect(data.description.startsWith("records: a .json array of objects, or a .csv with a header row (required). Each field fills the element named slot:<field>; an empty value blanks a text slot and keeps its style, a field the record does not have leaves the slot as the template has it. A picture slot may be")).toBe(true);
+    expect(data.description.startsWith("records: a .json array of objects, or a .csv with a header row (required). Each field fills the element named slot:<field>; an empty value blanks a text slot and keeps its style, a field the record does not have leaves the slot as the template has it (with --hide-missing both hide the slot). A picture slot may be")).toBe(true);
   });
 });

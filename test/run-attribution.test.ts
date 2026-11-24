@@ -5,6 +5,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { runsPath } from "../src/affinity/runlog.js";
 import { make as makeRun, runDocuments, type DocListing } from "../src/commands/run.js";
 import { fakeConnect, runCommand } from "./fake-mcp/client.js";
 import { startFakeServer, type FakeServer } from "./fake-mcp/server.js";
@@ -75,7 +76,7 @@ describe("run log attribution through the command", () => {
   });
 
   const lastRecord = (): { documents: Array<{ uuid: string; path: string }> } => {
-    const f = join(work, ".affinity-axi", "runs.jsonl");
+    const f = runsPath();
     expect(existsSync(f)).toBe(true);
     const lines = readFileSync(f, "utf8").split("\n").filter(Boolean);
     return JSON.parse(lines[lines.length - 1]!);

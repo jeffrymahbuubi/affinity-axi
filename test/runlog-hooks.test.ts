@@ -8,7 +8,7 @@ import { make as makeBatch } from "../src/commands/batch.js";
 import { make as makeExportModule } from "../src/commands/export.js";
 import { make as makeRun } from "../src/commands/run.js";
 import { freshness, readManifest, recordSave } from "../src/affinity/manifest.js";
-import { readRuns } from "../src/affinity/runlog.js";
+import { readRuns, runsPath } from "../src/affinity/runlog.js";
 import { fakeConnect, runCommand } from "./fake-mcp/client.js";
 import { FIXTURE_APP, FIXTURE_PRESETS, FIXTURE_UUID } from "./fake-mcp/fixtures.js";
 import { startFakeServer, type FakeServer } from "./fake-mcp/server.js";
@@ -53,7 +53,7 @@ function write(name: string, body: string): string {
 const uuidFor = (n: number): string => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
 const scripts = (): string[] => server.calls.filter((c) => c.name === "execute_script").map((c) => String(c.args["script"]));
 const logLines = (): string[] => {
-  const f = join(work, ".affinity-axi", "runs.jsonl");
+  const f = runsPath();
   return existsSync(f) ? readFileSync(f, "utf8").split("\n").filter(Boolean) : [];
 };
 
@@ -75,7 +75,7 @@ describe("run log in run", () => {
     expect(r.stdout).not.toContain("log");
     const lines = logLines();
     expect(lines).toHaveLength(1);
-    const rec = JSON.parse(lines[0]!);
+    const rec = readRuns()[0]!;
     expect(rec).toMatchObject({
       cmd: "run",
       script: file,

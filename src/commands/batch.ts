@@ -12,150 +12,43 @@
 // new document (plus the reported one when dirty) is named in the row note and
 // in a `leftOpen:` line after the summary. Row notes join with "; ".
 
-import { existsSync, mkdirSync, readFileSync, readdirSync, statSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import type { CommandModule } from "../cli/router.js";
 import { positiveFlag, type Parsed } from "../cli/args.js";
-import { BRAND_FLAG, injectBrand, loadBrand, resolveBrandRef, type BrandKit } from "../affinity/brand.js";
+import { BRAND_FLAG, injectBrand, loadBrand, resolveBrandRef } from "../affinity/brand.js";
 import { refusalMessage, refusalSuggestion, scanForAi, scanForBlocking } from "../affinity/guard.js";
 import { withHelpers } from "../affinity/helpers.js";
-import { creditFor, finalizeFile, metadataNote, type Credit, type MetaOutcome } from "../affinity/metadata.js";
-import { appendProvenance, extractUuids, sha256 } from "../affinity/provenance.js";
+import { creditFor, metadataNote } from "../affinity/metadata.js";
 import { recordSave } from "../affinity/manifest.js";
 import { checkOverwrite, FORCE_FLAG } from "../affinity/overwrite.js";
 import { requireUnderDesktop, requireVisible, shown, userPath } from "../affinity/paths.js";
-import type { BrandRef } from "../affinity/manifest-types.js";
 import { classify, resultText } from "../affinity/result.js";
 import { APP_INFO, injectArgs } from "../affinity/scripts.js";
 import { AxiError, UsageError } from "../output/errors.js";
 import { helpBlock } from "../output/suggest.js";
 import { emitList, listHeader, listRow, print } from "../output/toon.js";
-import type { AffinityClient, AiHit, ConnectFn } from "../mcp/types.js";
+import type { ConnectFn } from "../mcp/types.js";
 import { DOC_CLOSE, DOC_SAVE } from "./doc.js";
-import { callJson, listDocs, logRun, replayFlags, runDocuments, type DocListing } from "./run.js";
+import { callJson, listDocs, logRun, replayFlags, runDocuments } from "./run.js";
 import { BATCH_RESERVED, deriveKeys, keyRenames, loadRecords, reservedFields, type DataRecord } from "./batch-data.js";
+import { FatalRecord } from "./fill-parts.js";
+import { checkExportTarget, exportTo, reportedUuid, requirePreset } from "./finish.js";
+import { recordExports, type ExportCtx } from "./fill-export.js";
+import { extFor } from "../affinity/fill-script.js";
+import {
+  cleanOutDir, discardOrFatal, exportPath, filesExist, handleStrays, joinNotes, leftoverNote, logGenerative, oneLine, ownIfNew, ROW_FIELDS, strayDocs,
+  type Cleaned, type Ctx, type Row,
+} from "./batch-parts.js";
+
+// Re-exported for the tests that import them from here.
+export { joinNotes, leftOpenNote, strayDocs } from "./batch-parts.js";
 
 const BIN = "affinity-axi";
 const DEFAULT_TIMEOUT_MS = 60000;
-const NOTE_LIMIT = 200;
-const UUID_RE = /\b[0-9A-Fa-f]{8}(?:-[0-9A-Fa-f]{4}){3}-[0-9A-Fa-f]{12}\b/;
-
-interface Row {
-  key: string;
-  status: "ok" | "failed" | "skipped";
-  doc: string;
-  ms: number;
-  note: string;
-}
-
-const ROW_FIELDS = ["key", "status", "doc", "ms", "note"];
-
-/** Thrown for a failure that makes continuing unsafe (transport error, timeout, stuck close). */
-class FatalRecord extends Error {}
-
-function oneLine(s: string): string {
-  const t = s.replace(/\s+/g, " ").trim();
-  return t.length > NOTE_LIMIT ? t.slice(0, NOTE_LIMIT - 3) + "..." : t;
-}
-
-/** Joins row note parts with "; ", dropping empty ones. */
-export function joinNotes(parts: string[]): string {
-  return parts.filter((p) => p !== "").join("; ");
-}
-
-/** Documents a failed record left behind: not in `known` (upper-cased UUIDs), plus `reported` when it is listed and dirty. */
-export function strayDocs(known: ReadonlySet<string>, listing: DocListing | null, reported?: string): DocListing["documents"] {
-  if (!listing) return [];
-  const rep = reported?.toUpperCase();
-  return listing.documents.filter((d) => {
-    const id = d.uuid.toUpperCase();
-    return !known.has(id) || (rep !== undefined && id === rep && d.dirty);
-  });
-}
-
-/** `left open: 6681ED67 (unsaved)` | `(unsaved changes in welcome.af)` | `(welcome.af)`. */
-export function leftOpenNote(d: { uuid: string; path: string; dirty: boolean }): string {
-  const name = d.path === "" ? "" : (d.path.split(/[\\/]/).pop() ?? d.path);
-  const what = name === "" ? "unsaved" : d.dirty ? `unsaved changes in ${name}` : name;
-  return `left open: ${d.uuid.slice(0, 8).toUpperCase()} (${what})`;
-}
 
 /** The document UUID a template reported: a `{"uuid":...}` line first, else the first UUID in the output. */
-export function findDocUuid(text: string): string | undefined {
-  const lines = text.split("\n");
-  for (let i = lines.length - 1; i >= 0; i--) {
-    const line = lines[i]!.trim();
-    if (!line.startsWith("{")) continue;
-    try {
-      const v = (JSON.parse(line) as { uuid?: unknown }).uuid;
-      if (typeof v === "string" && UUID_RE.test(v)) return v.toUpperCase();
-    } catch {
-      // not JSON
-    }
-  }
-  return UUID_RE.exec(text)?.[0].toUpperCase();
-}
-
-interface Ctx {
-  flags: string[]; // replayable flags, for the run log
-  force: boolean;
-  client: AffinityClient;
-  source: string; // the template as read (guard-scanned once)
-  hits: AiHit[];
-  file: string;
-  helpers: boolean;
-  timeoutMs: number;
-  outDir: string | undefined;
-  saveDir: string | undefined;
-  brand: { kit: BrandKit; ref: BrandRef } | undefined;
-  refused: Array<{ key: string; path: string }>; // targets checkOverwrite refused, for the help block
-  credit: Credit | undefined; // the kit's credit, embedded into the rasters a template wrote to --out-dir
-  cleaned: Cleaned;
-  known: Set<string>; // upper-cased UUIDs of documents already open or already accounted for
-  leftOpen: string[]; // UUIDs of documents a failed record left open, for the leftOpen: line
-}
-
-/** Raster files in --out-dir finalized so far, and the mtime each had afterwards (a file is not redone until it changes). */
-interface Cleaned {
-  n: number;
-  seen: Map<string, number>;
-}
-
-const RASTER_EXT = /\.(png|jpe?g|webp)$/i;
-
-/** Finalizes the rasters at the top level of `dir` written since `since` (ms) and not yet finalized; returns the outcomes. */
-function cleanOutDir(dir: string, since: number, credit: Credit | undefined, seen: Map<string, number>): MetaOutcome[] {
-  let names: string[];
-  try {
-    names = readdirSync(dir);
-  } catch {
-    return [];
-  }
-  return names.flatMap((name) => {
-    const file = join(dir, name);
-    try {
-      const st = statSync(file);
-      if (!st.isFile() || !RASTER_EXT.test(name) || st.mtimeMs < since - 1000 || seen.get(file) === st.mtimeMs) return [];
-      const o = finalizeFile(file, credit ? { credit } : {});
-      seen.set(file, statSync(file).mtimeMs);
-      return [o];
-    } catch {
-      return [];
-    }
-  });
-}
-
-/** Provenance for one generative record, with that record's args. */
-function logGenerative(c: Ctx, args: unknown, outcome: string, text: string, current: string | undefined): string | undefined {
-  const documents = extractUuids(text);
-  if (current && !documents.includes(current)) documents.push(current);
-  try {
-    appendProvenance({ time: new Date().toISOString(), script: c.file, sha256: sha256(c.source), identifiers: c.hits, args, outcome, documents });
-    return undefined;
-  } catch (err) {
-    return `provenance NOT LOGGED (${err instanceof Error ? err.message : String(err)}); record this run by hand`;
-  }
-}
+export const findDocUuid = reportedUuid;
 
 /** Runs a doc-* script; any non-ok outcome or unreadable output is a fatal error (state is unknown). */
 async function docScript<T>(c: Ctx, script: string, what: string): Promise<T> {
@@ -212,7 +105,7 @@ async function runOne(c: Ctx, rec: DataRecord, key: string, index: number): Prom
   let current: string | undefined;
   // The listing also gives saved paths for the run log, so it is read whenever the output names no document.
   const listing = uuid ? null : await listDocs(c.client);
-  if (!uuid && (c.hits.length > 0 || (c.saveDir !== undefined && outcome.kind === "ok"))) {
+  if (!uuid && (c.hits.length > 0 || (needsDoc(c) && outcome.kind === "ok"))) {
     current = listing?.current?.toUpperCase();
     uuid = current;
   }
@@ -236,11 +129,7 @@ async function runOne(c: Ctx, rec: DataRecord, key: string, index: number): Prom
   if (outcome.kind !== "ok") {
     // A failed record may have left a document open: diff the listing against what was open before.
     const strays = strayDocs(c.known, listing ?? (await listDocs(c.client)), uuid);
-    for (const d of strays) {
-      c.known.add(d.uuid.toUpperCase());
-      c.leftOpen.push(d.uuid);
-      notes.push(leftOpenNote(d));
-    }
+    notes.push(...(await handleStrays(c, strays)));
     if (!uuid && strays.length === 1) uuid = strays[0]!.uuid;
   }
 
@@ -255,40 +144,86 @@ async function runOne(c: Ctx, rec: DataRecord, key: string, index: number): Prom
     return row("failed", uuid, joinNotes([`not allowed: ${why}`, ...notes]));
   }
 
+  if (!needsDoc(c)) {
+    if (outcome.kind === "ok") ownIfNew(c, uuid);
+    return row("ok", uuid, joinNotes(notes));
+  }
+  if (!uuid) {
+    const todo = c.saveDir !== undefined ? "saved or closed" : "exported or discarded";
+    return row("failed", undefined, joinNotes([`no document UUID in the output, so it cannot be ${todo}; log JSON.stringify({uuid: String(doc.sessionUuid)})`, ...notes]));
+  }
+  const left = (r: Row): Row => {
+    c.leftOpen.push(uuid!);
+    ownIfNew(c, uuid);
+    return r;
+  };
+  let afPath: string | undefined;
   if (c.saveDir !== undefined) {
-    if (!uuid) return row("failed", undefined, joinNotes(["no document UUID in the output, so it cannot be saved or closed; log JSON.stringify({uuid: String(doc.sessionUuid)})", ...notes]));
     const path = join(c.saveDir, `${key}.af`);
     // A hand-edited or never-saved target is not overwritten without --force; this record fails, the batch goes on (--continue-on-error).
     const verdict = checkOverwrite(path, { force: c.force, cmd: `${BIN} batch <template> --data <file> --save-dir <dir>` });
     if (!verdict.ok) {
       // The note stays short; the --force line and the full path go in the help block, once per run.
       c.refused.push({ key, path });
-      c.leftOpen.push(uuid);
-      return row("failed", uuid, joinNotes([`${verdict.message} (--force to replace); left open`, ...notes]));
+      return left(row("failed", uuid, joinNotes([`${verdict.message} (--force to replace); left open`, ...notes])));
     }
     const saved = await docScript<{ status: string; dirty?: boolean }>(c, DOC_SAVE(uuid, path), "saving the document");
     if (saved.status === "missing") return row("failed", uuid, joinNotes(["document not found to save (the template may have closed it)", ...notes]));
-    if (saved.dirty === true) {
-      c.leftOpen.push(uuid);
-      return row("failed", uuid, joinNotes([`still dirty after save; left open (${shown(path)})`, ...notes]));
-    }
-    if (!existsSync(path)) {
-      c.leftOpen.push(uuid);
-      return row("failed", uuid, joinNotes([`save reported success but ${shown(path)} was not written; left open`, ...notes]));
-    }
+    if (saved.dirty === true) return left(row("failed", uuid, joinNotes([`still dirty after save; left open (${shown(path)})`, ...notes])));
+    if (!existsSync(path)) return left(row("failed", uuid, joinNotes([`save reported success but ${shown(path)} was not written; left open`, ...notes])));
     try {
       // The same writer as `doc save`: hash, folded history, madeBy. A null inventory skips the extra script.
       recordSave(path, uuid, null, process.cwd(), { forced: verdict.forced });
     } catch (err) {
       notes.push(`manifest NOT WRITTEN (${err instanceof Error ? err.message : String(err)})`);
     }
-    const closed = await docScript<{ status: string }>(c, DOC_CLOSE(uuid), "closing the document");
-    if (closed.status === "still-open") throw new FatalRecord(`document ${uuid} is still open after close; check Affinity for a dialog`);
-    if (closed.status !== "closed") return row("failed", uuid, joinNotes([`saved ${shown(path)} but not closed (${closed.status})`, ...notes]));
-    notes.unshift(`saved ${shown(path)}, closed`);
+    afPath = path;
   }
+  if (c.exportTo !== undefined) {
+    const path = exportPath(c, key);
+    try {
+      const done = await exportTo(c.client, uuid, { preset: c.exportTo.preset, path, timeoutMs: c.timeoutMs, ...(c.exportTo.width !== undefined ? { width: c.exportTo.width } : {}), ...(c.brand ? { brand: c.brand } : {}) });
+      c.exported++;
+      c.cleaned.seen.set(path, statSync(path).mtimeMs);
+      notes.push(done.note);
+      if (done.metaNote !== null) notes.push(`metadata: ${done.metaNote}`);
+      if (afPath !== undefined) recordExports(exportCtx(c), afPath, [done.entry]);
+    } catch (err) {
+      if (!(err instanceof AxiError)) throw err;
+      const where = afPath !== undefined ? `saved ${shown(afPath)}; ` : "";
+      return left(row("failed", uuid, joinNotes([`${where}export failed: ${err.message}; left open`, ...notes])));
+    }
+  }
+  if (c.discard) {
+    if (c.preexisting.has(uuid.toUpperCase())) return row("failed", uuid, joinNotes(["the record's document was open before the batch started; not discarded", ...notes]));
+    const res = await discardOrFatal(c, uuid);
+    if (res.status === "failed") return left(row("failed", uuid, joinNotes([res.message, ...notes])));
+    if (res.status === "missing") notes.push("document already gone");
+    else {
+      c.discarded++;
+      notes.push("discarded");
+      if (res.status === "discarded" && res.leftover) notes.push(leftoverNote(res.leftover));
+    }
+    return row("ok", uuid, joinNotes(notes));
+  }
+  if (afPath === undefined) {
+    ownIfNew(c, uuid);
+    return row("ok", uuid, joinNotes(notes));
+  }
+  const closed = await docScript<{ status: string }>(c, DOC_CLOSE(uuid), "closing the document");
+  if (closed.status === "still-open") throw new FatalRecord(`document ${uuid} is still open after close; check Affinity for a dialog`);
+  if (closed.status !== "closed") {
+    ownIfNew(c, uuid);
+    return row("failed", uuid, joinNotes([`saved ${shown(afPath)} but not closed (${closed.status})`, ...notes]));
+  }
+  notes.unshift(`saved ${shown(afPath)}, closed`);
   return row("ok", uuid, joinNotes(notes));
 }
+
+/** True when an ok record's document is saved, exported or discarded, so its uuid must be known. */
+const needsDoc = (c: Ctx): boolean => c.saveDir !== undefined || c.exportTo !== undefined || c.discard;
+
+const exportCtx = (c: Ctx): ExportCtx => ({ client: c.client, outDir: c.outDir ?? "", timeoutMs: c.timeoutMs, preset: c.exportTo?.preset, ext: c.exportTo?.ext, allBoards: false, brand: c.brand, budget: undefined });
 
 export function make(connect: ConnectFn): CommandModule {
   return {
@@ -305,6 +240,10 @@ export function make(connect: ConnectFn): CommandModule {
         { name: "allow-blocking", type: "boolean", description: "run even if the template calls close()/closeAsync() or loads /dialog.js" },
         { name: "save-dir", type: "string", description: "folder under Desktop: after each record, save its document as <dir>/<key>.af and close it" },
         { name: "out-dir", type: "string", description: "folder under Desktop passed as ARGS.outDir; ARGS.outBase = <outDir>/<key> (the template exports itself)" },
+        { name: "export", type: "string", description: "after each ok record, export its document with this preset as <out-dir>/<key>.<ext> (needs --out-dir; see: affinity-axi presets)" },
+        { name: "width", type: "string", description: "with --export: output width in px (height follows)" },
+        { name: "discard", type: "boolean", description: "after each ok record, close its document without keeping it (after --export, if given); after a failed record, drop the unsaved documents that record created; not with --save-dir" },
+        { name: "on-exists", type: "string", values: ["error", "skip", "overwrite"], description: "when a record's files exist: error (default: a .af affinity-axi did not save, or that was edited since, fails the record), skip (do not run the record when its .af and export exist), overwrite (same as --force)" },
         { name: "limit", type: "string", description: "process only the first N records" },
         FORCE_FLAG,
         { name: "continue-on-error", type: "boolean", description: "keep going after a failed record (default: stop at the first failure)" },
@@ -313,6 +252,7 @@ export function make(connect: ConnectFn): CommandModule {
       ],
       examples: [
         "affinity-axi batch post.js --data posts.json --key slug --with-helpers --out-dir ~/Desktop/out --save-dir ~/Desktop/af",
+        "affinity-axi batch post.js --data posts.json --key slug --with-helpers --export PNG --out-dir ~/Desktop/out --discard",
         "affinity-axi batch og-card.js --data pages.csv --key slug --limit 3 --continue-on-error",
       ],
     },
@@ -340,6 +280,21 @@ export function make(connect: ConnectFn): CommandModule {
         );
       }
 
+      const exportPreset = typeof parsed.flags["export"] === "string" ? parsed.flags["export"] : undefined;
+      const discard = parsed.flags["discard"] === true;
+      const onExistsFlag = typeof parsed.flags["on-exists"] === "string" ? parsed.flags["on-exists"] : undefined;
+      const e = `e.g. ${BIN} batch ${shown(file)} --data ${shown(dataFile)}`;
+      if (exportPreset !== undefined && typeof parsed.flags["out-dir"] !== "string") throw new UsageError("--export needs --out-dir <dir under Desktop>", `${e} --export PNG --out-dir ~/Desktop/out`);
+      if (parsed.flags["width"] !== undefined && exportPreset === undefined) throw new UsageError("--width needs --export <preset>", `${e} --export PNG --out-dir ~/Desktop/out --width 1080`);
+      if (discard && typeof parsed.flags["save-dir"] === "string") throw new UsageError("--discard and --save-dir cannot be combined", "--save-dir keeps each document, --discard drops it");
+      if (onExistsFlag !== undefined && typeof parsed.flags["save-dir"] !== "string" && exportPreset === undefined) {
+        throw new UsageError("--on-exists needs --save-dir or --export", `${e} --save-dir ~/Desktop/af --on-exists skip`);
+      }
+      if (parsed.flags["force"] === true && (onExistsFlag === "error" || onExistsFlag === "skip")) throw new UsageError("--force means --on-exists overwrite", "drop --force, or use --on-exists overwrite");
+      if (exportPreset !== undefined && parsed.flags["allow-generative"] === true) {
+        throw new UsageError("--export cannot label AI-generated files", `drop --export and run '${BIN} export <doc> <preset> <path>' after the batch: it writes the AI label and sidecar`);
+      }
+      const width = positiveFlag(parsed, "width", { integer: true, example: "512" });
       const timeoutMs = positiveFlag(parsed, "timeout", { integer: true, fallback: DEFAULT_TIMEOUT_MS, example: "60000" });
       const limit = positiveFlag(parsed, "limit", { integer: true, example: "3" });
       // Validated before any connection; every record gets the same kit and logs it.
@@ -370,26 +325,38 @@ export function make(connect: ConnectFn): CommandModule {
       const saveDir = typeof rawSave === "string" ? userPath(rawSave) : undefined;
       if (outDir !== undefined) requireVisible(outDir, "--out-dir");
       if (saveDir !== undefined) requireVisible(saveDir, "--save-dir");
+      const exportExt = exportPreset === undefined ? undefined : extFor(exportPreset);
+      if (exportPreset !== undefined) checkExportTarget(exportPreset, join(outDir!, `x.${exportExt ?? "png"}`), width);
 
       const client = await connect({ url });
       const rows: Row[] = [];
       const refused: Ctx["refused"] = [];
       const cleaned: Cleaned = { n: 0, seen: new Map() };
       const leftOpen: string[] = [];
+      const leftClean = new Set<string>();
+      let counts: Pick<Ctx, "exported" | "discarded"> = { exported: 0, discarded: 0 };
       try {
-        if (outDir !== undefined || saveDir !== undefined) {
+        let desktop: string | undefined;
+        if (outDir !== undefined || saveDir !== undefined || discard) {
           const app = await callJson<{ desktop: string }>(client, APP_INFO, "reading Affinity app info");
           for (const [flag, dir] of [["out-dir", outDir], ["save-dir", saveDir]] as const) {
             if (dir !== undefined) requireUnderDesktop(app.desktop, dir, `--${flag}`, "write-folder");
           }
+          desktop = app.desktop;
           if (outDir !== undefined) mkdirSync(outDir, { recursive: true });
           if (saveDir !== undefined) mkdirSync(saveDir, { recursive: true });
         }
+        if (exportPreset !== undefined) await requirePreset(client, exportPreset);
         // Every document open now is not this batch's to report; a null listing leaves the set empty.
         const start = await listDocs(client);
         const known = new Set((start?.documents ?? []).map((d) => d.uuid.toUpperCase()));
-        const force = parsed.flags["force"] === true;
-        const ctx: Ctx = { client, flags: [...replayFlags(parsed), ...(force ? ["--force"] : [])], force, source, hits, file, helpers: parsed.flags["with-helpers"] === true, timeoutMs, outDir, saveDir, brand, refused, credit, cleaned, known, leftOpen };
+        const force = parsed.flags["force"] === true || onExistsFlag === "overwrite";
+        const ctx: Ctx = {
+          client, flags: [...replayFlags(parsed), ...(force ? ["--force"] : [])], force, source, hits, file, helpers: parsed.flags["with-helpers"] === true, timeoutMs, outDir, saveDir, brand, refused, credit, cleaned, known, leftOpen, leftClean,
+          preexisting: new Set(known), desktop, discard, skipExisting: onExistsFlag === "skip", exported: 0, discarded: 0,
+          exportTo: exportPreset === undefined ? undefined : { preset: exportPreset, ext: exportExt!, width },
+        };
+        counts = ctx;
         const keepGoing = parsed.flags["continue-on-error"] === true;
         let stopped: string | undefined;
         // The table streams: the header now, each row as its record finishes (skipped rows too).
@@ -402,6 +369,10 @@ export function make(connect: ConnectFn): CommandModule {
           const key = keys[i]!;
           if (stopped !== undefined) {
             push({ key, status: "skipped", doc: "", ms: 0, note: stopped });
+            continue;
+          }
+          if (filesExist(ctx, key)) {
+            push({ key, status: "skipped", doc: "", ms: 0, note: "exists: kept (--on-exists skip)" });
             continue;
           }
           let r: Row;
@@ -426,6 +397,8 @@ export function make(connect: ConnectFn): CommandModule {
           (limit !== undefined && all.length > records.length ? ` (limited to ${records.length} of ${all.length} records)` : ""),
       ];
       if (outDir !== undefined) out.push(`cleaned: ${cleaned.n}`);
+      if (exportPreset !== undefined) out.push(`exported: ${counts.exported}`);
+      if (discard) out.push(`discarded: ${counts.discarded}`);
       const open = [...new Set(leftOpen)];
       if (open.length > 0) out.push(`leftOpen: ${open.join(" ")}`);
       const reserved = reservedFields(records);
@@ -436,11 +409,18 @@ export function make(connect: ConnectFn): CommandModule {
       const renamed = keyRenames(records, keyField, keys);
       if (renamed.length > 0) out.push(emitList("renamed", renamed.slice(0, 10), ["value", "key"], { total: renamed.length }));
       const helps: string[] = [];
-      if (count("skipped") > 0) helps.push(`${BIN} batch ${shown(file)} --data ${shown(dataFile)} --continue-on-error   # process the records after a failure`);
+      if (rows.some((r) => r.status === "skipped" && r.note.startsWith("not run:"))) helps.push(`${BIN} batch ${shown(file)} --data ${shown(dataFile)} --continue-on-error   # process the records after a failure`);
       const firstDoc = rows.find((r) => r.status === "ok" && r.doc);
-      if (firstDoc && saveDir === undefined) helps.push(`${BIN} render ${firstDoc.doc}`, `${BIN} doc save ${firstDoc.doc} <path-under-Desktop>.af   # documents stay open; use --save-dir to save and close them`);
-      if (firstDoc && saveDir !== undefined) helps.push(`${BIN}   # home view: confirm no documents are left open`);
-      if (open.length > 0) helps.push(`${BIN} doc save <doc> <path-under-Desktop>.af   # then doc close <doc>; a left-open document has unsaved changes`);
+      // --discard closes every ok record's document, so like --save-dir nothing stays open to render or save.
+      if (firstDoc && saveDir === undefined && !discard) helps.push(`${BIN} render ${firstDoc.doc}`, `${BIN} doc save ${firstDoc.doc} <path-under-Desktop>.af   # documents stay open; use --save-dir to save and close them`);
+      if (firstDoc && (saveDir !== undefined || discard)) helps.push(`${BIN}   # home view: confirm no documents are left open`);
+      for (const uuid of open.slice(0, 3)) {
+        const id = uuid.slice(0, 8).toUpperCase();
+        if (leftClean.has(uuid)) helps.push(`${BIN} doc close ${id}   # left open by a failed record; it has no unsaved changes`);
+        else helps.push(`${BIN} doc save ${id} <path-under-Desktop>.af   # left open with unsaved changes`, `${BIN} doc close ${id}   # after the save, or close it in Affinity with Don't Save`);
+      }
+      if (open.length > 3) helps.push(`${BIN}   # home view: lists the other ${open.length - 3} left-open documents`);
+      if (open.length > 0) helps.push(`${BIN} doc close --mine --discard   # or drop every unsaved document affinity-axi created from this folder`);
       if (refused.length > 0) {
         const names = refused.slice(0, 5).map((r) => `${r.key}.af`).join(", ") + (refused.length > 5 ? ", ..." : "");
         helps.push(

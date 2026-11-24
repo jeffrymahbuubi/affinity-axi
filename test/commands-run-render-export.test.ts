@@ -166,10 +166,10 @@ describe("run", () => {
     expect(r.stdout).toContain("affinity-axi render 70E876CB");
     expect(r.stdout).toContain("affinity-axi export 70E876CB PNG <path-under-Desktop>");
     expect(r.stdout).not.toContain("truncated");
-    // the script body went to the server verbatim, after the preamble read
+    // the script body went to the server after the preamble read, with ARGS defaulted to {} on line 1
     // with one document listing before the call (left-open report) and one after it (saved paths)
     expect(server.calls.map((c) => c.name)).toEqual(["read_sdk_documentation_topic", "execute_script", "execute_script", "execute_script"]);
-    expect(scriptCalls()[0]).toBe("// SMOKE\nconsole.log('x');\n");
+    expect(scriptCalls()[0]).toBe("const ARGS = {}; // SMOKE\nconsole.log('x');\n");
   });
 
   it("classifies a thrown exception from text and exits 1", async () => {
@@ -403,7 +403,7 @@ describe("--help and flags", () => {
       const r = await captureDispatch(registry(), [name, "--help"]);
       expect(r.code).toBe(0);
       expect(r.stdout).toContain("flags[");
-      expect(r.stdout).toMatch(/examples\[[234]\]:/);
+      expect(r.stdout).toMatch(/examples\[[2-6]\]:/);
       expect(r.stdout).toContain("--url");
       expect(server.sessionsOpened()).toBe(0);
       expect(server.calls).toHaveLength(0);

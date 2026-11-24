@@ -113,3 +113,10 @@ export function runDocHelp(bin: string, ok: boolean, text: string, opened: DocLi
   }
   return out;
 }
+
+/** The help line for a run that hit PERMISSION_DENIED while the script or --args holds a ~/ or %USERPROFILE% path; else undefined. */
+export function tildeHint(text: string, source: string, argsJson?: string): string | undefined {
+  if (!/PERMISSION_DENIED/.test(text)) return undefined;
+  if (!/["'`]~[/\\]|%USERPROFILE%/i.test(`${source}\n${argsJson ?? ""}`)) return undefined;
+  return "use an absolute path: Affinity does not expand ~/ or %USERPROFILE% inside a script (axiImage and axiReplaceImage accept ~/Desktop/... with --with-helpers)";
+}

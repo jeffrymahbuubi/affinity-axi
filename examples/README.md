@@ -335,7 +335,7 @@ affinity-axi helpers
 ```
 
 ```
-helpers[76]{name,signature,summary}:
+helpers[84]{name,signature,summary}:
   axiHex,"axiHex(hex, alpha?)",'#RGB' or '#RRGGBB' to an RGBA8; alpha 0-1 (default 1; a value 2-255 is taken as a byte)
   axiDoc,"axiDoc(w, h, dpi?, {transparent}?)",new pixel document (1 unit = 1 px at 72 dpi); {transparent: true} gives a transparent background so a PNG export keeps alpha (a plain document is white)
   axiTransparent,"axiTransparent(doc, on?)",make an open document's background transparent (on defaults to true; false restores it); returns the document

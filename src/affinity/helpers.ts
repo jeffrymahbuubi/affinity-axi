@@ -13,6 +13,9 @@
 //   helpers-named.ts   find and edit elements by name, path or text
 //   helpers-qr.ts      native QR codes with typed payloads
 //   helpers-vector.ts  outline text, boolean ops for marks and favicons
+//   helpers-clip.ts    crop nodes to a rounded or elliptical frame
+//   helpers-shapes.ts  polygons, paths, wedges, rotation, lens
+//   helpers-icons.ts   app icon documents (Android adaptive, PWA maskable) and overlay cleanup
 //   helpers-table.ts   native tables from rows
 //   helpers-variants.ts  multi-size boards from one master
 //   helpers-carousel.ts  carousel boards, numbers, swipe cue, panorama split
@@ -35,6 +38,9 @@ import { LAYOUT_INDEX, LAYOUT_INTERNAL, LAYOUT_SOURCE } from "./helpers-layout.j
 import { NAMED_INDEX, NAMED_INTERNAL, NAMED_SOURCE } from "./helpers-named.js";
 import { QR_INDEX, QR_INTERNAL, QR_SOURCE } from "./helpers-qr.js";
 import { VECTOR_INDEX, VECTOR_INTERNAL, VECTOR_SOURCE } from "./helpers-vector.js";
+import { CLIP_INDEX, CLIP_INTERNAL, CLIP_SOURCE } from "./helpers-clip.js";
+import { SHAPES_INDEX, SHAPES_INTERNAL, SHAPES_SOURCE } from "./helpers-shapes.js";
+import { ICONS_INDEX, ICONS_INTERNAL, ICONS_SOURCE } from "./helpers-icons.js";
 import { TABLE_INDEX, TABLE_INTERNAL, TABLE_SOURCE } from "./helpers-table.js";
 import { VARIANTS_INDEX, VARIANTS_INTERNAL, VARIANTS_SOURCE } from "./helpers-variants.js";
 import { CAROUSEL_INDEX, CAROUSEL_INTERNAL, CAROUSEL_SOURCE } from "./helpers-carousel.js";
@@ -49,12 +55,12 @@ import { platformHelperSource } from "./platforms.js";
 export type { HelperInfo };
 
 /** Public helpers. Internal building blocks (axiStyled, axiStroke, ...) are not listed. */
-export const HELPER_INDEX: readonly HelperInfo[] = [...CORE_INDEX, ...IMAGE_INDEX, ...FILTER_INDEX, ...PATCH_INDEX, ...PHOTO_INDEX, ...REPAIR_INDEX,...ML_INDEX, ...LAYOUT_INDEX, ...NAMED_INDEX, ...QR_INDEX, ...VECTOR_INDEX, ...TABLE_INDEX, ...VARIANTS_INDEX, ...CAROUSEL_INDEX, ...CHARTS_INDEX, ...CHARTS2_INDEX, ...SEAL_INDEX, ...BRAND_INDEX, ...PATTERN_INDEX, ...PRINT_INDEX];
+export const HELPER_INDEX: readonly HelperInfo[] = [...CORE_INDEX, ...IMAGE_INDEX, ...FILTER_INDEX, ...PATCH_INDEX, ...PHOTO_INDEX, ...REPAIR_INDEX,...ML_INDEX, ...LAYOUT_INDEX, ...NAMED_INDEX, ...QR_INDEX, ...VECTOR_INDEX, ...CLIP_INDEX, ...SHAPES_INDEX, ...ICONS_INDEX, ...TABLE_INDEX, ...VARIANTS_INDEX, ...CAROUSEL_INDEX, ...CHARTS_INDEX, ...CHARTS2_INDEX, ...SEAL_INDEX, ...BRAND_INDEX, ...PATTERN_INDEX, ...PRINT_INDEX];
 
 /** Declared in HELPERS_SOURCE but deliberately absent from HELPER_INDEX. */
-export const INTERNAL_HELPERS: readonly string[] = ["axiStyled", "axiStroke", "axiSurface", "axiName", ...IMAGE_INTERNAL, ...FILTER_INTERNAL, ...PATCH_INTERNAL, ...PHOTO_INTERNAL, ...REPAIR_INTERNAL,...ML_INTERNAL, ...LAYOUT_INTERNAL, ...NAMED_INTERNAL, ...QR_INTERNAL, ...VECTOR_INTERNAL, ...TABLE_INTERNAL, ...VARIANTS_INTERNAL, ...CAROUSEL_INTERNAL, ...CHARTS_INTERNAL, ...CHARTS2_INTERNAL, ...SEAL_INTERNAL, ...BRAND_INTERNAL, ...PATTERN_INTERNAL, ...PRINT_INTERNAL];
+export const INTERNAL_HELPERS: readonly string[] = ["axiStyled", "axiStroke", "axiSurface", "axiName", ...IMAGE_INTERNAL, ...FILTER_INTERNAL, ...PATCH_INTERNAL, ...PHOTO_INTERNAL, ...REPAIR_INTERNAL,...ML_INTERNAL, ...LAYOUT_INTERNAL, ...NAMED_INTERNAL, ...QR_INTERNAL, ...VECTOR_INTERNAL, ...CLIP_INTERNAL, ...SHAPES_INTERNAL, ...ICONS_INTERNAL, ...TABLE_INTERNAL, ...VARIANTS_INTERNAL, ...CAROUSEL_INTERNAL, ...CHARTS_INTERNAL, ...CHARTS2_INTERNAL, ...SEAL_INTERNAL, ...BRAND_INTERNAL, ...PATTERN_INTERNAL, ...PRINT_INTERNAL];
 
-export const HELPERS_SOURCE: string = CORE_SOURCE + IMAGE_SOURCE + FILTER_SOURCE + PATCH_SOURCE + PHOTO_SOURCE + REPAIR_SOURCE +ML_SOURCE + LAYOUT_SOURCE + NAMED_SOURCE + QR_SOURCE + VECTOR_SOURCE + TABLE_SOURCE + VARIANTS_SOURCE + CAROUSEL_SOURCE + CHARTS_SOURCE + CHARTS2_SOURCE + SEAL_SOURCE + BRAND_SOURCE + PATTERN_SOURCE + PRINT_SOURCE + "\n" + platformHelperSource() + "\n";
+export const HELPERS_SOURCE: string = CORE_SOURCE + IMAGE_SOURCE + FILTER_SOURCE + PATCH_SOURCE + PHOTO_SOURCE + REPAIR_SOURCE +ML_SOURCE + LAYOUT_SOURCE + NAMED_SOURCE + QR_SOURCE + VECTOR_SOURCE + CLIP_SOURCE + SHAPES_SOURCE + ICONS_SOURCE + TABLE_SOURCE + VARIANTS_SOURCE + CAROUSEL_SOURCE + CHARTS_SOURCE + CHARTS2_SOURCE + SEAL_SOURCE + BRAND_SOURCE + PATTERN_SOURCE + PRINT_SOURCE + "\n" + platformHelperSource() + "\n";
 
 /**
  * Appends the helpers AFTER the user's source. Function declarations hoist, so

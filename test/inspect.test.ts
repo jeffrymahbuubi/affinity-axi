@@ -1,7 +1,7 @@
 // `inspect`, in-process against the fake MCP server.
 
 import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { make } from "../src/commands/inspect.js";
@@ -144,6 +144,37 @@ describe("inspect --out", () => {
     const saved = JSON.parse(readFileSync(out, "utf8")) as Inventory;
     expect(saved.nodes).toHaveLength(4);
     expect(saved.counts.text).toBe(1);
+  });
+});
+
+describe("inspect stored paths", () => {
+  const withPath = (path: string): Inventory => {
+    const inv = inventory(NODES);
+    return { ...inv, doc: { ...inv.doc, path } };
+  };
+
+  it("--out stores doc.path relative to the output folder, with no home folder in the file", async () => {
+    stub(withPath(join(dir, "art", "poster.af")));
+    const out = join(dir, "inv.json");
+    const r = await runCommand(inspect, ["current", "--out", out]);
+    expect(r.code).toBe(0);
+    const text = readFileSync(out, "utf8");
+    expect((JSON.parse(text) as Inventory).doc.path).toBe("art/poster.af");
+    expect(text).not.toContain(homedir());
+  });
+
+  it("--out stores a document under the home folder without the home folder", async () => {
+    stub(withPath(join(homedir(), "Desktop", "x.af")));
+    const out = join(dir, "inv.json");
+    await runCommand(inspect, ["current", "--out", out]);
+    const text = readFileSync(out, "utf8");
+    expect(text).not.toContain(homedir());
+  });
+
+  it("the path line starts with ~/ for a document under the home folder", async () => {
+    stub(withPath(join(homedir(), "Desktop", "x.af")));
+    const r = await runCommand(inspect, ["current"]);
+    expect(r.stdout).toContain("path: ~/Desktop/x.af");
   });
 });
 

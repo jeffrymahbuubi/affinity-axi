@@ -120,7 +120,7 @@ describe("batch left-open reporting", () => {
     expect(row).toContain(`a,failed,${U1.slice(0, 8)},`);
     expect(row).toContain("Error: boom at main:3:1; left open: 00000000 (unsaved)");
     expect(r.stdout).toContain(`leftOpen: ${U1}`);
-    expect(r.stdout).toContain("doc save <doc> <path-under-Desktop>.af");
+    expect(r.stdout).toContain("doc save 00000000 <path-under-Desktop>.af");
     expect(scripts().some((s) => s.includes("doc-save") || s.includes("doc-close"))).toBe(false);
   });
 
@@ -173,7 +173,7 @@ describe("batch left-open reporting", () => {
     expect(r.code).toBe(1);
     expect(r.stdout).toContain("refusing to overwrite (--force to replace); left open");
     expect(r.stdout).toContain(`leftOpen: ${U1}\n`);
-    expect(r.stdout).toContain("doc save <doc> <path-under-Desktop>.af");
+    expect(r.stdout).toContain("doc save 00000000 <path-under-Desktop>.af");
   });
 
   it("an ok record produces no leftOpen line", async () => {

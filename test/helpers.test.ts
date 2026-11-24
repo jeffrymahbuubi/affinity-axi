@@ -169,10 +169,10 @@ describe("run --with-helpers", () => {
     expect(userPart.split("\n").length).toBe(user.split("\n").length);
   });
 
-  it("sends the script untouched without the flag", async () => {
+  it("sends the script without helpers (ARGS defaulted) without the flag", async () => {
     const user = "console.log(1);\n";
     await runCommand(run, [script(user)]);
-    expect(sent()[0]).toBe(user);
+    expect(sent()[0]).toBe("const ARGS = {}; " + user);
   });
 
   it("guard-scans only the user source, not the helpers", async () => {

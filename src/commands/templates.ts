@@ -6,13 +6,13 @@
 // reported dirty:false. A dirty or unclosable document is left open.
 
 import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
-import { basename, dirname, join, relative, resolve } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import { deflateSync } from "node:zlib";
 import type { CommandModule } from "../cli/router.js";
 import { positiveFlag, type Parsed } from "../cli/args.js";
 import { BRAND_FLAG, injectBrand, loadBrand, resolveBrandRef, type BrandKit } from "../affinity/brand.js";
 import { withHelpers } from "../affinity/helpers.js";
-import { recordSave, writeManifest } from "../affinity/manifest.js";
+import { brandFor, recordSave, writeManifest } from "../affinity/manifest.js";
 import { checkOverwrite, FORCE_FLAG } from "../affinity/overwrite.js";
 import { requireUnderDesktop, requireVisible, shown, userPath } from "../affinity/paths.js";
 import { classify, resultText } from "../affinity/result.js";
@@ -259,8 +259,7 @@ function makeNew(connect: ConnectFn): CommandModule {
         try {
           const m = recordSave(out, uuid, null, process.cwd(), { forced: verdict.forced });
           // The file's origin is this command; the kit path is relative to the .af like every manifest path.
-          const kitPath = relative(dirname(out), resolve(process.cwd(), brand.ref.path));
-          m.madeBy = { script: `templates/${name}`, scriptSha256: m.madeBy?.scriptSha256 ?? "", args: userArgs, flags: [], brand: { ...brand.ref, path: kitPath } };
+          m.madeBy = { script: `templates/${name}`, scriptSha256: m.madeBy?.scriptSha256 ?? "", args: userArgs, flags: [], brand: brandFor(brand.ref, out) };
           writeManifest(out, m);
         } catch {
           // the file is saved; the manifest is best effort

@@ -1,10 +1,11 @@
 // `assets` and the home view's assets line, in-process against the fake MCP server.
 
 import { createHash } from "node:crypto";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { freshness, readManifest, writeManifest } from "../src/affinity/manifest.js";
 import { make as makeAssets } from "../src/commands/assets.js";
 import { make as makeHome } from "../src/commands/home.js";
 import { fakeConnect, runCommand } from "./fake-mcp/client.js";
@@ -68,6 +69,43 @@ describe("assets", () => {
     expect(r.code).toBe(0);
     expect(r.stdout).toContain(`assets: none under ${slash(root)}`);
     expect(r.stdout).toMatch(/help\[/);
+  });
+
+  it("--scrub rewrites a manifest with absolute paths, leaves a clean one, and never touches the .af", async () => {
+    const home = join(root, "home");
+    mkdirSync(join(home, "proj"), { recursive: true });
+    const saved = { HOME: process.env["HOME"], USERPROFILE: process.env["USERPROFILE"] };
+    process.env["HOME"] = home;
+    process.env["USERPROFILE"] = home;
+    try {
+      const out = join(root, "out");
+      const clean = seed(join(out, "clean"), "clean.af", "2026-10-01T08:00:00.000Z", "scripts/old.js");
+      writeManifest(clean, readManifest(clean)!);
+      const dirty = seed(join(out, "dirty"), "dirty.af", "2026-10-24T13:02:11.000Z", join(home, "proj", "promo.js"));
+      const before = readFileSync(dirty);
+      const r = await runCommand(assets, ["--scrub", "--dir", out]);
+      expect(r.code).toBe(0);
+      expect(r.stdout).toContain("scrub: 1 rewritten, 1 unchanged under ");
+      expect(r.stdout).toMatch(/rewritten\[1\]\{file\}:/);
+      expect(r.stdout).not.toMatch(/assets\[/);
+      expect(readFileSync(dirty).equals(before)).toBe(true);
+      expect(readFileSync(dirty + ".axi.json", "utf8")).toContain('"script": "~/proj/promo.js"');
+      expect(freshness(dirty).state).toBe("fresh");
+      const again = await runCommand(assets, ["--scrub", "--dir", out]);
+      expect(again.stdout).toContain("scrub: 0 rewritten, 2 unchanged under ");
+      expect(again.stdout).not.toContain("rewritten[");
+    } finally {
+      for (const [k, v] of Object.entries(saved)) {
+        if (v === undefined) delete process.env[k];
+        else process.env[k] = v;
+      }
+    }
+  });
+
+  it("--scrub on an empty folder says none", async () => {
+    const r = await runCommand(assets, ["--scrub", "--dir", root]);
+    expect(r.code).toBe(0);
+    expect(r.stdout).toContain(`assets: none under ${slash(root)}`);
   });
 
   it("makes no connection", async () => {

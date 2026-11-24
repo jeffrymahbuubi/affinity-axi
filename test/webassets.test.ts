@@ -9,6 +9,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { dispatch, type CommandModule, type Registry } from "../src/cli/router.js";
 import { imageSize } from "../src/affinity/export-area.js";
 import type { Manifest } from "../src/affinity/manifest-types.js";
+import { readManifest } from "../src/affinity/manifest.js";
 import {
   checkHref, checkResponsive, headHtml, icoFromPngs, normaliseTheme, parseIco,
   planJobs, selectBoards, webManifestJson, type WebFlags,
@@ -414,7 +415,7 @@ describe("webassets command", () => {
     stub({ docPath: af });
     const r = await runCommand(cmd, ARGS(["--responsive", "hero"]));
     expect(r.code, r.stdout).toBe(0);
-    const after = JSON.parse(readFileSync(af + ".axi.json", "utf8")) as Manifest;
+    const after = readManifest(af)!; // exports[].path is stored relative and decoded on read
     expect(after.exports).toHaveLength(13);
     expect(after.exports.find((e) => e.path === join(out, "og.png"))).toMatchObject({ preset: "PNG", area: "artboard:og", size: "1200x630", bytes: 33, aiGenerated: false });
     expect(after.exports.find((e) => e.path.endsWith("icon.svg"))!.preset).toBe("SVG (for export)");

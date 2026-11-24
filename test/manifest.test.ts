@@ -7,7 +7,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { scanManifests } from "../src/affinity/assets-scan.js";
 import { freshness, manifestPath, readManifest, recordSave, sha256File, writeManifest } from "../src/affinity/manifest.js";
 import type { Inventory, Manifest, RunRecord } from "../src/affinity/manifest-types.js";
-import { appendRun, readRuns, runsPath, runsSince } from "../src/affinity/runlog.js";
+import { appendRun, readRuns } from "../src/affinity/runlog.js";
 
 const UUID = "01E35352-1111-4222-8333-444455556666";
 const OTHER = "AAAAAAAA-1111-4222-8333-444455556666";
@@ -288,33 +288,6 @@ describe("recordSave", () => {
     expect(readManifest(af)?.ai.uuids).toEqual([]);
     writeFileSync(manifestPath(af), JSON.stringify({ ai: { uuids: [OTHER.toLowerCase(), 7, "", OTHER, null] } }));
     expect(readManifest(af)?.ai.uuids).toEqual([OTHER]);
-  });
-});
-
-describe("run log", () => {
-  it("appends one JSON line per record under .affinity-axi/runs.jsonl", () => {
-    appendRun(run(), root);
-    appendRun(run(), root);
-    expect(runsPath(root)).toBe(join(root, ".affinity-axi", "runs.jsonl"));
-    expect(readFileSync(runsPath(root), "utf8").trim().split("\n")).toHaveLength(2);
-    expect(readRuns(root)).toHaveLength(2);
-  });
-
-  it("skips torn lines and returns [] when the log is absent", () => {
-    expect(readRuns(root)).toEqual([]);
-    appendRun(run({ script: "a.js" }), root);
-    writeFileSync(runsPath(root), readFileSync(runsPath(root), "utf8") + '{"time":"torn\n\n');
-    appendRun(run({ script: "b.js" }), root);
-    expect(readRuns(root).map((r) => r.script)).toEqual(["a.js", "b.js"]);
-  });
-
-  it("runsSince filters by UUID (case-insensitive) and strictly later time", () => {
-    appendRun(run({ time: "2026-10-24T10:00:00.000Z", script: "old.js" }), root);
-    appendRun(run({ time: "2026-10-24T11:00:00.000Z", script: "new.js" }), root);
-    appendRun(run({ time: "2026-10-24T12:00:00.000Z", script: "other.js", documents: [{ uuid: OTHER, path: "" }] }), root);
-    expect(runsSince(UUID.toLowerCase(), "2026-10-24T10:00:00.000Z", root).map((r) => r.script)).toEqual(["new.js"]);
-    expect(runsSince(UUID, "", root).map((r) => r.script)).toEqual(["old.js", "new.js"]);
-    expect(runsSince(OTHER, "2026-10-24T13:00:00.000Z", root)).toEqual([]);
   });
 });
 

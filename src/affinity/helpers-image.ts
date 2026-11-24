@@ -19,9 +19,28 @@ export const IMAGE_INDEX: readonly HelperInfo[] = [
 ];
 
 /** Internal building blocks, not in the index. */
-export const IMAGE_INTERNAL: readonly string[] = ["axiPlace", "axiOrientCheck", "axiCmykGuard", "axiGradeTarget", "axiGradeSteps"];
+export const IMAGE_INTERNAL: readonly string[] = ["axiPlace", "axiOrientCheck", "axiCmykGuard", "axiGradeTarget", "axiGradeSteps", "axiFilePath"];
 
 export const IMAGE_SOURCE: string = String.raw`
+// Internal: expands ~/Desktop/... and %USERPROFILE%/Desktop/... (any case, / or backslash) to the
+// absolute Desktop path, because Affinity does not expand ~ and reads files only under the Desktop.
+// Any other path (absolute, relative, non-string) comes back unchanged; ~/Other/... throws.
+function axiFilePath(p, who) {
+  if (typeof p !== 'string') { return p; }
+  const bs = String.fromCharCode(92);
+  const low = p.toLowerCase();
+  const plen = low.startsWith('%userprofile%') ? 13 : (low.startsWith('~') ? 1 : 0);
+  if (plen === 0 || (p.length > plen && p.charAt(plen) !== '/' && p.charAt(plen) !== bs)) { return p; }
+  let desktop = String(require('/application.js').Application.userDesktopPath);
+  const hasBs = desktop.indexOf(bs) >= 0;
+  while (desktop.length > 1 && (desktop.endsWith('/') || desktop.endsWith(bs))) { desktop = desktop.slice(0, -1); }
+  const parts = p.slice(plen).split(bs).join('/').split('/').filter((s) => s !== '');
+  if (parts.length === 0 || parts[0].toLowerCase() !== 'desktop') {
+    throw new Error(who + ": cannot read '" + p + "': Affinity reads files only under the Desktop folder (" + desktop + "), and ~/ is expanded only for ~/Desktop/...");
+  }
+  return desktop + (parts.length > 1 ? (hasBs ? bs : '/') + parts.slice(1).join(hasBs ? bs : '/') : '');
+}
+
 // Internal: load path and add it as an image node. target (a frame or other
 // parent node) makes it a child, in front. With null the parent is the artboard
 // that holds the selection (the selection itself, or the nearest artboard above
@@ -49,7 +68,7 @@ function axiPlace(doc, o, box, target) {
     }
   }
   const def = ImageNodeDefinition.create(RasterFormat.RGBA8);
-  def.bitmap = Bitmap.loadFromFile(o.path, RasterFormat.RGBA8);
+  def.bitmap = Bitmap.loadFromFile(axiFilePath(o.path, 'axiImage'), RasterFormat.RGBA8);
   if (parent) {
     const b = AddChildNodesCommandBuilder.create();
     b.setInsertionTarget(parent);
@@ -152,6 +171,7 @@ function axiReplaceImage(doc, node, path, o) {
   const { Bitmap, RasterFormat } = require('/rasterobject.js');
   const { DocumentCommand } = require('/commands.js');
   const opts = o || {};
+  path = axiFilePath(path, 'axiReplaceImage');
   axiOrientCheck('axiReplaceImage', opts);
   axiCmykGuard('axiReplaceImage', doc);
   const turned = !!(opts.rotate || opts.mirror);

@@ -8,13 +8,19 @@
 // is ai-generated, and gets a `<file>.provenance.json` sidecar for disclosure
 // labels (Meta AI disclosure and similar). The log is best-effort evidence,
 // not tamper-proof: it lives next to the project, in plain text.
+//
+// Stored form: `paths` are relative to the project folder (the log's cwd) when
+// inside it, else `~/...` below the home folder, else absolute; an absolute
+// `script` is stored the same way; the home folder never appears in the file.
+// `readProvenance` returns `paths` absolute again; old absolute lines read as is.
 
 import { createHash } from "node:crypto";
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { dirname, isAbsolute, join, resolve } from "node:path";
 import type { AiHit } from "../mcp/types.js";
 import { readAiUuids } from "./manifest-ai.js";
 import { realish } from "./paths.js";
+import { resolveStored, scrubHome, storedPath } from "./portable.js";
 
 export interface ProvenanceRecord {
   /** ISO 8601 time the run finished. */
@@ -63,7 +69,10 @@ export function sha256(text: string): string {
 export function appendProvenance(record: ProvenanceRecord, cwd: string = process.cwd()): string {
   const file = provenancePath(cwd);
   mkdirSync(dirname(file), { recursive: true });
-  appendFileSync(file, JSON.stringify(record) + "\n");
+  const paths = record.paths?.map((p) => storedPath(p, cwd));
+  const script = isAbsolute(record.script) ? storedPath(record.script, cwd) : record.script;
+  const line = scrubHome({ ...record, script, ...(paths ? { paths } : {}) });
+  appendFileSync(file, JSON.stringify(line) + "\n");
   return file;
 }
 
@@ -76,7 +85,10 @@ export function readProvenance(cwd: string = process.cwd()): ProvenanceRecord[] 
     if (line.trim() === "") continue;
     try {
       const r = JSON.parse(line) as ProvenanceRecord;
-      if (r && Array.isArray(r.documents)) records.push(r);
+      if (r && Array.isArray(r.documents)) {
+        if (Array.isArray(r.paths)) r.paths = r.paths.map((p) => (typeof p === "string" && p !== "" ? resolveStored(p, cwd) : p));
+        records.push(r);
+      }
     } catch {
       // a torn line must not hide the rest of the log
     }
@@ -155,7 +167,13 @@ export function isAiGenerated(uuid: string, cwd: string = process.cwd(), opts?: 
 /** Writes `<exported>.provenance.json` and returns its path. */
 export function writeSidecar(exported: string, uuid: string, records: ProvenanceRecord[]): string {
   const file = `${exported}.provenance.json`;
-  const body = { ai_generated: true, document: uuid, export: exported, records };
+  const d = dirname(resolve(exported));
+  const body = scrubHome({
+    ai_generated: true,
+    document: uuid,
+    export: storedPath(exported, d),
+    records: records.map((r) => ({ ...r, ...(r.paths ? { paths: r.paths.map((p) => storedPath(p, d)) } : {}) })),
+  });
   writeFileSync(file, JSON.stringify(body, null, 2) + "\n");
   return file;
 }

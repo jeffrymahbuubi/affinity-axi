@@ -16,6 +16,7 @@
 import { existsSync, statSync } from "node:fs";
 import { isAbsolute, resolve } from "node:path";
 import { UsageError } from "../output/errors.js";
+import { HIDE_MISSING_LINES } from "./fill-hide.js";
 import { exifOrientation, orientationOps } from "./orientation.js";
 import { expandHome, shown } from "./paths.js";
 
@@ -81,6 +82,8 @@ export interface ApplyReply {
   error?: string;
   /** With error: true when undo left the document clean. */
   cleaned?: boolean;
+  /** With --hide-missing: the slot keys hidden (`board/k` when the name is on several artboards). */
+  hidden?: string[];
 }
 
 /** Absolute form of an image path: relative to the data file's folder unless absolute or ~. */
@@ -227,13 +230,15 @@ function explicit(key: string, ref: string, o: Record<string, unknown>, dataDir:
  * A plain string without whitespace that is an existing file of another type is an
  * unsupported image type. EXIF orientation of JPEG and TIFF pictures becomes rotate/mirror.
  */
-export function planEdits(record: Record<string, unknown>, keyField: string | undefined, dataDir: string): Edit[] {
+export function planEdits(record: Record<string, unknown>, keyField: string | undefined, dataDir: string, opts: { hideMissing?: boolean } = {}): Edit[] {
   const edits: Edit[] = [];
   for (const [key, v] of Object.entries(record)) {
     if (key === keyField) continue;
     checkKey(key);
     const ref = slotRef(key);
-    if (typeof v === "string") {
+    if (opts.hideMissing === true && (v === null || (typeof v === "string" && v.trim() === ""))) {
+      edits.push({ key, ref, hidden: true });
+    } else if (typeof v === "string") {
       const e: Edit = { key, ref, str: v };
       if (IMAGE_EXT.test(v)) {
         const p = imagePath(v, dataDir);
@@ -305,7 +310,7 @@ export function FILL_OPEN(templatePath: string, targetPath: string): string {
  * helpers (withHelpers) before sending. Nothing is changed when any key is
  * duplicate, of the wrong kind, or unknown (unless ignoreUnknown).
  */
-export function FILL_APPLY(docUuid: string, edits: Edit[], ignoreUnknown: boolean): string {
+export function FILL_APPLY(docUuid: string, edits: Edit[], ignoreUnknown: boolean, hideMissing = false): string {
   return [
     "/* affinity-axi:fill-apply */",
     "const { Document } = require('/document.js');",
@@ -431,6 +436,7 @@ export function FILL_APPLY(docUuid: string, edits: Edit[], ignoreUnknown: boolea
     "      });",
     "      out.applied.push(p.key);",
     "    });",
+    ...(hideMissing ? HIDE_MISSING_LINES : []),
     "  } catch (e) {",
     "    for (let i = 0; i < 200 && !wasDirty && doc.isDirty && doc.canUndo; i++) { doc.undo(); }",
     "    out.applied = [];",

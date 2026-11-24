@@ -3,13 +3,13 @@
 // changes the selection or the current spread.
 
 import { mkdirSync, writeFileSync } from "node:fs";
-import { homedir } from "node:os";
-import { dirname } from "node:path";
+import { dirname, resolve } from "node:path";
 import type { CommandModule } from "../cli/router.js";
 import type { Parsed } from "../cli/args.js";
 import { resolveDocRef } from "../affinity/docref.js";
 import { INSPECT } from "../affinity/inspect-script.js";
 import { shown } from "../affinity/paths.js";
+import { scrubHome, storedPath } from "../affinity/portable.js";
 import type { Inventory, InventoryNode } from "../affinity/manifest-types.js";
 import { LIST_DOCUMENTS } from "../affinity/scripts.js";
 import { UsageError } from "../output/errors.js";
@@ -22,11 +22,6 @@ const BIN = "affinity-axi";
 const ROW_CAP = 60;
 const FIELDS = ["path", "type", "name", "box", "text", "font", "fill"];
 const TIMEOUT_MS = 120000;
-
-function tilde(path: string): string {
-  const home = homedir();
-  return home && path.startsWith(home + "/") ? "~" + path.slice(home.length) : path;
-}
 
 function row(n: InventoryNode): Record<string, unknown> {
   return { path: n.path, type: n.type, name: n.name, box: n.box.join(" "), text: n.text, font: n.font, fill: n.fill };
@@ -116,7 +111,8 @@ export function make(connect: ConnectFn): CommandModule {
 
       if (out !== undefined) {
         mkdirSync(dirname(out) || ".", { recursive: true });
-        writeFileSync(out, JSON.stringify(inv, null, 2) + "\n");
+        const stored = scrubHome({ ...inv, doc: { ...inv.doc, ...(inv.doc.path ? { path: storedPath(inv.doc.path, dirname(resolve(out))) } : {}) } });
+        writeFileSync(out, JSON.stringify(stored, null, 2) + "\n");
         print(
           [
             emitKV([["inspect", shown(out)], ["doc", doc.uuid], ...countPairs]),
@@ -144,7 +140,7 @@ export function make(connect: ConnectFn): CommandModule {
         [
           emitKV([
             ["doc", doc.uuid],
-            ["path", doc.path ? shown(tilde(doc.path)) : "(unsaved)"],
+            ["path", doc.path ? shown(scrubHome(doc.path)) : "(unsaved)"],
             ["size", `${doc.width}x${doc.height} px @ ${doc.dpi} dpi`],
           ]),
           emitList("nodes", shownNodes.map(row), FIELDS),

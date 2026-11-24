@@ -330,8 +330,15 @@ function axiDelete(doc, ref) {
 // else Document.load.
 function axiOpen(path) {
   const { Document } = require('/document.js');
-  if (typeof path !== 'string' || path.charAt(0) !== '/') { throw new Error('axiOpen: path must be absolute'); }
-  const open = Document.all.find(function (d) { return String(d.path || '') === path; });
+  path = axiFilePath(path, 'axiOpen');
+  const bs = String.fromCharCode(92);
+  const win = typeof path === 'string' && ((/^[A-Za-z]:/.test(path) && (path.charAt(2) === '/' || path.charAt(2) === bs)) || path.startsWith(bs + bs));
+  if (typeof path !== 'string' || (path.charAt(0) !== '/' && !win)) {
+    throw new Error('axiOpen: path must be absolute (/..., C:/... or a drive path with backslashes), got ' + (typeof path === 'string' ? "'" + path + "'" : String(path)));
+  }
+  const key = function (q) { return win ? String(q || '').split(bs).join('/').toLowerCase() : String(q || ''); };
+  const want = key(path);
+  const open = Document.all.find(function (d) { return key(d.path) === want; });
   return open || Document.load(path);
 }
 `;

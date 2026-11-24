@@ -3,7 +3,7 @@
 
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { HELPERS_SOURCE, HELPER_INDEX } from "../src/affinity/helpers.js";
 import { scanForAi } from "../src/affinity/guard.js";
@@ -131,7 +131,7 @@ describe("run --allow-generative", () => {
     expect(r.stdout).toContain("provenance: logged (ai-generated)");
     const [record] = readProvenance();
     expect(record).toMatchObject({
-      script: file,
+      script: "gen.js",
       sha256: sha256(GEN),
       identifiers: [{ identifier: "generateImage", line: 3 }],
       args: { prompt: "soft terracotta abstract background" },
@@ -243,7 +243,7 @@ describe("export tags AI-generated documents", () => {
     expect(r.stdout).toContain("provenance: ai-generated");
     expect(r.stdout).toContain(`provenance_file: ${slash(target)}.provenance.json`);
     const sidecar = JSON.parse(readFileSync(`${target}.provenance.json`, "utf8"));
-    expect(sidecar).toMatchObject({ ai_generated: true, document: FIXTURE_UUID, export: target });
+    expect(sidecar).toMatchObject({ ai_generated: true, document: FIXTURE_UUID, export: basename(target) });
     expect(sidecar.records).toHaveLength(1);
     expect(sidecar.records[0].args).toEqual({ prompt: "p" });
   });

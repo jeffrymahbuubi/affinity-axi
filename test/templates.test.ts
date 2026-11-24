@@ -12,6 +12,7 @@ import { findPlatform, platformHelperSource } from "../src/affinity/platforms.js
 import { scanForAi, scanForBlocking } from "../src/affinity/guard.js";
 import { BRAND_SOURCE } from "../src/affinity/helpers-brand.js";
 import { readManifest } from "../src/affinity/manifest.js";
+import { resolveStored } from "../src/affinity/portable.js";
 import { make } from "../src/commands/templates.js";
 import { TEMPLATES, templateByName, type Template } from "../src/templates/index.js";
 import { ConnectError } from "../src/mcp/types.js";
@@ -324,7 +325,7 @@ describe("templates new", () => {
     const m = readManifest(out)!;
     expect(m.madeBy?.script).toBe("templates/ig-post");
     expect(m.madeBy?.brand?.name).toBe("Lumen Studio");
-    expect(resolve(dirname(out), m.madeBy!.brand!.path)).toBe(BRAND_FILE);
+    expect(resolve(resolveStored(m.madeBy!.brand!.path, dirname(out)))).toBe(BRAND_FILE);
     expect(m.history.map((h) => h.kind)).toEqual(["templates", "save"]);
     expect(m.history[0]!.script).toBe("templates/ig-post");
     expect(m.history[0]!.brand?.name).toBe("Lumen Studio");

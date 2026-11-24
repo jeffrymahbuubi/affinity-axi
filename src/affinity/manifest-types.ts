@@ -8,7 +8,7 @@ export interface BrandRef {
   sha256: string;
 }
 
-/** One line of .affinity-axi/runs.jsonl. */
+/** One line of the user-level run log, ~/.affinity-axi/runs.jsonl (see runlog.ts); path fields have `~` for the home directory in the file. */
 export interface RunRecord {
   time: string;
   cmd: "run" | "batch" | "fill" | "templates";
@@ -67,7 +67,7 @@ export interface Manifest {
   file: string;
   /** tool: e.g. "affinity-axi 0.1.0". */
   af: { sha256: string; bytes: number; savedAt: string; tool: string };
-  /** script is relative to the manifest's directory. */
+  /** script and brand.path: relative to the manifest's folder (`../` allowed below home), else `~/...`, else absolute. */
   madeBy: { script: string; scriptSha256: string; args: unknown; flags: string[]; brand?: BrandRef } | null;
   history: Array<{
     time: string;
@@ -82,7 +82,7 @@ export interface Manifest {
     forced?: boolean;
     brand?: BrandRef;
   }>;
-  /** alt: the image's alt text; requested/attempts: an export --max-kb budget and the presets tried. */
+  /** path: absolute in memory, stored like madeBy.script. alt: the image's alt text; requested/attempts: an export --max-kb budget and the presets tried. */
   exports: Array<{ time: string; path: string; preset: string; area: string; size: string; bytes: number; aiGenerated: boolean; alt?: string; requested?: string; attempts?: number }>;
   /** From provenance.jsonl. uuids: every session UUID (uppercase) that had AI records at a save of this file, so a reopened document (new UUID) still finds its records. */
   ai: { generated: boolean; records: number; uuids: string[] };

@@ -5,6 +5,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { runsPath } from "../src/affinity/runlog.js";
 import { make as makeRun } from "../src/commands/run.js";
 import { connect } from "../src/mcp/connect.js";
 import { RpcSession, TransportError } from "../src/mcp/client.js";
@@ -49,7 +50,7 @@ const waitFor = async (cond: () => boolean): Promise<void> => {
   for (let i = 0; i < 100 && !cond(); i++) await new Promise((r) => setTimeout(r, 20));
 };
 const logLines = (): string[] => {
-  const f = join(work, ".affinity-axi", "runs.jsonl");
+  const f = runsPath();
   return existsSync(f) ? readFileSync(f, "utf8").split("\n").filter(Boolean) : [];
 };
 

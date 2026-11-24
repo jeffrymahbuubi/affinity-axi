@@ -73,3 +73,14 @@ export function injectArgs(source: string, json: string): string {
     .replace(/\u2029/g, "\\u2029");
   return `const ARGS = ${compact}; ${source}`;
 }
+
+/** true when the script declares ARGS itself: const, let or var at the start of a line. */
+export function declaresArgs(source: string): boolean {
+  return /^[ \t]*(?:const|let|var)\s+ARGS\b/m.test(source);
+}
+
+/** What `run` sends: injectArgs(source, json) with a json; without one `const ARGS = {}; ${source}`, or source unchanged when declaresArgs(source). */
+export function withRunArgs(source: string, json: string | undefined): string {
+  if (json !== undefined) return injectArgs(source, json);
+  return declaresArgs(source) ? source : `const ARGS = {}; ${source}`;
+}

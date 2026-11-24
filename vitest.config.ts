@@ -5,6 +5,8 @@ export default defineConfig({
     testTimeout: 60_000,
     // Spies on process streams are restored before every test.
     restoreMocks: true,
+    // A fresh AFFINITY_AXI_HOME per test: the run log never touches the real home folder.
+    setupFiles: ["test/helpers/state-dir.ts"],
     // The dashboard is its own package with node:test suites (npm --prefix dashboard test).
     exclude: [...configDefaults.exclude, "dashboard/**"],
     // Only `npm run coverage` (vitest run --coverage) measures and enforces thresholds.

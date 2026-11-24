@@ -25,7 +25,7 @@ import {
   type Edit,
 } from "../affinity/fill-script.js";
 import { withHelpers } from "../affinity/helpers.js";
-import { recordSave, sha256File, writeManifest } from "../affinity/manifest.js";
+import { brandFor, recordSave, sha256File, writeManifest } from "../affinity/manifest.js";
 import { checkOverwrite, FORCE_FLAG } from "../affinity/overwrite.js";
 import { requireUnderDesktop, requireVisible, shown, userPath } from "../affinity/paths.js";
 import { appendRun } from "../affinity/runlog.js";
@@ -69,6 +69,7 @@ interface Ctx extends ExportCtx {
   templateSha: string; // sha256 of the template bytes: the run log and madeBy both carry it
   force: boolean;
   ignoreUnknown: boolean;
+  hideMissing: boolean;
   flags: string[];
   exported: number;
   leftOpen: string[];
@@ -148,7 +149,7 @@ async function runOne(c: Ctx, rec: DataRecord, key: string, edits: Edit[]): Prom
     log("exception", false, scratch);
     try {
       const m = recordSave(scratch, id, null, process.cwd());
-      m.madeBy = { script: "fill", scriptSha256: c.templateSha, args: rec, flags: c.flags, ...(c.brand ? { brand: c.brand.ref } : {}) };
+      m.madeBy = { script: "fill", scriptSha256: c.templateSha, args: rec, flags: c.flags, ...(c.brand ? { brand: brandFor(c.brand.ref, scratch) } : {}) };
       m.notes = [...(m.notes ?? []), { time: new Date().toISOString(), text: `fill: ${base}; saved only so the document could be closed` }];
       writeManifest(scratch, m);
     } catch {
@@ -163,7 +164,7 @@ async function runOne(c: Ctx, rec: DataRecord, key: string, edits: Edit[]): Prom
   // Apply. A refusal changes nothing, so the document is clean and can be closed.
   let result;
   try {
-    result = await c.client.callTool("execute_script", { script: withHelpers(c.brand ? injectBrand(FILL_APPLY(uuid, edits, c.ignoreUnknown), c.brand.kit) : FILL_APPLY(uuid, edits, c.ignoreUnknown)) }, { timeoutMs: c.timeoutMs });
+    result = await c.client.callTool("execute_script", { script: withHelpers(c.brand ? injectBrand(FILL_APPLY(uuid, edits, c.ignoreUnknown, c.hideMissing), c.brand.kit) : FILL_APPLY(uuid, edits, c.ignoreUnknown, c.hideMissing)) }, { timeoutMs: c.timeoutMs });
   } catch (err) {
     throw new FatalRecord(`applying the record failed: ${err instanceof Error ? err.message : String(err)}`, uuid);
   }
@@ -200,6 +201,7 @@ async function runOne(c: Ctx, rec: DataRecord, key: string, edits: Edit[]): Prom
 
   const notes: string[] = [];
   if (c.ignoreUnknown && reply.unknown.length > 0) notes.push(`ignored unknown slot${reply.unknown.length > 1 ? "s" : ""}: ${reply.unknown.join(", ")}`);
+  if (c.hideMissing && (reply.hidden ?? []).length > 0) notes.push(`hidden: ${(reply.hidden ?? []).join(", ")}`);
 
   // Per-slot remarks from the script (text shrunk to fit, overflow): they follow "saved <file>" and the unknown-slot note.
   notes.push(...(reply.notes ?? []));
@@ -219,7 +221,7 @@ async function runOne(c: Ctx, rec: DataRecord, key: string, edits: Edit[]): Prom
   try {
     // The same writer as `doc save`; the file's origin is this command, with the record as its args.
     const m = recordSave(afPath, uuid, null, process.cwd(), { forced: verdict.forced });
-    m.madeBy = { script: "fill", scriptSha256: c.templateSha, args: rec, flags: c.flags, ...(c.brand ? { brand: c.brand.ref } : {}) };
+    m.madeBy = { script: "fill", scriptSha256: c.templateSha, args: rec, flags: c.flags, ...(c.brand ? { brand: brandFor(c.brand.ref, afPath) } : {}) };
     writeManifest(afPath, m);
   } catch (err) {
     notes.push(`manifest NOT WRITTEN (${err instanceof Error ? err.message : String(err)})`);
@@ -255,7 +257,7 @@ export function make(connect: ConnectFn): CommandModule {
       summary: "Fill a saved .af by element name from JSON or CSV: one file per record",
       args: [{ name: "template", required: true, description: "the saved .af whose fillable elements are named slot:<key> in the Layers panel" }],
       flags: [
-        { name: "data", type: "string", description: "records: a .json array of objects, or a .csv with a header row (required). Each field fills the element named slot:<field>; an empty value blanks a text slot and keeps its style, a field the record does not have leaves the slot as the template has it. A picture slot may be a path to .png .jpg .jpeg .webp .heic .heif .tif or .tiff (JPEG and TIFF with EXIF orientation are placed upright) or {\"image\": \"photo.jpg\", \"cutout\": true|\"subject\", \"colourise\": true, \"align\": \"centre\"|\"fit\"|\"none\" (default centre with cutout), \"padding\": px (with fit)} (JSON only)" },
+        { name: "data", type: "string", description: "records: a .json array of objects, or a .csv with a header row (required). Each field fills the element named slot:<field>; an empty value blanks a text slot and keeps its style, a field the record does not have leaves the slot as the template has it (with --hide-missing both hide the slot). A picture slot may be a path to .png .jpg .jpeg .webp .heic .heif .tif or .tiff (JPEG and TIFF with EXIF orientation are placed upright) or {\"image\": \"photo.jpg\", \"cutout\": true|\"subject\", \"colourise\": true, \"align\": \"centre\"|\"fit\"|\"none\" (default centre with cutout), \"padding\": px (with fit)} (JSON only)" },
         { name: "out-dir", type: "string", description: "folder under Desktop: each record is saved as <dir>/<key>.af (required)" },
         { name: "key", type: "string", description: "record field that names each record (default: the record index); made filesystem-safe, must be unique" },
         { name: "export", type: "string", description: "also export each record with this preset (see: affinity-axi presets) as <dir>/<key>.<ext>; Affinity's XMP (account name) is stripped from PNG/JPEG/WebP and the kit's `credit` is embedded when set (needs exiftool)" },
@@ -266,6 +268,7 @@ export function make(connect: ConnectFn): CommandModule {
         { name: "continue-on-error", type: "boolean", description: "keep going after a failed record (default: stop at the first failure); a failed ML record whose undo leaves the document dirty is saved under _failed/ and closed" },
         FORCE_FLAG,
         { name: "ignore-unknown", type: "boolean", description: "a data key with no slot is skipped instead of failing the record" },
+        { name: "hide-missing", type: "boolean", description: "hide a slot instead of leaving it: when the record has no field for it, or the value is empty (\"\", spaces, or null in JSON); elements named with:<key> hide with slot:<key>" },
         BRAND_FLAG,
         { name: "timeout", type: "string", default: String(DEFAULT_TIMEOUT_MS), description: "per-script timeout in milliseconds (ML options cutout and colourise take about 10 s per photo)" },
         { name: "url", type: "string", description: "Affinity MCP URL (AFFINITY_MCP_URL wins; default http://[::1]:6767)" },
@@ -297,12 +300,13 @@ export function make(connect: ConnectFn): CommandModule {
       const timeoutMs = positiveFlag(parsed, "timeout", { integer: true, fallback: DEFAULT_TIMEOUT_MS, example: "60000" });
       const limit = positiveFlag(parsed, "limit", { integer: true, example: "3" });
       const keyField = typeof parsed.flags["key"] === "string" ? parsed.flags["key"] : undefined;
+      const hideMissing = parsed.flags["hide-missing"] === true;
 
       const all = loadRecords(dataFile);
       const records = limit === undefined ? all : all.slice(0, limit);
       const keys = deriveKeys(records, keyField);
       const dataDir = dirname(resolve(dataFile));
-      const plans = records.map((r) => planEdits(r, keyField, dataDir));
+      const plans = records.map((r) => planEdits(r, keyField, dataDir, { hideMissing }));
       const outDir = userPath(rawOut);
       requireVisible(outDir, "--out-dir");
       for (const p of plans.flatMap(imagePaths)) requireVisible(p, "image");
@@ -323,11 +327,12 @@ export function make(connect: ConnectFn): CommandModule {
         force: parsed.flags["force"] === true,
         outDir,
         ignoreUnknown: parsed.flags["ignore-unknown"] === true,
+        hideMissing,
         timeoutMs,
         preset,
         ext,
         allBoards,
-        flags: [...(preset ? [`--export ${preset}`] : []), ...(allBoards ? ["--all-artboards"] : []), ...(budget ? [`--max-kb ${budget.kb}`] : []), ...(typeof parsed.flags["min-scale"] === "string" ? [`--min-scale ${parsed.flags["min-scale"]}`] : []), ...(parsed.flags["ignore-unknown"] === true ? ["--ignore-unknown"] : []), ...(parsed.flags["force"] === true ? ["--force"] : [])],
+        flags: [...(preset ? [`--export ${preset}`] : []), ...(allBoards ? ["--all-artboards"] : []), ...(budget ? [`--max-kb ${budget.kb}`] : []), ...(typeof parsed.flags["min-scale"] === "string" ? [`--min-scale ${parsed.flags["min-scale"]}`] : []), ...(parsed.flags["ignore-unknown"] === true ? ["--ignore-unknown"] : []), ...(hideMissing ? ["--hide-missing"] : []), ...(parsed.flags["force"] === true ? ["--force"] : [])],
         exported: 0,
         leftOpen: [],
         failedCopies: 0,

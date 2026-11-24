@@ -14,7 +14,9 @@ import { AxiError, UsageError } from "../output/errors.js";
 import { helpBlock } from "../output/suggest.js";
 import { emitKV, print } from "../output/toon.js";
 import type { ConnectFn, DocInfo } from "../mcp/types.js";
+import { parseSizeFlags } from "../affinity/export-area.js";
 import { callJson } from "./run.js";
+import { renderArtboard } from "./render-artboard.js";
 
 const BIN = "affinity-axi";
 const NOTE = "preview capped at 1024px; use export for full resolution";
@@ -28,6 +30,8 @@ export function make(connect: ConnectFn): CommandModule {
       flags: [
         { name: "spread", type: "string", default: "0", description: "spread index to render" },
         { name: "selection", type: "boolean", description: "render the current selection instead of a spread" },
+        { name: "artboard", type: "string", description: "render one artboard at its own size instead of the 1024 px preview: a name, or its index from 0; goes through a PNG export, so the Desktop must be writable" },
+        { name: "width", type: "string", description: "with --artboard: output width in px (default: the artboard's size, at most 2048 px on the longer side)" },
         { name: "out", type: "string", description: "output path (default .affinity-axi/renders/<uuid8>-s<spread>.jpg)" },
         { name: "url", type: "string", description: "Affinity MCP URL (AFFINITY_MCP_URL wins; default http://[::1]:6767)" },
       ],
@@ -45,6 +49,21 @@ export function make(connect: ConnectFn): CommandModule {
       }
       const spread = Number(spreadRaw);
       const selection = parsed.flags["selection"] === true;
+      const artboard = typeof parsed.flags["artboard"] === "string" ? parsed.flags["artboard"] : undefined;
+      const outRaw = typeof parsed.flags["out"] === "string" ? parsed.flags["out"] : undefined;
+      let width: number | undefined;
+      if (artboard !== undefined) {
+        if (artboard.trim() === "") {
+          throw new UsageError("--artboard needs a name", "pass the artboard name or its index from 0");
+        }
+        if (selection) throw new UsageError("--artboard and --selection cannot be combined", "pick one");
+        if (outRaw !== undefined && !outRaw.toLowerCase().endsWith(".png")) {
+          throw new UsageError("--artboard renders a PNG: --out must end in .png", "use a .png file name, or drop --out");
+        }
+        width = parseSizeFlags(parsed)?.width;
+      } else if (parsed.flags["width"] !== undefined) {
+        throw new UsageError("--width needs --artboard <name|index>", "add --artboard, or drop --width");
+      }
       const url = typeof parsed.flags["url"] === "string" ? parsed.flags["url"] : undefined;
 
       const client = await connect({ url });
@@ -57,6 +76,9 @@ export function make(connect: ConnectFn): CommandModule {
           "listing documents",
         );
         doc = resolveDocRef(ref, listing.documents, listing.current);
+        if (artboard !== undefined) {
+          return await renderArtboard(client, doc, { name: artboard, spread, ...(width !== undefined ? { width } : {}), ...(outRaw !== undefined ? { out: outRaw } : {}) });
+        }
         const result = selection
           ? await client.callTool("render_selection", { document_session_uuid: doc.uuid })
           : await client.callTool("render_spread", { document_session_uuid: doc.uuid, spread_index: spread });

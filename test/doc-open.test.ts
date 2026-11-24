@@ -263,6 +263,25 @@ describe("doc info", () => {
       expect((await info(af, root)).stdout).toContain("(brands/acme.brand.json) (changed)");
     });
 
+    it("finds a kit stored as ~/... against the home folder", async () => {
+      const saved = { HOME: process.env["HOME"], USERPROFILE: process.env["USERPROFILE"] };
+      process.env["HOME"] = root;
+      process.env["USERPROFILE"] = root;
+      try {
+        const af = seedBrand("~/brands/acme.brand.json");
+        const ok = await info(af, desktop);
+        expect(ok.stdout).toContain("brand: Acme (~/brands/acme.brand.json)");
+        expect(ok.stdout).not.toContain("(changed)");
+        writeFileSync(join(root, "brands", "acme.brand.json"), "{}");
+        expect((await info(af, desktop)).stdout).toContain("(~/brands/acme.brand.json) (changed)");
+      } finally {
+        for (const [k, v] of Object.entries(saved)) {
+          if (v === undefined) delete process.env[k];
+          else process.env[k] = v;
+        }
+      }
+    });
+
     it("prints the line without a suffix when the kit is missing", async () => {
       const af = seedBrand("../../brands/gone.brand.json");
       const r = await info(af, root);

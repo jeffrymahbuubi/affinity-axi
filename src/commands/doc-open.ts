@@ -7,6 +7,7 @@ import { existsSync } from "node:fs";
 import { basename, dirname, resolve } from "node:path";
 import type { CommandModule } from "../cli/router.js";
 import type { Parsed } from "../cli/args.js";
+import { resolveStored } from "../affinity/portable.js";
 import { freshness, readManifest, sha256File, writeManifest } from "../affinity/manifest.js";
 import type { Freshness, Inventory, Manifest } from "../affinity/manifest-types.js";
 import { APP_INFO } from "../affinity/scripts.js";
@@ -83,7 +84,7 @@ function brandLine(m: Manifest | null, manifestDir: string): string | null {
   if (!b) return null;
   let changed = "";
   try {
-    const file = [resolve(manifestDir, b.path), resolve(b.path)].find((f) => existsSync(f));
+    const file = [resolveStored(b.path, manifestDir), resolve(b.path)].find((f) => existsSync(f));
     if (file && sha256File(file) !== b.sha256) changed = " (changed)";
   } catch {
     // unreadable kit: report the recorded name only

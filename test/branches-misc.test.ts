@@ -76,7 +76,7 @@ describe("assets: branch cases", () => {
 
   it("builds without a connect function (the command is offline)", () => {
     expect(assets.spec.name).toBe("assets");
-    expect(assets.spec.flags.map((f) => f.name)).toEqual(["dir"]);
+    expect(assets.spec.flags.map((f) => f.name)).toEqual(["dir", "scrub"]);
   });
 
   it("scans the current directory when --dir is not given", async () => {

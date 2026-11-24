@@ -22,6 +22,9 @@ import type { Inventory } from "../affinity/manifest-types.js";
 import { INSPECT } from "../affinity/inspect-script.js";
 import { freshness, recordSave } from "../affinity/manifest.js";
 import { FORCE_FLAG, checkOverwrite } from "../affinity/overwrite.js";
+import { briefFlags, briefLine, isBrief } from "./brief.js";
+import { runClose } from "./doc-close.js";
+import { markOwned } from "../affinity/owned.js";
 import { requireUnderDesktop, requireVisible, shown, userPath } from "../affinity/paths.js";
 
 export const BIN = "affinity-axi";
@@ -144,6 +147,7 @@ function makeNew(connect: ConnectFn): CommandModule {
         { name: "units", type: "string", default: "px", values: ["px", "mm", "pt"], description: "size units" },
         { name: "dpi", type: "string", description: "resolution (default 72 for px, 300 for mm/pt)" },
         { name: "transparent", type: "boolean", description: "transparent background, so PNG exports keep alpha (cut-outs, stickers, logos)" },
+        { name: "scratch", type: "boolean", description: "mark the document as scratch: doc close --mine drops it without saving" },
         URL_FLAG,
       ],
       examples: [
@@ -165,6 +169,7 @@ function makeNew(connect: ConnectFn): CommandModule {
       const dpi = positiveFlag(parsed, "dpi", { fallback: units === "px" ? 72 : 300, example: "72" });
 
       const transparent = parsed.flags["transparent"] === true;
+      const scratch = parsed.flags["scratch"] === true;
       const client = await connect({ url: urlFlag(parsed) });
       let info: { uuid: string; title: string; dirty: boolean; units: string; width: number; height: number; dpi: number; transparent: boolean };
       try {
@@ -172,6 +177,7 @@ function makeNew(connect: ConnectFn): CommandModule {
       } finally {
         client.close();
       }
+      markOwned([info.uuid], "doc new", { scratch });
       const uuid8 = info.uuid.slice(0, 8);
       print(
         [
@@ -181,12 +187,14 @@ function makeNew(connect: ConnectFn): CommandModule {
             ["units", info.units],
             ["dirty", info.dirty],
             ["transparent", info.transparent === true],
+            ...(scratch ? ([["scratch", true]] as Array<[string, unknown]>) : []),
           ]),
           helpBlock([
             `${BIN} run <script.js> --args '{"uuid":"${uuid8}"}'   # draw into it`,
             `${BIN} render ${uuid8}`,
             ...(info.transparent === true ? [`${BIN} export ${uuid8} PNG <path-under-Desktop>.png   # keeps alpha`] : []),
             `${BIN} doc save ${uuid8} <path-under-Desktop>.af   # needed before it can be closed`,
+            ...(scratch ? [`${BIN} doc close ${uuid8} --discard   # scratch: drop it without saving`] : []),
           ]),
         ].join("\n"),
       );
@@ -204,6 +212,7 @@ function makeSave(connect: ConnectFn): CommandModule {
       flags: [
         FORCE_FLAG,
         URL_FLAG,
+        ...briefFlags("print one line (bytes, first 16 hex characters of the sha256, dirty, path); no help lines"),
       ],
       examples: ["affinity-axi doc save 70E876CB ~/Desktop/logo.af", "affinity-axi doc save 70E876CB out/work.af   # relative to the current directory"],
     },
@@ -275,6 +284,13 @@ function makeSave(connect: ConnectFn): CommandModule {
           pairs.push(["manifest", `not updated (${err instanceof Error ? err.message : String(err)})`]);
         }
       }
+      if (isBrief(parsed)) {
+        const lines = [briefLine("saved", { path: savedPath, bytes }, [["dirty", dirty]])];
+        const miss = pairs.find(([k, v]) => k === "manifest" && String(v).startsWith("not updated"));
+        if (miss) lines.push(`manifest: ${String(miss[1])}`);
+        print(lines.join("\n"));
+        return 0;
+      }
       print([emitKV(pairs), helpBlock([`${BIN} doc close ${uuid8}`, `${BIN} export ${uuid8} PNG <path-under-Desktop>`])].join("\n"));
       return 0;
     },
@@ -285,40 +301,25 @@ function makeClose(connect: ConnectFn): CommandModule {
   return {
     spec: {
       name: "doc close",
-      summary: "Close a clean document; refuses unsaved ones (the SDK cannot discard)",
-      args: [DOC_ARG],
-      flags: [URL_FLAG],
-      examples: ["affinity-axi doc close 70E876CB"],
+      summary: "Close a document; unsaved ones only with --discard, and only when affinity-axi created them",
+      args: [{ name: "doc", required: false, description: "session UUID, unique UUID prefix (8+ chars) or 'current'; not with --mine" }],
+      flags: [
+        {
+          name: "discard",
+          type: "boolean",
+          description: "close an unsaved document affinity-axi created without keeping it: it is saved to a throwaway file on the Desktop, closed, and the file is deleted",
+        },
+        {
+          name: "mine",
+          type: "boolean",
+          description: "close every open document affinity-axi created from this folder: clean ones are closed, --scratch ones dropped, other unsaved ones kept unless --discard",
+        },
+        URL_FLAG,
+        ...briefFlags("accepted for loops; the output is already the one closed: line"),
+      ],
+      examples: ["affinity-axi doc close 70E876CB", "affinity-axi doc close 70E876CB --discard", "affinity-axi doc close --mine"],
     },
-    async run(parsed: Parsed): Promise<number> {
-      const ref = parsed.positionals[0]!;
-      const client = await connect({ url: urlFlag(parsed) });
-      let uuid: string;
-      try {
-        const doc = await resolveDoc(client, ref);
-        uuid = doc.uuid;
-        const uuid8 = uuid.slice(0, 8);
-        const refuse = (): never => {
-          throw new AxiError(
-            `document ${uuid} (${doc.title}) has unsaved changes; closing it would open a save prompt that hangs Affinity`,
-            `the SDK cannot discard a document: run '${BIN} doc save ${uuid8} <path-under-Desktop>.af' first, then close it`,
-          );
-        };
-        if (doc.dirty) refuse();
-        const out = await runDocScript<{ status: string }>(client, DOC_CLOSE(uuid), "closing the document");
-        if (out.status === "dirty") refuse();
-        if (out.status === "missing") {
-          throw new UsageError(`no open document matches "${ref}"`, `run '${BIN}' to list open documents`);
-        }
-        if (out.status !== "closed") {
-          throw new AxiError(`document ${uuid} is still open after close`, "check Affinity for an open dialog and answer it by hand; do not re-run blindly");
-        }
-      } finally {
-        client.close();
-      }
-      print(emitKV([["closed", uuid]]));
-      return 0;
-    },
+    run: (parsed: Parsed): Promise<number> => runClose(parsed, connect),
   };
 }
 

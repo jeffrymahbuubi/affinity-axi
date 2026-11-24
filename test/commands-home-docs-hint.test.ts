@@ -104,7 +104,7 @@ describe("home", () => {
     expect(r.code).toBe(0);
     expect(r.stdout).toContain("affinity: unreachable");
     expect(r.stdout).toMatch(/^fix: .*Settings > Model Context Protocol > Enable MCP server/m);
-    expect(r.stdout).toContain("help[2]:");
+    expect(r.stdout).toContain("help[3]:");
     expect(parseToon(r.stdout).ok).toBe(true);
   });
 

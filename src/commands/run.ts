@@ -3,16 +3,18 @@
 import { readFileSync } from "node:fs";
 import type { CommandModule } from "../cli/router.js";
 import type { Parsed } from "../cli/args.js";
-import { BRAND_FLAG, injectBrand, loadBrand, resolveBrandRef } from "../affinity/brand.js";
+import { BRAND_FLAG, injectBrand, loadBrand, resolveBrandRef, type BrandKit } from "../affinity/brand.js";
+import { markOwned } from "../affinity/owned.js";
+import { FINISH_FLAGS, discardHelp, finishFailed, finishOk, parseFinish, preCheck, type FinishResult } from "./run-finish.js";
 import { shown } from "../affinity/paths.js";
 import { refusalMessage, refusalSuggestion, scanForAi, scanForBlocking } from "../affinity/guard.js";
 import { withHelpers } from "../affinity/helpers.js";
 import { appendProvenance, extractUuids, sha256 } from "../affinity/provenance.js";
-import { openedDocs, provenanceLabel, runDocHelp, scanMarkers, withGenerativeShim, type Called } from "./run-parts.js";
+import { openedDocs, provenanceLabel, runDocHelp, scanMarkers, tildeHint, withGenerativeShim, type Called } from "./run-parts.js";
 import { appendRun } from "../affinity/runlog.js";
 import type { BrandRef, RunRecord } from "../affinity/manifest-types.js";
 import { classify, resultText } from "../affinity/result.js";
-import { LIST_DOCUMENTS, injectArgs } from "../affinity/scripts.js";
+import { LIST_DOCUMENTS, withRunArgs } from "../affinity/scripts.js";
 import { AxiError, UsageError } from "../output/errors.js";
 import { helpBlock } from "../output/suggest.js";
 import { emitBlock, emitKV, emitList, print } from "../output/toon.js";
@@ -161,7 +163,7 @@ export function make(connect: ConnectFn): CommandModule {
       summary: "Run a script file in Affinity and print its console output",
       args: [{ name: "file", required: true, description: "path to the .js script" }],
       flags: [
-        { name: "args", type: "string", description: "JSON injected as `const ARGS = <json>;` on line 1" },
+        { name: "args", type: "string", description: "JSON injected as `const ARGS = <json>;` on line 1 (without it ARGS is {})" },
         { name: "args-file", type: "string", description: "path to a JSON file injected like --args (read by the CLI)" },
         { name: "timeout", type: "string", default: String(DEFAULT_TIMEOUT_MS), description: "script timeout in milliseconds" },
         { name: "full", type: "boolean", description: "print the whole output instead of 1500 characters" },
@@ -169,6 +171,7 @@ export function make(connect: ConnectFn): CommandModule {
         BRAND_FLAG,
         { name: "allow-generative", type: "boolean", description: "allow this one run to call generative Canva AI APIs (uses AI credits; logs provenance)" },
         { name: "allow-blocking", type: "boolean", description: "run even if the script calls close()/closeAsync() or loads /dialog.js" },
+        ...FINISH_FLAGS,
         { name: "url", type: "string", description: "Affinity MCP URL (AFFINITY_MCP_URL wins; default http://[::1]:6767)" },
       ],
       examples: [
@@ -233,14 +236,17 @@ export function make(connect: ConnectFn): CommandModule {
           throw new UsageError(`args file '${shown(argsFile)}' is not valid JSON`, "the file must hold one JSON value");
         }
       }
-      if (argsJson !== undefined) source = injectArgs(source, argsJson);
+      const finish = parseFinish(parsed, generative);
+      source = withRunArgs(source, argsJson);
       // The kit is validated before any connection and injected on line 1 too, so user line numbers hold.
       let brand: BrandRef | undefined;
+      let brandKit: BrandKit | undefined;
       const brandPath = resolveBrandRef(typeof parsed.flags["brand"] === "string" ? parsed.flags["brand"] : undefined, process.env, process.cwd());
       if (brandPath) {
         const loaded = loadBrand(brandPath);
         source = injectBrand(source, loaded.kit);
         brand = loaded.ref;
+        brandKit = loaded.kit;
       }
       // The call shim confirms the generative API really ran; one line, so user line numbers hold.
       if (generative) source = withGenerativeShim(source);
@@ -268,9 +274,11 @@ export function make(connect: ConnectFn): CommandModule {
         });
       let called: Called = false;
       let opened: DocListing["documents"] = [];
+      let fin: FinishResult | undefined;
       try {
         // Before the call, so a failed run can name the documents it left open.
         const before = await listDocs(client);
+        const desktop = finish ? await preCheck(client, finish, file, before) : "";
         try {
           const result = await client.callTool("execute_script", { script: source }, { timeoutMs });
           outcome = classify(result);
@@ -296,6 +304,17 @@ export function make(connect: ConnectFn): CommandModule {
         }
         opened = openedDocs(before, listing);
         logged(outcome.kind, text, listing);
+        if (finish) {
+          const bk = brand && brandKit ? { kit: brandKit, ref: brand } : undefined;
+          fin =
+            outcome.kind === "ok"
+              ? await finishOk(client, finish, { desktop, text, opened, listing, timeoutMs, brand: bk })
+              : await finishFailed(client, finish, { desktop, opened, listingsRead: before !== null && listing !== null });
+        }
+        if (before) {
+          const gone = new Set(fin?.gone ?? []);
+          markOwned(opened.filter((d) => d.path === "" && !gone.has(d.uuid.toUpperCase())).map((d) => d.uuid), "run");
+        }
       } finally {
         client.close();
       }
@@ -331,10 +350,19 @@ export function make(connect: ConnectFn): CommandModule {
         out.push(block);
       }
 
-      if (outcome.kind !== "ok" && opened.length > 0) {
-        out.push(emitList("leftOpen", opened.map((d) => ({ uuid: d.uuid, title: d.title ?? "", dirty: d.dirty })), ["uuid", "title", "dirty"]));
+      const stillOpen = fin?.remaining ?? opened;
+      if (outcome.kind !== "ok" && stillOpen.length > 0) {
+        out.push(emitList("leftOpen", stillOpen.map((d) => ({ uuid: d.uuid, title: d.title ?? "", dirty: d.dirty })), ["uuid", "title", "dirty"]));
       }
-      helps.push(...runDocHelp(BIN, outcome.kind === "ok", text, opened));
+      if (fin?.helps && outcome.kind === "ok") helps.push(...fin.helps);
+      else {
+        helps.push(...runDocHelp(BIN, outcome.kind === "ok", text, stillOpen));
+        if (outcome.kind !== "ok") {
+          const line = discardHelp(stillOpen);
+          if (line) helps.push(line);
+          if (fin?.helps) helps.push(...fin.helps);
+        }
+      }
 
       if (outcome.kind === "not-allowed") {
         helps.push(
@@ -343,9 +371,12 @@ export function make(connect: ConnectFn): CommandModule {
             : "enable the matching permission in Affinity > Settings, then re-run",
         );
       }
+      const tilde = tildeHint(text, userSource, argsJson);
+      if (tilde) helps.push(tilde);
+      if (fin) out.push(...fin.lines);
       if (helps.length > 0) out.push(helpBlock(helps));
       print(out.join("\n"));
-      return outcome.kind === "ok" ? 0 : 1;
+      return outcome.kind === "ok" && !fin?.failed ? 0 : 1;
     },
   };
 }

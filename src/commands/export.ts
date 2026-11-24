@@ -3,7 +3,8 @@
 // metadata for generative documents. The area, report and manifest helpers
 // live in export-parts.ts.
 
-import { extname } from "node:path";
+import { mkdirSync } from "node:fs";
+import { dirname, extname } from "node:path";
 import type { CommandModule } from "../cli/router.js";
 import type { Parsed } from "../cli/args.js";
 import { NO_ALT_FLAG } from "../affinity/alt-text.js";
@@ -21,13 +22,16 @@ import {
   scaledDim,
   type Attempt,
 } from "../affinity/export-budget.js";
+import { decodePngAlpha, safeCircle, type SafeResult } from "../affinity/png-alpha.js";
 import { pageRows, pagesReport } from "../affinity/export-pages.js";
 import { requireUnderDesktop, requireVisible, shown, userPath } from "../affinity/paths.js";
 import { aiSpecFor, COPYRIGHT_FLAG, creditFor, CREATOR_FLAG, finalizeFile, KEEP_FLAG, tagExports, type MetaOutcome, type MetaSpec } from "../affinity/metadata.js";
 import { APP_INFO, EXPORT, LIST_DOCUMENTS, LIST_PRESETS } from "../affinity/scripts.js";
 import { AxiError, UsageError } from "../output/errors.js";
 import { helpBlock } from "../output/suggest.js";
-import { emitList, print } from "../output/toon.js";
+import { emitKV, emitList, print } from "../output/toon.js";
+import { BASE_FLAG, DENSITIES_FLAG, parseSafeZone, parseSizePlan, probePath, SAFE_ZONE_FLAG, safePairs, sizedTargets, SIZES_FLAG, sizesReport, type SizedTarget } from "./export-sizes.js";
+import { briefFlags, briefLine, briefList, isBrief } from "./brief.js";
 import type { ConnectFn, DocInfo } from "../mcp/types.js";
 import { callJson } from "./run.js";
 import { afterTimeout, altStubs, artboardTargets, BIN, EXPORT_TIMEOUT_MS, parseExportTimeout, planArea, readBytes, recordExports, report, runScript, settleExport, tempNameFor, type Target, type Written } from "./export-parts.js";
@@ -86,28 +90,37 @@ export function makeExport(connect: ConnectFn): CommandModule {
         { name: "height", type: "string", description: "output height in px (width follows the aspect ratio)" },
         { name: "scale", type: "string", description: "output scale factor, e.g. 2 for @2x" },
         { name: "square", type: "string", description: "fit the longer side to <px> keeping the aspect ratio, e.g. 512" },
+        { ...SIZES_FLAG },
+        { ...DENSITIES_FLAG },
+        { ...BASE_FLAG },
         { ...MAX_KB_FLAG },
         { ...MIN_SCALE_FLAG },
+        { ...SAFE_ZONE_FLAG },
         { name: "timeout", type: "string", default: String(EXPORT_TIMEOUT_MS), description: "export timeout in milliseconds; the export goes to a temp file next to the path and is renamed when done; on a timeout the target is untouched" },
         { ...NO_ALT_FLAG },
         BRAND_FLAG,
         CREATOR_FLAG,
         COPYRIGHT_FLAG,
         KEEP_FLAG,
+        ...briefFlags("print one line per written file (bytes, pixel size, first 16 hex characters of its sha256, path); no doc block, attempts, alt or help lines"),
       ],
       examples: [
         "affinity-axi export current PNG ~/Desktop/logo.png",
         "affinity-axi export current PNG ~/Desktop/out/{name}.png --all-artboards",
         "affinity-axi export current PNG ~/Desktop/og@2x.png --artboard og --scale 2",
         'affinity-axi export current "JPEG (High quality)" ~/Desktop/ad.jpg --artboard ad-300x250 --max-kb 150',
+        "affinity-axi export current PNG ~/Desktop/icons/icon-{size}.png --artboard maskable --sizes 192,512",
+        "affinity-axi export current PNG ~/Desktop/res/mipmap-{density}/ic_launcher_{name}.png --all-artboards --densities mdpi,hdpi,xhdpi,xxhdpi,xxxhdpi --base 108",
       ],
     },
     async run(parsed: Parsed): Promise<number> {
       const [ref, preset, rawPath] = parsed.positionals as [string, string, string];
       const template = userPath(rawPath);
-      const probe = template.split("{name}").join("x");
+      const probe = probePath(template).split("{name}").join("x");
       requireVisible(probe, "export path");
       const plan = planArea(parsed, rawPath);
+      const sizes = parseSizePlan(parsed, rawPath);
+      const safe = parseSafeZone(parsed, rawPath, plan.mode === "all");
       const size = parseSizeFlags(parsed);
       const budget = budgetFor(parsed);
       const timeoutMs = parseExportTimeout(parsed);
@@ -158,6 +171,13 @@ export function makeExport(connect: ConnectFn): CommandModule {
         else if (plan.mode === "selection") targets = [{ name: "", path: template, area: { kind: "selection" } }];
         else if (plan.mode === "spread") targets = [{ name: "", path: template, area: { kind: "spread", spread: plan.spread } }];
         else targets = [{ name: "", path: template, area: null }];
+        if (sizes) {
+          targets = sizedTargets(targets, sizes);
+          for (const t of targets) {
+            requireUnderDesktop(app.desktop, t.path, "export path", "write-file");
+            mkdirSync(dirname(t.path), { recursive: true });
+          }
+        }
 
         const plain = plan.mode === "whole" && !size;
         const full: MetaSpec = { ...spec, ai: aiSpecFor(doc.uuid, doc.path) };
@@ -175,17 +195,39 @@ export function makeExport(connect: ConnectFn): CommandModule {
           }
           return settleExport(tmp, path, pageMode, started);
         };
-        for (const t of targets) {
+        const pageError = (files: string[]): UsageError =>
+          new UsageError(
+            `size flags, --sizes, --densities, --safe-zone and --max-kb cannot be used with a multi-page export (Affinity wrote ${files.length} page files: ${files.map((p) => shown(p)).join(", ")})`,
+            "export one page with --spread <n> (0-based), or drop the size flags, --sizes, --densities, --safe-zone and --max-kb",
+          );
+        let areaNat: { width: number; height: number } | null = null;
+        for (const [i, t] of targets.entries()) {
           const what = t.name === "" ? "export failed" : `export of artboard '${t.name}' failed`;
+          if (sizes) {
+            // Per area: export the natural size into its first file, read it, then one export per size.
+            const j = i % sizes.items.length;
+            if (j === 0) {
+              pages = await exportTo((out) => (plain ? EXPORT(doc.uuid, preset, out) : EXPORT_AREA(doc.uuid, preset, out, t.area, null)), t.path, what);
+              if (pages !== null) {
+                pages.forEach(finish);
+                throw pageError(pages);
+              }
+              areaNat = imageSize(readBytes(t.path));
+              if (!areaNat) {
+                throw new AxiError(`cannot read the pixel size of ${shown(t.path)}`, "size lists support PNG, JPEG and WebP presets only");
+              }
+            }
+            const want = targetSize(areaNat!, { square: (t as SizedTarget).px });
+            if (j > 0 || want.width !== areaNat!.width || want.height !== areaNat!.height) {
+              await exportTo((out) => EXPORT_AREA(doc.uuid, preset, out, t.area, want), t.path, what);
+            }
+            finish(t.path);
+            continue;
+          }
           pages = await exportTo((out) => (plain ? EXPORT(doc.uuid, preset, out) : EXPORT_AREA(doc.uuid, preset, out, t.area, null)), t.path, what);
           if (pages !== null) {
             pages.forEach(finish); // clean every page file before anything can fail
-            if (size || budget) {
-              throw new UsageError(
-                `size flags and --max-kb cannot be used with a multi-page export (Affinity wrote ${pages.length} page files: ${pages.map((p) => shown(p)).join(", ")})`,
-                "export one page with --spread <n> (0-based), or drop the size flags and --max-kb",
-              );
-            }
+            if (size || budget) throw pageError(pages);
             break;
           }
           if (!size && !budget) {
@@ -228,12 +270,24 @@ export function makeExport(connect: ConnectFn): CommandModule {
         const tags = tagExports(doc.uuid, pages, spec, pages.map((p) => finished.get(p)!), doc.path);
         const rows = pageRows(pages);
         recordExports(doc, plan, preset, rows, tags.some(([k]) => k === "provenance"));
-        print(pagesReport(doc.uuid, preset, rows, tags));
+        if (isBrief(parsed)) {
+          print(briefList("exports", rows));
+          if (tags.length > 0) print(emitKV(tags));
+        } else print(pagesReport(doc.uuid, preset, rows, tags));
         return 0;
       }
 
       // The files are final (stripped, credited, labelled); the sidecars and the note come next, then measure what is on disk.
       const tags = tagExports(doc.uuid, targets.map((t) => t.path), spec, targets.map((t) => finished.get(t.path)!), doc.path);
+      const provenance = tags.some(([k]) => k === "provenance");
+      let safeResult: SafeResult | null = null;
+      let safePath = "";
+      if (safe) {
+        const checked = sizes ? (targets as SizedTarget[]).reduce((a, b) => (b.px > a.px ? b : a)) : targets[0]!;
+        safePath = checked.path;
+        safeResult = safeCircle(decodePngAlpha(readBytes(safePath)), safe.fraction);
+        tags.push(...safePairs(safePath, safe.label, safeResult));
+      }
       const written: Written[] = targets.map((t, i) => {
         const buf = readBytes(t.path);
         const dim = imageSize(buf);
@@ -245,13 +299,23 @@ export function makeExport(connect: ConnectFn): CommandModule {
         return w;
       });
 
-      recordExports(doc, plan, preset, written, tags.some(([k]) => k === "provenance"));
-      print(report(doc.uuid, plan, preset, written, tags, budget?.kb ?? null, wantAlt));
+      recordExports(doc, plan, preset, written, provenance);
+      if (isBrief(parsed)) {
+        print(plan.mode === "all" || sizes ? briefList("exports", written) : briefLine("export", written[0]!));
+        if (tags.length > 0) print(emitKV(tags));
+      } else if (sizes) print(sizesReport(doc.uuid, plan, preset, sizes, written as Array<Written & { px: number; density?: string }>, tags, wantAlt));
+      else print(report(doc.uuid, plan, preset, written, tags, budget?.kb ?? null, wantAlt));
       const misses = written.filter((w) => w.fit === false);
       if (budget && misses.length > 0) {
         const m = misses[0]!;
         const more = misses.length > 1 ? ` (and ${misses.length - 1} more)` : "";
         throw new AxiError(`${noFitMessage(m.path, budget.kb, m.attempts![m.attempts!.length - 1]!)}${more}`, NO_FIT_SUGGESTION);
+      }
+      if (safe && safeResult && !safeResult.ok) {
+        throw new AxiError(
+          `safe zone: painted pixels reach ${safeResult.farthest.toFixed(1)} px from the centre of ${shown(safePath)}, ${(safeResult.farthest - safeResult.limit).toFixed(1)} px outside the ${safe.label} circle (limit ${safeResult.limit.toFixed(1)} px)`,
+          "move or shrink the artwork, or delete guide overlays (axiSafeZoneClear), then export again",
+        );
       }
       return 0;
     },
