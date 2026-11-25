@@ -1,6 +1,6 @@
 // portable: stored path forms, their decode, the state folder and the home scrub.
 
-import { mkdirSync, mkdtempSync, realpathSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -142,5 +142,51 @@ describe("scrubHome", () => {
   it("a one-character home scrubs nothing", () => {
     expect(scrubHome("/a/b", "/")).toBe("/a/b");
     expect(scrubHome({ k: "xx/y" }, "x")).toEqual({ k: "xx/y" });
+  });
+});
+
+describe("storedPath round trip through a symlinked folder", () => {
+  function link(target: string, at: string): boolean {
+    try {
+      symlinkSync(target, at, process.platform === "win32" ? "junction" : "dir");
+      return true;
+    } catch (e) {
+      if ((e as NodeJS.ErrnoException).code === "EPERM") return false;
+      throw e;
+    }
+  }
+
+  it("a base folder reached through a link decodes back to the same path", () => {
+    const real = join(root, "real");
+    mkdirSync(join(real, "proj"), { recursive: true });
+    mkdirSync(join(root, "out"));
+    if (!link(real, join(root, "lnk"))) return;
+    const base = join(root, "lnk", "proj");
+    const target = join(root, "out", "photo.af");
+    expect(resolveStored(storedPath(target, base, home), base, home)).toBe(target);
+    const inside = join(base, "sub", "photo.af");
+    expect(resolveStored(storedPath(inside, base, home), base, home)).toBe(inside);
+  });
+
+  it("a target reached through a link decodes back to the same path", () => {
+    const real = join(root, "real");
+    mkdirSync(real);
+    mkdirSync(join(root, "base"));
+    if (!link(real, join(root, "lnk"))) return;
+    const base = join(root, "base");
+    const target = join(root, "lnk", "photo.af");
+    expect(resolveStored(storedPath(target, base, home), base, home)).toBe(target);
+  });
+
+  it("a lexical ../ that would spell the home folder is stored as ~/ instead", () => {
+    // home is a real folder; the base is under home only through a link that lives outside home
+    const h = join(root, "h");
+    mkdirSync(join(h, "proj"), { recursive: true });
+    if (!link(join(h, "proj"), join(root, "lnk"))) return;
+    const base = join(root, "lnk");
+    const target = join(h, "x", "photo.af");
+    const stored = storedPath(target, base, h);
+    expect(stored).toBe("~/x/photo.af");
+    expect(resolveStored(stored, base, h)).toBe(target);
   });
 });

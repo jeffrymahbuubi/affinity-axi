@@ -37,8 +37,14 @@ function absoluteAnyOs(p: string): boolean {
 function below(dir: string, abs: string): string | null {
   const rel = relative(realish(dir), realish(abs));
   if (rel === "") return "";
-  if (isAbsolute(rel) || rel === ".." || rel.startsWith("../") || rel.startsWith("..\\")) return null;
-  return rel;
+  if (escapes(rel)) return null;
+  // Prefer the lexical form when it stays inside: resolveStored decodes lexically, so it round-trips.
+  const lex = relative(dir, abs);
+  return lex !== "" && !escapes(lex) ? lex : rel;
+}
+
+function escapes(rel: string): boolean {
+  return isAbsolute(rel) || rel === ".." || rel.startsWith("../") || rel.startsWith("..\\");
 }
 
 /** How a target is written into a file that lives in baseDir: relative, "~/", or absolute, always with "/". */
@@ -49,9 +55,13 @@ export function storedPath(target: string, baseDir: string, home: string = homed
   const abs = resolve(baseDir, expandTilde(target, home));
   const inBase = below(baseDir, abs);
   if (inBase !== null) return inBase === "" ? "." : toPosix(inBase);
-  const rel = relative(realish(baseDir), realish(abs));
+  // Lexical: the exact inverse of resolveStored (realish would encode a symlinked folder by its target).
+  const rel = relative(baseDir, abs);
   const absHome = below(home, abs);
-  if (!isAbsolute(rel) && (below(home, baseDir) !== null) === (absHome !== null)) return toPosix(rel);
+  // A lexical "../" between a folder outside home and one inside it would spell the home folder (the user
+  // name), e.g. through a symlink; so the written forms must also be on the same side of home.
+  const lexSame = !escapes(relative(home, baseDir)) === !escapes(relative(home, abs));
+  if (!isAbsolute(rel) && lexSame && (below(home, baseDir) !== null) === (absHome !== null)) return toPosix(rel);
   if (absHome !== null) return absHome === "" ? "~" : "~/" + toPosix(absHome);
   if (absoluteAnyOs(target)) return DRIVE.test(target) ? target.replace(/\\/g, "/") : toPosix(target);
   return toPosix(abs);
